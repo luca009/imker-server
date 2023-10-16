@@ -1,31 +1,34 @@
 package com.luca009.imker.imkerserver
 
 import com.luca009.imker.imkerserver.filemanager.AromeFileNameManagerImpl
+import com.luca009.imker.imkerserver.filemanager.BestFileSearchServiceImpl
 import com.luca009.imker.imkerserver.filemanager.IncaFileNameManagerImpl
-import com.luca009.imker.imkerserver.filemanager.LocalFileManagerServiceImpl
 import com.luca009.imker.imkerserver.filemanager.model.AromeFileNameManager
+import com.luca009.imker.imkerserver.filemanager.model.BestFileSearchService
 import com.luca009.imker.imkerserver.filemanager.model.IncaFileNameManager
 import com.luca009.imker.imkerserver.filemanager.model.LocalFileManagerService
+import com.luca009.imker.imkerserver.parser.NetCdfParserImpl
+import com.luca009.imker.imkerserver.parser.model.NetCdfParser
 import com.luca009.imker.imkerserver.receiver.model.DownloadResult
 import com.luca009.imker.imkerserver.receiver.ftp.FtpClientImpl
 import com.luca009.imker.imkerserver.receiver.inca.IncaReceiverImpl
 import com.luca009.imker.imkerserver.receiver.model.FtpClient
 import com.luca009.imker.imkerserver.receiver.model.IncaReceiver
 import org.apache.commons.net.ftp.FTPFile
-import org.apache.commons.net.ftp.FTPFileEntryParser
 import org.junit.jupiter.api.BeforeAll
-import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.mockito.InjectMocks
-import org.mockito.Mock
 import org.mockito.Mockito.*
-import org.mockito.MockitoAnnotations
 import org.mockito.kotlin.whenever
 import org.mockito.stubbing.Answer
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.util.Assert
-import java.io.BufferedReader
+import ucar.nc2.constants.FeatureType
+import ucar.nc2.dt.grid.GridDataset
+import ucar.nc2.ft.FeatureDatasetFactoryManager
+import ucar.nc2.util.CancelTask
+import java.io.File
 import java.nio.file.Path
 import java.time.ZoneOffset
 import java.time.ZonedDateTime
@@ -42,6 +45,11 @@ class ImkerServerApplicationTests {
         MockFTPFile(true, "nowcast_202309100915.nc"),
         MockFTPFile(true, "nowcast_202309181700.nc")
     )
+    private final val MOCK_AROME_FILES = arrayOf(
+        MockFTPFile(true, "nwp_2023091006.nc"),
+        MockFTPFile(true, "nwp_2023093021.nc"),
+        MockFTPFile(true, "nwp_2023100103.nc")
+    )
 
     @InjectMocks
     val ftpClient: FtpClient = FtpClientImpl()
@@ -49,13 +57,17 @@ class ImkerServerApplicationTests {
     val incaFileNameManager: IncaFileNameManager = IncaFileNameManagerImpl()
     @InjectMocks
     val aromeFileNameManager: AromeFileNameManager = AromeFileNameManagerImpl()
+    @InjectMocks
+    val bestFileSearchService: BestFileSearchService = BestFileSearchServiceImpl()
+    @InjectMocks
+    val netCdfParser: NetCdfParser = NetCdfParserImpl()
 
     val mockFtpClient: FtpClient = org.mockito.kotlin.mock()
     val mockLocalFileManagerService: LocalFileManagerService = org.mockito.kotlin.mock()
 
     @BeforeAll
     fun setupMockLocalFileManager() {
-        whenever(mockLocalFileManagerService.getWeatherDataLocation(anyString())).thenAnswer(Answer() {
+        whenever(mockLocalFileManagerService.getWeatherDataLocation(anyString())).thenAnswer(Answer {
             val subPath = it.arguments[0].toString()
             return@Answer Path(EXECUTABLE_PATH, TEST_DATA_SUB_PATH, subPath)
         })
@@ -66,6 +78,7 @@ class ImkerServerApplicationTests {
         whenever(mockFtpClient.connect(anyString(), anyString(), anyString())).thenReturn(true)
         whenever(mockFtpClient.isConnected()).thenReturn(true)
         whenever(mockFtpClient.listFiles(IncaFtpServerConstants.SUB_FOLDER)).thenReturn(MOCK_INCA_FILES)
+        whenever(mockFtpClient.listFiles(AromeFtpServerConstants.SUB_FOLDER)).thenReturn(MOCK_AROME_FILES)
         whenever(mockFtpClient.downloadFile(org.mockito.kotlin.any(), org.mockito.kotlin.any(), org.mockito.kotlin.anyOrNull())).thenAnswer {
             val path = it.arguments[1]!! as Path
             var fileName = it.arguments[2]?.toString()
@@ -132,7 +145,7 @@ class ImkerServerApplicationTests {
 
     @Test
     fun specificIncaFileDownloads() {
-        val incaReceiver: IncaReceiver = IncaReceiverImpl(mockLocalFileManagerService, incaFileNameManager, mockFtpClient)
+        val incaReceiver: IncaReceiver = IncaReceiverImpl(mockLocalFileManagerService, incaFileNameManager, bestFileSearchService, mockFtpClient)
 
         // 2020-10-14 at 16:43:10 CEST
         val failingDateTime = ZonedDateTime.of(2020, 10, 14, 16, 43, 10, 0, ZoneOffset.ofHours(2))
@@ -151,7 +164,7 @@ class ImkerServerApplicationTests {
 
     @Test
     fun latestIncaFileDownloads() {
-        val incaReceiver: IncaReceiver = IncaReceiverImpl(mockLocalFileManagerService, incaFileNameManager, mockFtpClient)
+        val incaReceiver: IncaReceiver = IncaReceiverImpl(mockLocalFileManagerService, incaFileNameManager, bestFileSearchService, mockFtpClient)
 
         val result = incaReceiver.downloadData(ZonedDateTime.now(), null)
         Assert.isTrue(result.successful

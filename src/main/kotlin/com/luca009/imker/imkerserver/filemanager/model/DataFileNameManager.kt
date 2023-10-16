@@ -5,20 +5,14 @@ import org.springframework.context.annotation.Configuration
 import java.time.LocalDateTime
 import java.time.ZonedDateTime
 
-@Configuration
 interface DataFileNameManager {
-    @Bean
-    public fun getFileNameForDateTime(dateTime: ZonedDateTime): String
+    fun getFileNameForDateTime(dateTime: ZonedDateTime): String
 
-    @Bean
-    public fun getDateTimeForFileName(fileName: String): ZonedDateTime?
+    fun getDateTimeForFileName(fileName: String): ZonedDateTime?
 
-    @Bean
-    public fun roundDownToNearestValidDateTime(dateTime: ZonedDateTime): ZonedDateTime
+    fun roundDownToNearestValidDateTime(dateTime: ZonedDateTime): ZonedDateTime
 }
 
-@Configuration
 interface IncaFileNameManager : DataFileNameManager
 
-@Configuration
 interface AromeFileNameManager : DataFileNameManager
