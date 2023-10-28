@@ -28,7 +28,6 @@ import ucar.nc2.constants.FeatureType
 import ucar.nc2.dt.grid.GridDataset
 import ucar.nc2.ft.FeatureDatasetFactoryManager
 import ucar.nc2.util.CancelTask
-import java.io.File
 import java.nio.file.Path
 import java.time.ZoneOffset
 import java.time.ZonedDateTime
@@ -170,6 +169,67 @@ class ImkerServerApplicationTests {
         Assert.isTrue(result.successful
                 && result.fileLocation == Path(EXECUTABLE_PATH, TEST_DATA_SUB_PATH, IncaFileNameConstants.FOLDER_NAME, MOCK_INCA_FILES[2].name),
             "Download did not succeed for file that should exist.")
+    }
+
+//    @Test
+//    fun specificAromeFileDownloads() {
+//        val incaReceiver: AromeReceiver = IncaReceiverImpl(mockLocalFileManagerService, incaFileNameManager, mockFtpClient)
+//
+//        // 2020-10-14 at 16:43:10 CEST
+//        val failingDateTime = ZonedDateTime.of(2020, 10, 14, 16, 43, 10, 0, ZoneOffset.ofHours(2))
+//
+//        val failingResult = incaReceiver.downloadData(failingDateTime, null)
+//        Assert.isTrue(!failingResult.successful, "Download succeeded for file that does not exist.")
+//
+//        // 2023-09-10 at 12:05:10 CEST
+//        val succeedingDateTime = ZonedDateTime.of(2023, 9, 10, 12, 5, 10, 0, ZoneOffset.ofHours(2))
+//
+//        val succeedingResult = incaReceiver.downloadData(succeedingDateTime, null)
+//        Assert.isTrue(succeedingResult.successful
+//                && succeedingResult.fileLocation == Path(EXECUTABLE_PATH, TEST_DATA_SUB_PATH, IncaFileNameConstants.FOLDER_NAME, MOCK_INCA_FILES[1].name),
+//            "Download did not succeed for file that should exist.")
+//    }
+//
+//    @Test
+//    fun latestAromeFileDownloads() {
+//        val incaReceiver: IncaReceiver = IncaReceiverImpl(mockLocalFileManagerService, incaFileNameManager, mockFtpClient)
+//
+//        val result = incaReceiver.downloadData(ZonedDateTime.now(), null)
+//        Assert.isTrue(result.successful
+//                && result.fileLocation == Path(EXECUTABLE_PATH, TEST_DATA_SUB_PATH, IncaFileNameConstants.FOLDER_NAME, MOCK_INCA_FILES[2].name),
+//            "Download did not succeed for file that should exist.")
+//    }
+
+    @Test
+    fun netCdfParserWorks() {
+        //val file = netCdfParser.openLocalFile(Path(EXECUTABLE_PATH, TEST_DATA_SUB_PATH, "test_nowcast.nc").toFile())
+        //val file = netCdfParser.openLocalFile(Path("C:\\Users\\reall\\Sync\\IntelliJ Projects\\imker-server\\build\\classes\\kotlin\\test\\TestData\\test_nowcast.nc").toFile())
+        val file = netCdfParser.openLocalFile(Path("E:\\Data\\Misc\\INCA\\nowcast_202309091400.nc").toFile())
+        requireNotNull(file)
+
+        val temperature = file.findVariable("TT")
+        val wrappedRawDataset = FeatureDatasetFactoryManager.wrap(FeatureType.GRID, file, CancelTask.create(), null)
+        val wrappedDataset = wrappedRawDataset as GridDataset
+        val temperatureGrid = wrappedDataset.grids.find { it.name == "TT" }
+        val latGrid = wrappedDataset.grids.find { it.name == "lat" }
+        val latVolumeRaw = latGrid?.readVolumeData(0)?.copyToNDJavaArray()
+        val latVolumeArray = latVolumeRaw as Array<FloatArray>
+        val latSlice = latGrid?.readDataSlice(0, 0, 50, 50)
+        val lonGrid = wrappedDataset.grids.find { it.name == "lon" }
+        val lonSlice = lonGrid?.readDataSlice(0, 0, 50, 50)
+        val temperatureSlice = temperatureGrid?.readDataSlice(0, 0, 50, 50)
+
+        requireNotNull(temperatureGrid)
+
+        val viennaPoint = temperatureGrid.coordinateSystem?.xHorizAxis
+        requireNotNull(viennaPoint)
+
+        //TODO: figure out why the projection is not working
+
+        val indices = temperatureGrid.coordinateSystem?.findXYindexFromLatLon(0.0, 0.0, null)
+        requireNotNull(indices)
+
+        val slice = temperatureGrid.readDataSlice(0, 0, indices[1], indices[0])
     }
 }
 
