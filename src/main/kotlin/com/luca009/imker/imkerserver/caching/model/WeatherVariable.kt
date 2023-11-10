@@ -1,0 +1,30 @@
+package com.luca009.imker.imkerserver.caching.model
+
+enum class WeatherVariable {
+    ConvectiveAvailablePotentialEnergy,
+    ConvectiveInhibition,
+    GlobalRadiation,
+    LowCloudCoverage,
+    MediumCloudCoverage,
+    HighCloudCoverage,
+    TotalCloudCoverage,
+    Temperature2m,
+    Minimum2mTemperature,
+    Maximum2mTemperature,
+    NetLongWaveRadiationFlux,
+    NetShortWaveRadiationFlux,
+    RainfallAmount,
+    RelativeHumidity2m,
+    ShowalterIndex,
+    SnowfallAmount,
+    Pressure,
+    SnowAmount,
+    ThermalRadiation,
+    SunshineDuration,
+    PrecipitationAmount,
+    WindSpeedU10m,
+    WindSpeedV10m,
+    GustSpeedU10m,
+    GustSpeedV10m,
+    SurfaceGeopotential
+}
