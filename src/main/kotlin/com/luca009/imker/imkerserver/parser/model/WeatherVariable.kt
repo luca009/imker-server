@@ -1,6 +1,22 @@
-package com.luca009.imker.imkerserver.caching.model
+package com.luca009.imker.imkerserver.parser.model
 
-enum class WeatherVariable {
+data class RawWeatherVariable(
+    val unitType: String,
+    val name: String,
+    val longName: String?,
+    val dimensions: Int,
+    val type: String?
+)
+
+data class WeatherVariable(
+    val variableType: WeatherVariableType,
+    val unitType: WeatherVariableUnit,
+    val name: String,
+    val longName: String?,
+    val dimensions: Int
+)
+
+enum class WeatherVariableType {
     ConvectiveAvailablePotentialEnergy,
     ConvectiveInhibition,
     GlobalRadiation,
@@ -27,4 +43,12 @@ enum class WeatherVariable {
     GustSpeedU10m,
     GustSpeedV10m,
     SurfaceGeopotential
+}
+
+enum class WeatherVariableUnit {
+    Degree,
+    DegreeCelsius,
+    Percent,
+    MetersPerSecond,
+    KilogramPerSquareMeter
 }

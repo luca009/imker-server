@@ -1,5 +1,15 @@
 package com.luca009.imker.imkerserver
 
+import com.luca009.imker.imkerserver.caching.WeatherRasterCacheHelper
+import com.luca009.imker.imkerserver.caching.WeatherRasterCompositeCacheImpl
+import com.luca009.imker.imkerserver.caching.WeatherRasterDiskCacheImpl
+import com.luca009.imker.imkerserver.caching.WeatherRasterMemoryCacheImpl
+import com.luca009.imker.imkerserver.caching.model.WeatherRasterCompositeCache
+import com.luca009.imker.imkerserver.caching.model.WeatherRasterCompositeCacheConfiguration
+import com.luca009.imker.imkerserver.caching.model.WeatherRasterDiskCache
+import com.luca009.imker.imkerserver.caching.model.WeatherRasterMemoryCache
+import com.luca009.imker.imkerserver.configuration.WeatherVariableFileNameMapperImpl
+import com.luca009.imker.imkerserver.configuration.model.WeatherVariableFileNameMapper
 import com.luca009.imker.imkerserver.filemanager.AromeFileNameManagerImpl
 import com.luca009.imker.imkerserver.filemanager.BestFileSearchServiceImpl
 import com.luca009.imker.imkerserver.filemanager.IncaFileNameManagerImpl
@@ -9,6 +19,7 @@ import com.luca009.imker.imkerserver.filemanager.model.IncaFileNameManager
 import com.luca009.imker.imkerserver.filemanager.model.LocalFileManagerService
 import com.luca009.imker.imkerserver.parser.NetCdfParserImpl
 import com.luca009.imker.imkerserver.parser.model.NetCdfParser
+import com.luca009.imker.imkerserver.parser.model.WeatherVariableType
 import com.luca009.imker.imkerserver.receiver.model.DownloadResult
 import com.luca009.imker.imkerserver.receiver.ftp.FtpClientImpl
 import com.luca009.imker.imkerserver.receiver.inca.IncaReceiverImpl
@@ -18,16 +29,12 @@ import org.apache.commons.net.ftp.FTPFile
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import org.mockito.InjectMocks
 import org.mockito.Mockito.*
 import org.mockito.kotlin.whenever
 import org.mockito.stubbing.Answer
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.util.Assert
-import ucar.nc2.constants.FeatureType
-import ucar.nc2.dt.grid.GridDataset
-import ucar.nc2.ft.FeatureDatasetFactoryManager
-import ucar.nc2.util.CancelTask
+import java.io.File
 import java.nio.file.Path
 import java.time.ZoneOffset
 import java.time.ZonedDateTime
@@ -39,6 +46,8 @@ class ImkerServerApplicationTests {
     private final val ZAMG_FTP_SERVER = "eaftp.zamg.ac.at"
     private final val EXECUTABLE_PATH = this::class.java.protectionDomain.codeSource.location.path.substring(1)
     private final val TEST_DATA_SUB_PATH = "TestData"
+    private final val TEST_NETCDF_FILE_PATH = ""
+    private final val TEST_MAPPER_CONFIG_FILE_PATH = ""
     private final val MOCK_INCA_FILES = arrayOf(
         MockFTPFile(true, "nowcast_202309091330.nc"),
         MockFTPFile(true, "nowcast_202309100915.nc"),
@@ -49,17 +58,31 @@ class ImkerServerApplicationTests {
         MockFTPFile(true, "nwp_2023093021.nc"),
         MockFTPFile(true, "nwp_2023100103.nc")
     )
+    private final val COMPOSITE_CACHE_CONFIG = WeatherRasterCompositeCacheConfiguration(
+        arrayOf(WeatherVariableType.Temperature2m),
+        arrayOf()
+    )
 
-    @InjectMocks
     val ftpClient: FtpClient = FtpClientImpl()
-    @InjectMocks
     val incaFileNameManager: IncaFileNameManager = IncaFileNameManagerImpl()
-    @InjectMocks
     val aromeFileNameManager: AromeFileNameManager = AromeFileNameManagerImpl()
-    @InjectMocks
     val bestFileSearchService: BestFileSearchService = BestFileSearchServiceImpl()
-    @InjectMocks
-    val netCdfParser: NetCdfParser = NetCdfParserImpl()
+    val netCdfParser: NetCdfParser = NetCdfParserImpl(TEST_NETCDF_FILE_PATH)
+    val variableMapper: WeatherVariableFileNameMapper = WeatherVariableFileNameMapperImpl(File(TEST_MAPPER_CONFIG_FILE_PATH))
+    val weatherRasterMemoryCache: WeatherRasterMemoryCache = WeatherRasterMemoryCacheImpl()
+    val weatherRasterDiskCache: WeatherRasterDiskCache = WeatherRasterDiskCacheImpl(
+        netCdfParser,
+        variableMapper,
+        WeatherRasterCacheHelper()
+    )
+    val weatherRasterCompositeCache: WeatherRasterCompositeCache = WeatherRasterCompositeCacheImpl(
+        COMPOSITE_CACHE_CONFIG,
+        netCdfParser,
+        variableMapper,
+        weatherRasterMemoryCache,
+        weatherRasterDiskCache,
+        WeatherRasterCacheHelper()
+    )
 
     val mockFtpClient: FtpClient = org.mockito.kotlin.mock()
     val mockLocalFileManagerService: LocalFileManagerService = org.mockito.kotlin.mock()
@@ -202,34 +225,32 @@ class ImkerServerApplicationTests {
 
     @Test
     fun netCdfParserWorks() {
-        //val file = netCdfParser.openLocalFile(Path(EXECUTABLE_PATH, TEST_DATA_SUB_PATH, "test_nowcast.nc").toFile())
-        //val file = netCdfParser.openLocalFile(Path("C:\\Users\\reall\\Sync\\IntelliJ Projects\\imker-server\\build\\classes\\kotlin\\test\\TestData\\test_nowcast.nc").toFile())
-        val file = netCdfParser.openLocalFile(Path("E:\\Data\\Misc\\INCA\\nowcast_202309091400.nc").toFile())
-        requireNotNull(file)
+        val rawVariables = netCdfParser.getAvailableRawVariables()
+        Assert.isTrue(rawVariables.count() == 14, "Variable count in NetCDF file was not correct")
 
-        val temperature = file.findVariable("TT")
-        val wrappedRawDataset = FeatureDatasetFactoryManager.wrap(FeatureType.GRID, file, CancelTask.create(), null)
-        val wrappedDataset = wrappedRawDataset as GridDataset
-        val temperatureGrid = wrappedDataset.grids.find { it.name == "TT" }
-        val latGrid = wrappedDataset.grids.find { it.name == "lat" }
-        val latVolumeRaw = latGrid?.readVolumeData(0)?.copyToNDJavaArray()
-        val latVolumeArray = latVolumeRaw as Array<FloatArray>
-        val latSlice = latGrid?.readDataSlice(0, 0, 50, 50)
-        val lonGrid = wrappedDataset.grids.find { it.name == "lon" }
-        val lonSlice = lonGrid?.readDataSlice(0, 0, 50, 50)
-        val temperatureSlice = temperatureGrid?.readDataSlice(0, 0, 50, 50)
+        val temperatureVariable = netCdfParser.getRawVariable("TT")
+        Assert.notNull(temperatureVariable, "Temperature variable was null")
 
-        requireNotNull(temperatureGrid)
+        val temperatureSlice = netCdfParser.getGridTimeSlice("TT", 0)
+        Assert.isTrue(temperatureSlice?.isArrayOf<DoubleArray>() == true, "Temperature slice was not a 2d double array")
 
-        val viennaPoint = temperatureGrid.coordinateSystem?.xHorizAxis
-        requireNotNull(viennaPoint)
+        val temperaturePoint = netCdfParser.getGridTimeAndPositionSlice("TT", 0, 0, 0, 0)
+        Assert.isTrue(temperaturePoint is Double, "Temperature point was not a double")
+    }
 
-        //TODO: figure out why the projection is not working
+    @Test
+    fun compositeWeatherDataCacheWorks() {
+        val temperatureVariableExistsInCompositeCache = weatherRasterCompositeCache.variableExists(WeatherVariableType.Temperature2m)
+        Assert.isTrue(temperatureVariableExistsInCompositeCache, "Temperature variable was not in the composite cache despite being configured to be so")
 
-        val indices = temperatureGrid.coordinateSystem?.findXYindexFromLatLon(0.0, 0.0, null)
-        requireNotNull(indices)
+        val temperatureVariableExistsInMemoryCache = weatherRasterMemoryCache.variableExists(WeatherVariableType.Temperature2m)
+        Assert.isTrue(temperatureVariableExistsInMemoryCache, "Temperature variable was not in the memory cache despite being configured to be so")
 
-        val slice = temperatureGrid.readDataSlice(0, 0, indices[1], indices[0])
+        val windUSpeedVariableExistsInMemoryCache = weatherRasterMemoryCache.variableExists(WeatherVariableType.WindSpeedU10m)
+        Assert.isTrue(!windUSpeedVariableExistsInMemoryCache, "Wind U variable was in the memory cache despite being configured not to be so")
+
+        val windUSpeedVariableExistsInCompositeCache = weatherRasterCompositeCache.variableExists(WeatherVariableType.WindSpeedU10m)
+        Assert.isTrue(windUSpeedVariableExistsInCompositeCache, "Wind U variable was not in the composite cache despite being configured to be so")
     }
 }
 

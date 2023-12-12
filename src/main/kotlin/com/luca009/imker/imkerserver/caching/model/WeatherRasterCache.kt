@@ -1,30 +1,30 @@
  package com.luca009.imker.imkerserver.caching.model
 
-import ucar.nc2.dataset.NetcdfDataset
+ import com.luca009.imker.imkerserver.parser.model.WeatherVariableType
 
-/**
+ /**
  * A cache for weather raster data. Supports getting weather variables.
  */
 interface WeatherRasterCache {
-    fun variableExists(weatherVariable: WeatherVariable): Boolean
-    fun variableExistsAtTime(weatherVariable: WeatherVariable, timeIndex: Int): Boolean
-    fun variableExistsAtTimeAndPosition(weatherVariable: WeatherVariable, timeIndex: Int, xIndex: Int, yIndex: Int): Boolean
+    fun variableExists(weatherVariableType: WeatherVariableType): Boolean
+    fun variableExistsAtTime(weatherVariableType: WeatherVariableType, timeIndex: Int): Boolean
+    fun variableExistsAtTimeAndPosition(weatherVariableType: WeatherVariableType, timeIndex: Int, xIndex: Int, yIndex: Int): Boolean
 
-    fun getVariable(weatherVariable: WeatherVariable): WeatherVariableSlice?
-    fun getVariableAtTime(weatherVariable: WeatherVariable, timeIndex: Int): WeatherVariable2dRasterSlice?
-    fun getVariableAtTimeAndPosition(weatherVariable: WeatherVariable, timeIndex: Int, xIndex: Int, yIndex: Int): Float?
+    fun getVariable(weatherVariableType: WeatherVariableType): WeatherVariableSlice?
+    fun getVariableAtTime(weatherVariableType: WeatherVariableType, timeIndex: Int): WeatherVariable2dRasterSlice?
+    fun getVariableAtTimeAndPosition(weatherVariableType: WeatherVariableType, timeIndex: Int, xIndex: Int, yIndex: Int): Float?
 }
 
 /**
  * A cache for weather raster data in memory. Supports getting and setting weather variables.
  */
 interface WeatherRasterMemoryCache : WeatherRasterCache {
-    fun setVariable(weatherVariable: WeatherVariable, variableData: WeatherVariableSlice)
-    fun setVariableAtTime(weatherVariable: WeatherVariable, variable2dData: WeatherVariable2dRasterSlice, timeIndex: Int)
+    fun setVariable(weatherVariableType: WeatherVariableType, variableData: WeatherVariableSlice)
+    fun setVariableAtTime(weatherVariableType: WeatherVariableType, variable2dData: WeatherVariable2dRasterSlice, timeIndex: Int)
 }
 
 /**
- * A cache for weather raster data from a NetCDF file. Supports getting weather variables.
+ * A cache for weather raster data from disk. Supports getting weather variables.
  */
 interface WeatherRasterDiskCache : WeatherRasterCache
 
