@@ -2,6 +2,8 @@ package com.luca009.imker.imkerserver.parser
 
 import com.luca009.imker.imkerserver.parser.model.NetCdfParser
 import com.luca009.imker.imkerserver.parser.model.RawWeatherVariable
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import ucar.nc2.constants.FeatureType
 import ucar.nc2.dataset.NetcdfDataset
 import ucar.nc2.dataset.NetcdfDatasets
@@ -18,6 +20,7 @@ class NetCdfParserImpl(
     private val dataset: NetcdfDataset
     private val wrappedDataset: FeatureDataset
     private val wrappedGridDataset: GridDataset?
+    private val logger: Logger = LoggerFactory.getLogger(this::class.java)
 
     init {
         dataset = openDataset(netCdfFilePath)
@@ -103,7 +106,26 @@ class NetCdfParserImpl(
         return timeIndex < weatherVariable.timeDimension.length
     }
 
-    override fun gridTimeAndPositionSliceExists(
+    override fun gridTimeAnd2dPositionSliceExists(
+        name: String,
+        timeIndex: Int,
+        xIndex: Int,
+        yIndex: Int
+    ): Boolean {
+        val weatherVariable = wrappedGridDataset?.grids?.find { it.name == name }
+        requireNotNull(weatherVariable) { return false }
+
+        return try {
+            timeIndex < weatherVariable.timeDimension.length &&
+                    xIndex < weatherVariable.xDimension.length &&
+                    yIndex < weatherVariable.yDimension.length
+        } catch (e: Exception) {
+            logger.error("Could not determine if 2d position slice exists, defaulting to false. ${e.message}")
+            false
+        }
+    }
+
+    override fun gridTimeAnd3dPositionSliceExists(
         name: String,
         timeIndex: Int,
         xIndex: Int,
@@ -113,9 +135,14 @@ class NetCdfParserImpl(
         val weatherVariable = wrappedGridDataset?.grids?.find { it.name == name }
         requireNotNull(weatherVariable) { return false }
 
-        return timeIndex < weatherVariable.timeDimension.length &&
-                xIndex < weatherVariable.xDimension.length &&
-                yIndex < weatherVariable.yDimension.length &&
-                zIndex < weatherVariable.zDimension.length
+        return try {
+            timeIndex < weatherVariable.timeDimension.length &&
+                    xIndex < weatherVariable.xDimension.length &&
+                    yIndex < weatherVariable.yDimension.length &&
+                    zIndex < weatherVariable.zDimension.length
+        } catch (e: Exception) {
+            logger.error("Could not determine if 3d position slice exists, defaulting to false. ${e.message}")
+            false
+        }
     }
 }

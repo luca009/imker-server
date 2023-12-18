@@ -242,17 +242,38 @@ class ImkerServerApplicationTests {
 
     @Test
     fun compositeWeatherDataCacheWorks() {
+        // Testing composite cache
         val temperatureVariableExistsInCompositeCache = weatherRasterCompositeCache.variableExists(WeatherVariableType.Temperature2m)
         Assert.isTrue(temperatureVariableExistsInCompositeCache, "Temperature variable was not in the composite cache despite being configured to be so")
 
+
+        // Testing memory cache directly
         val temperatureVariableExistsInMemoryCache = weatherRasterMemoryCache.variableExists(WeatherVariableType.Temperature2m)
         Assert.isTrue(temperatureVariableExistsInMemoryCache, "Temperature variable was not in the memory cache despite being configured to be so")
 
         val windSpeedVariableExistsInMemoryCache = weatherRasterMemoryCache.variableExists(WeatherVariableType.WindSpeed10m)
         Assert.isTrue(!windSpeedVariableExistsInMemoryCache, "Wind speed variable was in the memory cache despite being configured not to be so")
 
+        val temperatureVariableExistsAtTimeInMemoryCache =
+            weatherRasterMemoryCache.variableExistsAtTime(WeatherVariableType.Temperature2m, 2)
+        Assert.isTrue(temperatureVariableExistsAtTimeInMemoryCache, "Temperature variable did not exist at specified time in the memory cache despite being configured to be so")
+
+        val temperatureVariableExistsAtPointInMemoryCache =
+            weatherRasterMemoryCache.variableExistsAtTimeAndPosition(WeatherVariableType.Temperature2m, 0, 700, 430) // Note: these are the maximum indices of the x and y coordinates in the INCA dataset respectively
+        Assert.isTrue(temperatureVariableExistsAtPointInMemoryCache, "Temperature variable did not exist at specified point in the memory cache despite being configured to be so")
+
+
+        // Testing disk cache via composite cache
         val windSpeedVariableExistsInCompositeCache = weatherRasterCompositeCache.variableExists(WeatherVariableType.WindSpeed10m)
         Assert.isTrue(windSpeedVariableExistsInCompositeCache, "Wind speed variable was not in the composite cache despite being configured to be so")
+
+        val windSpeedVariableExistsAtTimeInCompositeCache =
+            weatherRasterCompositeCache.variableExistsAtTime(WeatherVariableType.WindSpeed10m, 2)
+        Assert.isTrue(windSpeedVariableExistsAtTimeInCompositeCache, "Wind speed variable did not exist at specified time in the composite cache despite being configured to be so")
+
+        val windSpeedVariableExistsAtPointInCompositeCache =
+            weatherRasterCompositeCache.variableExistsAtTimeAndPosition(WeatherVariableType.WindSpeed10m, 0, 700, 430) // Note: these are the maximum indices of the x and y coordinates in the INCA dataset respectively
+        Assert.isTrue(windSpeedVariableExistsAtPointInCompositeCache, "Wind speed variable did not exist at specified point in the composite cache despite being configured to be so")
     }
 }
 

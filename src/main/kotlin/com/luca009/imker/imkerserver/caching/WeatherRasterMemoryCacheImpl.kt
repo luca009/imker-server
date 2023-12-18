@@ -37,8 +37,7 @@ class WeatherRasterMemoryCacheImpl : WeatherRasterMemoryCache {
         val raster = store[weatherVariableType]?.variableSlices?.get(timeIndex)?.raster
         requireNotNull(raster) { return false }
 
-        // TODO: Check if x and y need swapping
-        return xIndex < raster.count() && yIndex < raster[xIndex].count()
+        return yIndex < raster.count() && xIndex < raster[yIndex].count()
     }
 
     override fun getVariable(weatherVariableType: WeatherVariableType): WeatherVariableSlice? {
@@ -55,7 +54,6 @@ class WeatherRasterMemoryCacheImpl : WeatherRasterMemoryCache {
         xIndex: Int,
         yIndex: Int
     ): Double? {
-        // TODO: Check if x and y need swapping
-        return store[weatherVariableType]?.variableSlices?.get(timeIndex)?.raster?.get(xIndex)?.get(yIndex)
+        return store[weatherVariableType]?.variableSlices?.get(timeIndex)?.raster?.get(yIndex)?.get(xIndex)
     }
 }

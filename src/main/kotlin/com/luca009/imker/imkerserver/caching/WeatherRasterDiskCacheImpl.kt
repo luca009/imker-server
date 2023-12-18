@@ -48,7 +48,7 @@ class WeatherRasterDiskCacheImpl(
         val variableName = getSafeVariableName(weatherVariableType)
         requireNotNull(variableName) { return false }
 
-        return dataParser.gridTimeAndPositionSliceExists(variableName, timeIndex, xIndex, yIndex, 0)
+        return dataParser.gridTimeAnd2dPositionSliceExists(variableName, timeIndex, xIndex, yIndex)
     }
 
     override fun getVariable(weatherVariableType: WeatherVariableType): WeatherVariableSlice? {
