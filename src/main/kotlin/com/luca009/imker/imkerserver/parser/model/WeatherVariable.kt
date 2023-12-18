@@ -42,6 +42,10 @@ enum class WeatherVariableType {
     WindSpeedV10m,
     GustSpeedU10m,
     GustSpeedV10m,
+    WindSpeed10m,
+    WindDirection10m,
+    GustSpeed10m,
+    GustDirection10m,
     SurfaceGeopotential
 }
 

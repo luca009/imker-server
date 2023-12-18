@@ -6,8 +6,6 @@ import com.luca009.imker.imkerserver.caching.model.WeatherVariable2dRasterSlice
 import com.luca009.imker.imkerserver.caching.model.WeatherVariableSlice
 import com.luca009.imker.imkerserver.configuration.model.WeatherVariableFileNameMapper
 import com.luca009.imker.imkerserver.parser.model.WeatherDataParser
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
 
 class WeatherRasterDiskCacheImpl(
     val dataParser: WeatherDataParser,
@@ -60,7 +58,7 @@ class WeatherRasterDiskCacheImpl(
         val slice = dataParser.getGridEntireSlice(variableName)
         requireNotNull(slice) { return null }
 
-        return weatherRasterCacheHelper.arrayToWeatherVariableSlice(slice)
+        return weatherRasterCacheHelper.arraysToWeatherVariableSlice(slice)
     }
 
     override fun getVariableAtTime(weatherVariableType: WeatherVariableType, timeIndex: Int): WeatherVariable2dRasterSlice? {
@@ -70,10 +68,13 @@ class WeatherRasterDiskCacheImpl(
         val slice = dataParser.getGridTimeSlice(variableName, timeIndex)
         requireNotNull(slice) { return null }
 
-        if (!slice.isArrayOf<FloatArray>())
+        val firstSliceObject = slice.firstOrNull()
+        if (firstSliceObject !is List<*>)
+            return null
+        if (firstSliceObject.firstOrNull() !is Double)
             return null
 
-        return WeatherVariable2dRasterSlice(slice as Array<FloatArray>)
+        return WeatherVariable2dRasterSlice(slice as? List<List<Double>> ?: return null)
     }
 
     override fun getVariableAtTimeAndPosition(
@@ -81,13 +82,13 @@ class WeatherRasterDiskCacheImpl(
         timeIndex: Int,
         xIndex: Int,
         yIndex: Int
-    ): Float? {
+    ): Double? {
         val variableName = getSafeVariableName(weatherVariableType)
         requireNotNull(variableName) { return null }
 
         val value = dataParser.getGridTimeAndPositionSlice(variableName, timeIndex, xIndex, yIndex, 0)
         requireNotNull(value) { return null }
 
-        return value as? Float
+        return value as? Double
     }
 }

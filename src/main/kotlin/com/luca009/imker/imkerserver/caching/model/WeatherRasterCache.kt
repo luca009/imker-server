@@ -12,7 +12,7 @@ interface WeatherRasterCache {
 
     fun getVariable(weatherVariableType: WeatherVariableType): WeatherVariableSlice?
     fun getVariableAtTime(weatherVariableType: WeatherVariableType, timeIndex: Int): WeatherVariable2dRasterSlice?
-    fun getVariableAtTimeAndPosition(weatherVariableType: WeatherVariableType, timeIndex: Int, xIndex: Int, yIndex: Int): Float?
+    fun getVariableAtTimeAndPosition(weatherVariableType: WeatherVariableType, timeIndex: Int, xIndex: Int, yIndex: Int): Double?
 }
 
 /**
@@ -31,20 +31,20 @@ interface WeatherRasterDiskCache : WeatherRasterCache
 /**
  * A slice of a weather variable, containing multiple [variableSlices] at different time points.
  */
-data class WeatherVariableSlice(
-    val variableSlices: Array<WeatherVariable2dRasterSlice>
-) {
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (javaClass != other?.javaClass) return false
+class WeatherVariableSlice(slices: List<WeatherVariable2dRasterSlice>) {
+    private val slices: MutableList<WeatherVariable2dRasterSlice>
+    val variableSlices: List<WeatherVariable2dRasterSlice>
+        get() = slices
 
-        other as WeatherVariableSlice
-
-        return variableSlices.contentEquals(other.variableSlices)
+    init {
+        this.slices = slices.toMutableList()
     }
 
-    override fun hashCode(): Int {
-        return variableSlices.contentHashCode()
+    fun setSlice(timeIndex: Int, variable2dData: WeatherVariable2dRasterSlice) {
+        if (timeIndex > slices.count())
+            return
+
+        slices[timeIndex] = variable2dData
     }
 }
 
@@ -52,18 +52,5 @@ data class WeatherVariableSlice(
  * A 2d slice of a weather variable at a specified time point.
  */
 data class WeatherVariable2dRasterSlice(
-    val raster: Array<FloatArray>
-) {
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (javaClass != other?.javaClass) return false
-
-        other as WeatherVariable2dRasterSlice
-
-        return raster.contentDeepEquals(other.raster)
-    }
-
-    override fun hashCode(): Int {
-        return raster.contentDeepHashCode()
-    }
-}
+    val raster: List<List<Double>>
+)

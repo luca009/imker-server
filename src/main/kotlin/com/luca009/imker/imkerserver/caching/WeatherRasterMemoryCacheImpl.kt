@@ -6,8 +6,10 @@ import com.luca009.imker.imkerserver.caching.model.WeatherVariable2dRasterSlice
 import com.luca009.imker.imkerserver.caching.model.WeatherVariableSlice
 
 class WeatherRasterMemoryCacheImpl : WeatherRasterMemoryCache {
+    val store: MutableMap<WeatherVariableType, WeatherVariableSlice> = mutableMapOf()
+
     override fun setVariable(weatherVariableType: WeatherVariableType, variableData: WeatherVariableSlice) {
-        TODO("Not yet implemented")
+        store[weatherVariableType] = variableData
     }
 
     override fun setVariableAtTime(
@@ -15,15 +17,15 @@ class WeatherRasterMemoryCacheImpl : WeatherRasterMemoryCache {
         variable2dData: WeatherVariable2dRasterSlice,
         timeIndex: Int
     ) {
-        TODO("Not yet implemented")
+        store[weatherVariableType]?.setSlice(timeIndex, variable2dData)
     }
 
     override fun variableExists(weatherVariableType: WeatherVariableType): Boolean {
-        TODO("Not yet implemented")
+        return store.containsKey(weatherVariableType)
     }
 
     override fun variableExistsAtTime(weatherVariableType: WeatherVariableType, timeIndex: Int): Boolean {
-        TODO("Not yet implemented")
+        return timeIndex < (store[weatherVariableType]?.variableSlices?.count() ?: return false)
     }
 
     override fun variableExistsAtTimeAndPosition(
@@ -32,15 +34,19 @@ class WeatherRasterMemoryCacheImpl : WeatherRasterMemoryCache {
         xIndex: Int,
         yIndex: Int
     ): Boolean {
-        TODO("Not yet implemented")
+        val raster = store[weatherVariableType]?.variableSlices?.get(timeIndex)?.raster
+        requireNotNull(raster) { return false }
+
+        // TODO: Check if x and y need swapping
+        return xIndex < raster.count() && yIndex < raster[xIndex].count()
     }
 
     override fun getVariable(weatherVariableType: WeatherVariableType): WeatherVariableSlice? {
-        TODO("Not yet implemented")
+        return store[weatherVariableType]
     }
 
     override fun getVariableAtTime(weatherVariableType: WeatherVariableType, timeIndex: Int): WeatherVariable2dRasterSlice? {
-        TODO("Not yet implemented")
+        return store[weatherVariableType]?.variableSlices?.get(timeIndex)
     }
 
     override fun getVariableAtTimeAndPosition(
@@ -48,7 +54,8 @@ class WeatherRasterMemoryCacheImpl : WeatherRasterMemoryCache {
         timeIndex: Int,
         xIndex: Int,
         yIndex: Int
-    ): Float? {
-        TODO("Not yet implemented")
+    ): Double? {
+        // TODO: Check if x and y need swapping
+        return store[weatherVariableType]?.variableSlices?.get(timeIndex)?.raster?.get(xIndex)?.get(yIndex)
     }
 }

@@ -29,10 +29,11 @@ class WeatherRasterCompositeCacheImpl(
                     return@forEach
 
                 val variableName = variableMapper.getWeatherVariableName(it) ?: return@forEach
-                if (dataParser.getRawVariable(variableName)?.unitType != "DOUBLE") return@forEach // Make sure the variable is actually a float, since that is the only type that can be stored at the moment
+                if (dataParser.getRawVariable(variableName)?.type != "DOUBLE")
+                    return@forEach // Make sure the variable is actually a double, since that is the only type that can be stored at the moment
 
-                val variableData = weatherRasterCacheHelper.arrayToWeatherVariableSlice(
-                    dataParser.getGridEntireSlice(it.name) ?: return@forEach
+                val variableData = weatherRasterCacheHelper.arraysToWeatherVariableSlice(
+                    dataParser.getGridEntireSlice(variableName) ?: return@forEach
                 ) ?: return@forEach
 
                 memoryCache.setVariable(it, variableData)
@@ -56,7 +57,6 @@ class WeatherRasterCompositeCacheImpl(
 
         return memoryCache.variableExistsAtTime(weatherVariableType, timeIndex) ||
                 diskCache.variableExistsAtTime(weatherVariableType, timeIndex)
-
     }
 
     override fun variableExistsAtTimeAndPosition(
@@ -116,7 +116,7 @@ class WeatherRasterCompositeCacheImpl(
         timeIndex: Int,
         xIndex: Int,
         yIndex: Int
-    ): Float? {
+    ): Double? {
         if (configuration.ignoredVariables.contains(weatherVariableType)) {
             return null
         }

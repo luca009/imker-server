@@ -69,7 +69,7 @@ class NetCdfParserImpl(
         return availableVariables[name]
     }
 
-    override fun getGridEntireSlice(name: String): Array<Array<*>>? {
+    override fun getGridEntireSlice(name: String): List<Array<*>>? {
         val weatherVariable = wrappedGridDataset?.grids?.find { it.name == name }
         requireNotNull(weatherVariable) { return null }
 
@@ -79,7 +79,7 @@ class NetCdfParserImpl(
             allSlices.add(weatherVariable.readVolumeData(x).copyToNDJavaArray() as Array<*>)
         }
 
-        return allSlices.toTypedArray()
+        return allSlices
     }
 
     override fun getGridTimeSlice(name: String, timeIndex: Int): Array<*>? {

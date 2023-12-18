@@ -46,8 +46,8 @@ class ImkerServerApplicationTests {
     private final val ZAMG_FTP_SERVER = "eaftp.zamg.ac.at"
     private final val EXECUTABLE_PATH = this::class.java.protectionDomain.codeSource.location.path.substring(1)
     private final val TEST_DATA_SUB_PATH = "TestData"
-    private final val TEST_NETCDF_FILE_PATH = ""
-    private final val TEST_MAPPER_CONFIG_FILE_PATH = ""
+    private final val TEST_NETCDF_FILE_PATH = "C:\\Users\\reall\\Downloads\\nowcast_202311141530.nc"
+    private final val TEST_MAPPER_CONFIG_FILE_PATH = "C:\\Users\\reall\\Sync\\incaMap.csv"
     private final val MOCK_INCA_FILES = arrayOf(
         MockFTPFile(true, "nowcast_202309091330.nc"),
         MockFTPFile(true, "nowcast_202309100915.nc"),
@@ -59,8 +59,8 @@ class ImkerServerApplicationTests {
         MockFTPFile(true, "nwp_2023100103.nc")
     )
     private final val COMPOSITE_CACHE_CONFIG = WeatherRasterCompositeCacheConfiguration(
-        arrayOf(WeatherVariableType.Temperature2m),
-        arrayOf()
+        listOf(WeatherVariableType.Temperature2m),
+        listOf()
     )
 
     val ftpClient: FtpClient = FtpClientImpl()
@@ -232,7 +232,9 @@ class ImkerServerApplicationTests {
         Assert.notNull(temperatureVariable, "Temperature variable was null")
 
         val temperatureSlice = netCdfParser.getGridTimeSlice("TT", 0)
-        Assert.isTrue(temperatureSlice?.isArrayOf<DoubleArray>() == true, "Temperature slice was not a 2d double array")
+        val temperatureRow = temperatureSlice?.firstOrNull()
+        if (temperatureRow !is DoubleArray)
+            throw IllegalArgumentException("Temperature slice was not a 2d double array")
 
         val temperaturePoint = netCdfParser.getGridTimeAndPositionSlice("TT", 0, 0, 0, 0)
         Assert.isTrue(temperaturePoint is Double, "Temperature point was not a double")
@@ -246,11 +248,11 @@ class ImkerServerApplicationTests {
         val temperatureVariableExistsInMemoryCache = weatherRasterMemoryCache.variableExists(WeatherVariableType.Temperature2m)
         Assert.isTrue(temperatureVariableExistsInMemoryCache, "Temperature variable was not in the memory cache despite being configured to be so")
 
-        val windUSpeedVariableExistsInMemoryCache = weatherRasterMemoryCache.variableExists(WeatherVariableType.WindSpeedU10m)
-        Assert.isTrue(!windUSpeedVariableExistsInMemoryCache, "Wind U variable was in the memory cache despite being configured not to be so")
+        val windSpeedVariableExistsInMemoryCache = weatherRasterMemoryCache.variableExists(WeatherVariableType.WindSpeed10m)
+        Assert.isTrue(!windSpeedVariableExistsInMemoryCache, "Wind speed variable was in the memory cache despite being configured not to be so")
 
-        val windUSpeedVariableExistsInCompositeCache = weatherRasterCompositeCache.variableExists(WeatherVariableType.WindSpeedU10m)
-        Assert.isTrue(windUSpeedVariableExistsInCompositeCache, "Wind U variable was not in the composite cache despite being configured to be so")
+        val windSpeedVariableExistsInCompositeCache = weatherRasterCompositeCache.variableExists(WeatherVariableType.WindSpeed10m)
+        Assert.isTrue(windSpeedVariableExistsInCompositeCache, "Wind speed variable was not in the composite cache despite being configured to be so")
     }
 }
 
