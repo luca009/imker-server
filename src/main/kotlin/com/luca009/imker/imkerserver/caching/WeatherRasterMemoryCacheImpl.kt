@@ -6,7 +6,9 @@ import com.luca009.imker.imkerserver.caching.model.WeatherVariable2dRasterSlice
 import com.luca009.imker.imkerserver.caching.model.WeatherVariableSlice
 
 class WeatherRasterMemoryCacheImpl : WeatherRasterMemoryCache {
-    val store: MutableMap<WeatherVariableType, WeatherVariableSlice> = mutableMapOf()
+    // This is just a basic map of all weather variables that are loaded into memory, storing their data as well
+    // The other functions in this class aren't really important, since they essentially just wrap this map
+    private val store: MutableMap<WeatherVariableType, WeatherVariableSlice> = mutableMapOf()
 
     override fun setVariable(weatherVariableType: WeatherVariableType, variableData: WeatherVariableSlice) {
         store[weatherVariableType] = variableData
