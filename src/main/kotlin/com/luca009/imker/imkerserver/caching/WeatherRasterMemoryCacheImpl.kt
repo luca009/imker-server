@@ -27,7 +27,8 @@ class WeatherRasterMemoryCacheImpl : WeatherRasterMemoryCache {
     }
 
     override fun variableExistsAtTime(weatherVariableType: WeatherVariableType, timeIndex: Int): Boolean {
-        return timeIndex < (store[weatherVariableType]?.variableSlices?.count() ?: return false)
+        return timeIndex >= 0 &&
+                timeIndex < (store[weatherVariableType]?.variableSlices?.count() ?: return false)
     }
 
     override fun variableExistsAtTimeAndPosition(
@@ -39,7 +40,8 @@ class WeatherRasterMemoryCacheImpl : WeatherRasterMemoryCache {
         val raster = store[weatherVariableType]?.variableSlices?.get(timeIndex)?.raster
         requireNotNull(raster) { return false }
 
-        return yIndex < raster.count() && xIndex < raster[yIndex].count()
+        return xIndex >= 0 && yIndex >= 0 &&
+                yIndex < raster.count() && xIndex < raster[yIndex].count()
     }
 
     override fun getVariable(weatherVariableType: WeatherVariableType): WeatherVariableSlice? {

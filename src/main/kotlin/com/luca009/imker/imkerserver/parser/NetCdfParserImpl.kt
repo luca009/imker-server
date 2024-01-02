@@ -103,7 +103,8 @@ class NetCdfParserImpl(
         val weatherVariable = wrappedGridDataset?.grids?.find { it.name == name }
         requireNotNull(weatherVariable) { return false }
 
-        return timeIndex < weatherVariable.timeDimension.length
+        return timeIndex >= 0 &&
+                timeIndex < weatherVariable.timeDimension.length
     }
 
     override fun gridTimeAnd2dPositionSliceExists(
@@ -116,7 +117,10 @@ class NetCdfParserImpl(
         requireNotNull(weatherVariable) { return false }
 
         return try {
-            timeIndex < weatherVariable.timeDimension.length &&
+            timeIndex >= 0 &&
+                    xIndex >= 0 &&
+                    yIndex >= 0 &&
+                    timeIndex < weatherVariable.timeDimension.length &&
                     xIndex < weatherVariable.xDimension.length &&
                     yIndex < weatherVariable.yDimension.length
         } catch (e: Exception) {
@@ -136,7 +140,11 @@ class NetCdfParserImpl(
         requireNotNull(weatherVariable) { return false }
 
         return try {
-            timeIndex < weatherVariable.timeDimension.length &&
+            timeIndex >= 0 &&
+                    xIndex >= 0 &&
+                    yIndex >= 0 &&
+                    zIndex >= 0 &&
+                    timeIndex < weatherVariable.timeDimension.length &&
                     xIndex < weatherVariable.xDimension.length &&
                     yIndex < weatherVariable.yDimension.length &&
                     zIndex < weatherVariable.zDimension.length
