@@ -1,5 +1,6 @@
  package com.luca009.imker.imkerserver.caching.model
 
+ import com.luca009.imker.imkerserver.parser.model.WeatherVariable2dCoordinate
  import com.luca009.imker.imkerserver.parser.model.WeatherVariableType
 
  /**
@@ -8,11 +9,11 @@
 interface WeatherRasterCache {
     fun variableExists(weatherVariableType: WeatherVariableType): Boolean
     fun variableExistsAtTime(weatherVariableType: WeatherVariableType, timeIndex: Int): Boolean
-    fun variableExistsAtTimeAndPosition(weatherVariableType: WeatherVariableType, timeIndex: Int, xIndex: Int, yIndex: Int): Boolean
+    fun variableExistsAtTimeAndPosition(weatherVariableType: WeatherVariableType, timeIndex: Int, coordinate: WeatherVariable2dCoordinate): Boolean
 
     fun getVariable(weatherVariableType: WeatherVariableType): WeatherVariableSlice?
     fun getVariableAtTime(weatherVariableType: WeatherVariableType, timeIndex: Int): WeatherVariable2dRasterSlice?
-    fun getVariableAtTimeAndPosition(weatherVariableType: WeatherVariableType, timeIndex: Int, xIndex: Int, yIndex: Int): Double?
+    fun getVariableAtTimeAndPosition(weatherVariableType: WeatherVariableType, timeIndex: Int, coordinate: WeatherVariable2dCoordinate): Double?
 }
 
 /**

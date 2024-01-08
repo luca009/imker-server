@@ -3,6 +3,7 @@ package com.luca009.imker.imkerserver.caching
 import com.luca009.imker.imkerserver.caching.model.*
 import com.luca009.imker.imkerserver.configuration.model.WeatherVariableFileNameMapper
 import com.luca009.imker.imkerserver.parser.model.WeatherDataParser
+import com.luca009.imker.imkerserver.parser.model.WeatherVariable2dCoordinate
 import com.luca009.imker.imkerserver.parser.model.WeatherVariableType
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -62,15 +63,14 @@ class WeatherRasterCompositeCacheImpl(
     override fun variableExistsAtTimeAndPosition(
         weatherVariableType: WeatherVariableType,
         timeIndex: Int,
-        xIndex: Int,
-        yIndex: Int
+        coordinate: WeatherVariable2dCoordinate
     ): Boolean {
         if (configuration.ignoredVariables.contains(weatherVariableType)) {
             return false
         }
 
-        return memoryCache.variableExistsAtTimeAndPosition(weatherVariableType, timeIndex, xIndex, yIndex) ||
-                diskCache.variableExistsAtTimeAndPosition(weatherVariableType, timeIndex, xIndex, yIndex)
+        return memoryCache.variableExistsAtTimeAndPosition(weatherVariableType, timeIndex, coordinate) ||
+                diskCache.variableExistsAtTimeAndPosition(weatherVariableType, timeIndex, coordinate)
     }
 
     override fun getVariable(weatherVariableType: WeatherVariableType): WeatherVariableSlice? {
@@ -114,15 +114,14 @@ class WeatherRasterCompositeCacheImpl(
     override fun getVariableAtTimeAndPosition(
         weatherVariableType: WeatherVariableType,
         timeIndex: Int,
-        xIndex: Int,
-        yIndex: Int
+        coordinate: WeatherVariable2dCoordinate
     ): Double? {
         if (configuration.ignoredVariables.contains(weatherVariableType)) {
             return null
         }
 
         if (configuration.variablesInMemory.contains(weatherVariableType)) {
-            val memoryValue = memoryCache.getVariableAtTimeAndPosition(weatherVariableType, timeIndex, xIndex, yIndex)
+            val memoryValue = memoryCache.getVariableAtTimeAndPosition(weatherVariableType, timeIndex, coordinate)
 
             if (memoryValue == null) {
                 logger.warn("Memory cache does not contain variable $weatherVariableType despite being configured to do so. Defaulting to disk cache.")
@@ -132,6 +131,6 @@ class WeatherRasterCompositeCacheImpl(
             }
         }
 
-        return diskCache.getVariableAtTimeAndPosition(weatherVariableType, timeIndex, xIndex, yIndex)
+        return diskCache.getVariableAtTimeAndPosition(weatherVariableType, timeIndex, coordinate)
     }
 }

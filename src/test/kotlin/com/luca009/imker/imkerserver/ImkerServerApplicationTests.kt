@@ -19,6 +19,7 @@ import com.luca009.imker.imkerserver.filemanager.model.IncaFileNameManager
 import com.luca009.imker.imkerserver.filemanager.model.LocalFileManagerService
 import com.luca009.imker.imkerserver.parser.NetCdfParserImpl
 import com.luca009.imker.imkerserver.parser.model.NetCdfParser
+import com.luca009.imker.imkerserver.parser.model.WeatherVariable2dCoordinate
 import com.luca009.imker.imkerserver.parser.model.WeatherVariableType
 import com.luca009.imker.imkerserver.receiver.model.DownloadResult
 import com.luca009.imker.imkerserver.receiver.ftp.FtpClientImpl
@@ -34,6 +35,11 @@ import org.mockito.kotlin.whenever
 import org.mockito.stubbing.Answer
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.util.Assert
+import ucar.nc2.constants.FeatureType
+import ucar.nc2.dataset.NetcdfDatasets
+import ucar.nc2.dt.grid.GridDataset
+import ucar.nc2.ft.FeatureDatasetFactoryManager
+import ucar.nc2.util.CancelTask
 import java.io.File
 import java.nio.file.Path
 import java.time.ZoneOffset
@@ -44,10 +50,9 @@ import kotlin.io.path.Path
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ImkerServerApplicationTests {
     private final val ZAMG_FTP_SERVER = "eaftp.zamg.ac.at"
-    private final val EXECUTABLE_PATH = this::class.java.protectionDomain.codeSource.location.path.substring(1)
-    private final val TEST_DATA_SUB_PATH = "TestData"
-    private final val TEST_NETCDF_FILE_PATH = "C:\\Users\\reall\\Downloads\\nowcast_202311141530.nc"
-    private final val TEST_MAPPER_CONFIG_FILE_PATH = "C:\\Users\\reall\\Sync\\incaMap.csv"
+    private final val TEST_RESOURCES_PATH = File("src/test/resources").absolutePath
+    private final val TEST_NETCDF_FILE_PATH = Path(TEST_RESOURCES_PATH, "inca", "inca_nowcast.nc").toString()
+    private final val TEST_MAPPER_CONFIG_FILE_PATH = Path(TEST_RESOURCES_PATH, "inca", "inca_map.csv").toString()
     private final val MOCK_INCA_FILES = arrayOf(
         MockFTPFile(true, "nowcast_202309091330.nc"),
         MockFTPFile(true, "nowcast_202309100915.nc"),
@@ -91,7 +96,7 @@ class ImkerServerApplicationTests {
     fun setupMockLocalFileManager() {
         whenever(mockLocalFileManagerService.getWeatherDataLocation(anyString())).thenAnswer(Answer {
             val subPath = it.arguments[0].toString()
-            return@Answer Path(EXECUTABLE_PATH, TEST_DATA_SUB_PATH, subPath)
+            return@Answer Path(TEST_RESOURCES_PATH, subPath)
         })
     }
 
@@ -180,7 +185,7 @@ class ImkerServerApplicationTests {
 
         val succeedingResult = incaReceiver.downloadData(succeedingDateTime, null)
         Assert.isTrue(succeedingResult.successful
-                && succeedingResult.fileLocation == Path(EXECUTABLE_PATH, TEST_DATA_SUB_PATH, IncaFileNameConstants.FOLDER_NAME, MOCK_INCA_FILES[1].name),
+                && succeedingResult.fileLocation == Path(TEST_RESOURCES_PATH, IncaFileNameConstants.FOLDER_NAME, MOCK_INCA_FILES[1].name),
             "Download did not succeed for file that should exist.")
     }
 
@@ -190,7 +195,7 @@ class ImkerServerApplicationTests {
 
         val result = incaReceiver.downloadData(ZonedDateTime.now(), null)
         Assert.isTrue(result.successful
-                && result.fileLocation == Path(EXECUTABLE_PATH, TEST_DATA_SUB_PATH, IncaFileNameConstants.FOLDER_NAME, MOCK_INCA_FILES[2].name),
+                && result.fileLocation == Path(TEST_RESOURCES_PATH, IncaFileNameConstants.FOLDER_NAME, MOCK_INCA_FILES[2].name),
             "Download did not succeed for file that should exist.")
     }
 
@@ -225,19 +230,34 @@ class ImkerServerApplicationTests {
 
     @Test
     fun netCdfParserWorks() {
+        // Variable count
         val rawVariables = netCdfParser.getAvailableRawVariables()
         Assert.isTrue(rawVariables.count() == 14, "Variable count in NetCDF file was not correct")
 
+        // Get variable info
         val temperatureVariable = netCdfParser.getRawVariable("TT")
         Assert.notNull(temperatureVariable, "Temperature variable was null")
 
+        // Get variable 2d slice
         val temperatureSlice = netCdfParser.getGridTimeSlice("TT", 0)
         val temperatureRow = temperatureSlice?.firstOrNull()
         if (temperatureRow !is DoubleArray)
             throw IllegalArgumentException("Temperature slice was not a 2d double array")
 
-        val temperaturePoint = netCdfParser.getGridTimeAndPositionSlice("TT", 0, 0, 0, 0)
+        // Get variable slice at point
+        val temperaturePoint = netCdfParser.getGridTimeAnd2dPositionSlice("TT", 0, WeatherVariable2dCoordinate(0, 0))
         Assert.isTrue(temperaturePoint is Double, "Temperature point was not a double")
+
+        // Get if coordinates are in the dataset
+        val correctCoordinatesInDataset = netCdfParser.containsLatLon("TT", 48.20847274949422, 16.373155534546584) // Vienna
+        Assert.isTrue(correctCoordinatesInDataset, "Correct coordinates were not contained in dataset")
+        val incorrectCoordinatesInDataset = netCdfParser.containsLatLon("TT", 47.500810753017205, 19.05394481893561) // Budapest
+        Assert.isTrue(!incorrectCoordinatesInDataset, "Incorrect coordinates were contained in dataset")
+
+        // Get coordinates from latlon
+        val coordinates = netCdfParser.latLonToCoordinates("TT", 48.20847274949422, 16.373155534546584) // Vienna
+        requireNotNull(coordinates) { "Coordinates were null" }
+        Assert.isTrue(coordinates.xIndex == 605 && coordinates.yIndex == 293, "Coordinates were incorrect")
     }
 
     @Test
@@ -259,7 +279,7 @@ class ImkerServerApplicationTests {
         Assert.isTrue(temperatureVariableExistsAtTimeInMemoryCache, "Temperature variable did not exist at specified time in the memory cache despite being configured to be so")
 
         val temperatureVariableExistsAtPointInMemoryCache =
-            weatherRasterMemoryCache.variableExistsAtTimeAndPosition(WeatherVariableType.Temperature2m, 0, 700, 430) // Note: these are the maximum indices of the x and y coordinates in the INCA dataset respectively
+            weatherRasterMemoryCache.variableExistsAtTimeAndPosition(WeatherVariableType.Temperature2m, 0, WeatherVariable2dCoordinate(700, 430)) // Note: these are the maximum indices of the x and y coordinates in the INCA dataset respectively
         Assert.isTrue(temperatureVariableExistsAtPointInMemoryCache, "Temperature variable did not exist at specified point in the memory cache despite being configured to be so")
 
 
@@ -272,8 +292,18 @@ class ImkerServerApplicationTests {
         Assert.isTrue(windSpeedVariableExistsAtTimeInCompositeCache, "Wind speed variable did not exist at specified time in the composite cache despite being configured to be so")
 
         val windSpeedVariableExistsAtPointInCompositeCache =
-            weatherRasterCompositeCache.variableExistsAtTimeAndPosition(WeatherVariableType.WindSpeed10m, 0, 700, 430) // Note: these are the maximum indices of the x and y coordinates in the INCA dataset respectively
+            weatherRasterCompositeCache.variableExistsAtTimeAndPosition(WeatherVariableType.WindSpeed10m, 0, WeatherVariable2dCoordinate(700, 430)) // Note: these are the maximum indices of the x and y coordinates in the INCA dataset respectively
         Assert.isTrue(windSpeedVariableExistsAtPointInCompositeCache, "Wind speed variable did not exist at specified point in the composite cache despite being configured to be so")
+
+
+        // Testing negative indices
+        val temperatureVariableExistsAtNegativePointInCompositeCache =
+            weatherRasterCompositeCache.variableExistsAtTimeAndPosition(WeatherVariableType.Temperature2m, 0, WeatherVariable2dCoordinate(-1, -1))
+        Assert.isTrue(!temperatureVariableExistsAtNegativePointInCompositeCache, "Temperature variable existed at negative point in the composite cache")
+
+        val windSpeedVariableExistsAtNegativePointInCompositeCache =
+            weatherRasterCompositeCache.variableExistsAtTimeAndPosition(WeatherVariableType.WindSpeed10m, 0, WeatherVariable2dCoordinate(-1, -1))
+        Assert.isTrue(!windSpeedVariableExistsAtNegativePointInCompositeCache, "Wind speed variable existed at negative point in the composite cache")
     }
 }
 

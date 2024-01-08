@@ -4,6 +4,7 @@ import com.luca009.imker.imkerserver.caching.model.WeatherRasterMemoryCache
 import com.luca009.imker.imkerserver.parser.model.WeatherVariableType
 import com.luca009.imker.imkerserver.caching.model.WeatherVariable2dRasterSlice
 import com.luca009.imker.imkerserver.caching.model.WeatherVariableSlice
+import com.luca009.imker.imkerserver.parser.model.WeatherVariable2dCoordinate
 
 class WeatherRasterMemoryCacheImpl : WeatherRasterMemoryCache {
     // This is just a basic map of all weather variables that are loaded into memory, storing their data as well
@@ -34,14 +35,13 @@ class WeatherRasterMemoryCacheImpl : WeatherRasterMemoryCache {
     override fun variableExistsAtTimeAndPosition(
         weatherVariableType: WeatherVariableType,
         timeIndex: Int,
-        xIndex: Int,
-        yIndex: Int
+        coordinate: WeatherVariable2dCoordinate
     ): Boolean {
         val raster = store[weatherVariableType]?.variableSlices?.get(timeIndex)?.raster
         requireNotNull(raster) { return false }
 
-        return xIndex >= 0 && yIndex >= 0 &&
-                yIndex < raster.count() && xIndex < raster[yIndex].count()
+        // Get if coordinate is in range. Since the yIndex might not be in range, but we don't know this when looking it up in the array, use a getOrNull just in case.
+        return coordinate.isInRange(raster.getOrNull(coordinate.yIndex)?.count() ?: return false, raster.count())
     }
 
     override fun getVariable(weatherVariableType: WeatherVariableType): WeatherVariableSlice? {
@@ -55,9 +55,9 @@ class WeatherRasterMemoryCacheImpl : WeatherRasterMemoryCache {
     override fun getVariableAtTimeAndPosition(
         weatherVariableType: WeatherVariableType,
         timeIndex: Int,
-        xIndex: Int,
-        yIndex: Int
+        coordinate: WeatherVariable2dCoordinate
     ): Double? {
-        return store[weatherVariableType]?.variableSlices?.get(timeIndex)?.raster?.get(yIndex)?.get(xIndex)
+        // Looks confusing, but this is just a lookup in the store for the specified coordinates, just looks a bit ugly chained together like this
+        return store[weatherVariableType]?.variableSlices?.get(timeIndex)?.raster?.get(coordinate.yIndex)?.get(coordinate.xIndex)
     }
 }

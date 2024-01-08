@@ -6,6 +6,7 @@ import com.luca009.imker.imkerserver.caching.model.WeatherVariable2dRasterSlice
 import com.luca009.imker.imkerserver.caching.model.WeatherVariableSlice
 import com.luca009.imker.imkerserver.configuration.model.WeatherVariableFileNameMapper
 import com.luca009.imker.imkerserver.parser.model.WeatherDataParser
+import com.luca009.imker.imkerserver.parser.model.WeatherVariable2dCoordinate
 
 class WeatherRasterDiskCacheImpl(
     val dataParser: WeatherDataParser,
@@ -42,13 +43,12 @@ class WeatherRasterDiskCacheImpl(
     override fun variableExistsAtTimeAndPosition(
         weatherVariableType: WeatherVariableType,
         timeIndex: Int,
-        xIndex: Int,
-        yIndex: Int
+        coordinate: WeatherVariable2dCoordinate
     ): Boolean {
         val variableName = getSafeVariableName(weatherVariableType)
         requireNotNull(variableName) { return false }
 
-        return dataParser.gridTimeAnd2dPositionSliceExists(variableName, timeIndex, xIndex, yIndex)
+        return dataParser.gridTimeAnd2dPositionSliceExists(variableName, timeIndex, coordinate)
     }
 
     override fun getVariable(weatherVariableType: WeatherVariableType): WeatherVariableSlice? {
@@ -80,13 +80,12 @@ class WeatherRasterDiskCacheImpl(
     override fun getVariableAtTimeAndPosition(
         weatherVariableType: WeatherVariableType,
         timeIndex: Int,
-        xIndex: Int,
-        yIndex: Int
+        coordinate: WeatherVariable2dCoordinate
     ): Double? {
         val variableName = getSafeVariableName(weatherVariableType)
         requireNotNull(variableName) { return null }
 
-        val value = dataParser.getGridTimeAndPositionSlice(variableName, timeIndex, xIndex, yIndex, 0)
+        val value = dataParser.getGridTimeAnd2dPositionSlice(variableName, timeIndex, coordinate)
         requireNotNull(value) { return null }
 
         return value as? Double

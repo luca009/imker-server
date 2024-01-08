@@ -2,6 +2,8 @@ package com.luca009.imker.imkerserver.parser
 
 import com.luca009.imker.imkerserver.parser.model.NetCdfParser
 import com.luca009.imker.imkerserver.parser.model.RawWeatherVariable
+import com.luca009.imker.imkerserver.parser.model.WeatherVariable2dCoordinate
+import com.luca009.imker.imkerserver.parser.model.WeatherVariable3dCoordinate
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import ucar.nc2.constants.FeatureType
@@ -92,11 +94,18 @@ class NetCdfParserImpl(
         return weatherVariable.readVolumeData(timeIndex).copyToNDJavaArray() as Array<*>
     }
 
-    override fun getGridTimeAndPositionSlice(name: String, timeIndex: Int, xIndex: Int, yIndex: Int, zIndex: Int): Any? {
+    override fun getGridTimeAnd2dPositionSlice(name: String, timeIndex: Int, coordinate: WeatherVariable2dCoordinate): Any? {
         val weatherVariable = wrappedGridDataset?.grids?.find { it.name == name }
         requireNotNull(weatherVariable) { return null }
 
-        return weatherVariable.readDataSlice(timeIndex, zIndex, yIndex, xIndex).getObject(0)
+        return weatherVariable.readDataSlice(timeIndex, 0, coordinate.yIndex, coordinate.xIndex).getObject(0)
+    }
+
+    override fun getGridTimeAnd3dPositionSlice(name: String, timeIndex: Int, coordinate: WeatherVariable3dCoordinate): Any? {
+        val weatherVariable = wrappedGridDataset?.grids?.find { it.name == name }
+        requireNotNull(weatherVariable) { return null }
+
+        return weatherVariable.readDataSlice(timeIndex, coordinate.zIndex, coordinate.yIndex, coordinate.xIndex).getObject(0)
     }
 
     override fun gridTimeSliceExists(name: String, timeIndex: Int): Boolean {
@@ -110,21 +119,16 @@ class NetCdfParserImpl(
     override fun gridTimeAnd2dPositionSliceExists(
         name: String,
         timeIndex: Int,
-        xIndex: Int,
-        yIndex: Int
+        coordinate: WeatherVariable2dCoordinate
     ): Boolean {
         val weatherVariable = wrappedGridDataset?.grids?.find { it.name == name }
         requireNotNull(weatherVariable) { return false }
 
         return try {
-            timeIndex >= 0 &&
-                    xIndex >= 0 &&
-                    yIndex >= 0 &&
-                    timeIndex < weatherVariable.timeDimension.length &&
-                    xIndex < weatherVariable.xDimension.length &&
-                    yIndex < weatherVariable.yDimension.length
+            timeIndex >= 0 && timeIndex < weatherVariable.timeDimension.length &&
+                    coordinate.isInRange(weatherVariable.xDimension.length, weatherVariable.yDimension.length)
         } catch (e: Exception) {
-            logger.error("Could not determine if 2d position slice exists, defaulting to false. ${e.message}")
+            logger.error("$sourceFilePath: $name: could not determine if 2d position slice exists, defaulting to false. ${e.message}")
             false
         }
     }
@@ -132,25 +136,56 @@ class NetCdfParserImpl(
     override fun gridTimeAnd3dPositionSliceExists(
         name: String,
         timeIndex: Int,
-        xIndex: Int,
-        yIndex: Int,
-        zIndex: Int
+        coordinate: WeatherVariable3dCoordinate
     ): Boolean {
         val weatherVariable = wrappedGridDataset?.grids?.find { it.name == name }
         requireNotNull(weatherVariable) { return false }
 
         return try {
-            timeIndex >= 0 &&
-                    xIndex >= 0 &&
-                    yIndex >= 0 &&
-                    zIndex >= 0 &&
-                    timeIndex < weatherVariable.timeDimension.length &&
-                    xIndex < weatherVariable.xDimension.length &&
-                    yIndex < weatherVariable.yDimension.length &&
-                    zIndex < weatherVariable.zDimension.length
+            timeIndex >= 0 && timeIndex < weatherVariable.timeDimension.length &&
+                    coordinate.isInRange(weatherVariable.xDimension.length, weatherVariable.yDimension.length, weatherVariable.zDimension.length)
         } catch (e: Exception) {
-            logger.error("Could not determine if 3d position slice exists, defaulting to false. ${e.message}")
+            logger.error("$sourceFilePath: $name: could not determine if 3d position slice exists, defaulting to false. ${e.message}")
             false
+        }
+    }
+
+    override fun containsLatLon(name: String, latitude: Double, longitude: Double): Boolean {
+        // Get the first gridset to contain a grid with our desired name
+        val gridset = wrappedGridDataset?.gridsets?.find {
+            it.grids?.find { it.name == name } != null
+        }
+        requireNotNull(gridset) { return false }
+
+        return try {
+            val xy = gridset.geoCoordSystem.findXYindexFromLatLon(latitude, longitude, null)
+
+            xy[0] >= 0 && xy[1] >= 0
+        } catch (e: Exception) {
+            logger.error("$sourceFilePath: $name: could not project latlon coordinate to indices. ${e.message}")
+            false
+        }
+    }
+
+    override fun latLonToCoordinates(name: String, latitude: Double, longitude: Double): WeatherVariable2dCoordinate? {
+        // Get the first gridset to contain a grid with our desired name
+        val gridset = wrappedGridDataset?.gridsets?.find {
+            it.grids?.find { it.name == name } != null
+        }
+        requireNotNull(gridset) { return null }
+
+        try {
+            val xy = gridset.geoCoordSystem.findXYindexFromLatLon(latitude, longitude, null)
+
+            if (xy[0] < 0 || xy[1] < 0) {
+                logger.warn("$sourceFilePath: $name: latlon coordinate (${xy[0]}, ${xy[1]}) was out of range.")
+                return null
+            }
+
+            return WeatherVariable2dCoordinate(xy[0], xy[1])
+        } catch (e: Exception) {
+            logger.error("$sourceFilePath: $name: could not project latlon coordinate to indices. ${e.message}")
+            return null
         }
     }
 }
