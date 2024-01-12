@@ -17,6 +17,8 @@ import com.luca009.imker.imkerserver.filemanager.model.AromeFileNameManager
 import com.luca009.imker.imkerserver.filemanager.model.BestFileSearchService
 import com.luca009.imker.imkerserver.filemanager.model.IncaFileNameManager
 import com.luca009.imker.imkerserver.filemanager.model.LocalFileManagerService
+import com.luca009.imker.imkerserver.management.WeatherModelManagerServiceImpl
+import com.luca009.imker.imkerserver.management.model.WeatherModelManagerService
 import com.luca009.imker.imkerserver.parser.NetCdfParserImpl
 import com.luca009.imker.imkerserver.parser.model.NetCdfParser
 import com.luca009.imker.imkerserver.parser.model.WeatherVariable2dCoordinate
@@ -30,9 +32,11 @@ import org.apache.commons.net.ftp.FTPFile
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
+import org.mockito.InjectMocks
 import org.mockito.Mockito.*
 import org.mockito.kotlin.whenever
 import org.mockito.stubbing.Answer
+import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.util.Assert
 import ucar.nc2.constants.FeatureType
@@ -88,6 +92,9 @@ class ImkerServerApplicationTests {
         weatherRasterDiskCache,
         WeatherRasterCacheHelper()
     )
+
+    @Autowired
+    lateinit var weatherModelManagerService: WeatherModelManagerService
 
     val mockFtpClient: FtpClient = org.mockito.kotlin.mock()
     val mockLocalFileManagerService: LocalFileManagerService = org.mockito.kotlin.mock()
@@ -304,6 +311,16 @@ class ImkerServerApplicationTests {
         val windSpeedVariableExistsAtNegativePointInCompositeCache =
             weatherRasterCompositeCache.variableExistsAtTimeAndPosition(WeatherVariableType.WindSpeed10m, 0, WeatherVariable2dCoordinate(-1, -1))
         Assert.isTrue(!windSpeedVariableExistsAtNegativePointInCompositeCache, "Wind speed variable existed at negative point in the composite cache")
+    }
+
+    @Test
+    fun weatherModelManagerWorks() {
+        if (!this::weatherModelManagerService.isInitialized) {
+            throw UninitializedPropertyAccessException("Weather model manager service was not initialized")
+        }
+
+        val preferredWeatherModel = weatherModelManagerService.getPreferredWeatherModelForLatLon("TT", 48.20847274949422, 16.373155534546584) // Vienna
+        Assert.isTrue(preferredWeatherModel?.name == "INCA", "Preferred weather model was not INCA")
     }
 }
 

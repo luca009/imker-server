@@ -4,19 +4,24 @@ import com.luca009.imker.imkerserver.receiver.model.DownloadResult
 import com.luca009.imker.imkerserver.receiver.model.FtpClient
 import org.apache.commons.net.ftp.FTPClient
 import org.apache.commons.net.ftp.FTPFile
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import java.io.FileOutputStream
 import java.nio.file.Path
+import java.time.Duration
 import kotlin.io.path.Path
 
 @Component
 class FtpClientImpl : FtpClient {
     private val ftpClient: FTPClient = FTPClient()
+    private val logger: Logger = LoggerFactory.getLogger(this::class.java)
 
     override fun connect(serverUri: String, username: String, password: String): Boolean {
         return try {
             ftpClient.connect(serverUri)
             ftpClient.login(username, password)
+            ftpClient.setControlKeepAliveTimeout(Duration.ofMinutes(1))
             true
         } catch (e: Exception) {
             false
@@ -65,6 +70,9 @@ class FtpClientImpl : FtpClient {
             return DownloadResult(false, null)
         }
 
+        // Janky way to fix Windows file paths, ughhhhh
+        val remoteFilePath = remoteFilePath.replace('\\', '/')
+
         val remoteFileName = Path(remoteFilePath).fileName.toString()
 
         // Combine the downloadPath with the downloadName, substituting it for the remoteFileName if needed
@@ -72,10 +80,18 @@ class FtpClientImpl : FtpClient {
         val outputFile = outputFilePath.toFile()
 
         return try {
-            ftpClient.retrieveFile(remoteFilePath, FileOutputStream(outputFile))
+            val ftpFileStream = ftpClient.retrieveFileStream(remoteFilePath)
+            val localFileStream = FileOutputStream(outputFile)
+            ftpFileStream.copyTo(localFileStream)
+            val success = ftpClient.completePendingCommand()
 
-            DownloadResult(true, downloadPath)
+            ftpFileStream.close()
+            localFileStream.close()
+
+            DownloadResult(success, downloadPath)
         } catch (e: Exception) {
+            logger.error("Error while downloading $remoteFilePath: ${e.message}")
+
             DownloadResult(false, downloadPath)
         }
     }

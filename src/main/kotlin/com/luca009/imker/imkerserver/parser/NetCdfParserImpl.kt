@@ -13,11 +13,12 @@ import ucar.nc2.dt.grid.GridDataset
 import ucar.nc2.ft.FeatureDataset
 import ucar.nc2.ft.FeatureDatasetFactoryManager
 import ucar.nc2.util.CancelTask
+import kotlin.io.path.Path
 
 class NetCdfParserImpl(
     netCdfFilePath: String
 ) : NetCdfParser {
-    private val sourceFilePath: String = netCdfFilePath
+    private val sourceFilePath: String
     private val availableVariables: Map<String, RawWeatherVariable>
     private val dataset: NetcdfDataset
     private val wrappedDataset: FeatureDataset
@@ -25,7 +26,10 @@ class NetCdfParserImpl(
     private val logger: Logger = LoggerFactory.getLogger(this::class.java)
 
     init {
-        dataset = openDataset(netCdfFilePath)
+        val absoluteNetCdfFilePath = Path(netCdfFilePath).toAbsolutePath().toString()
+        sourceFilePath = absoluteNetCdfFilePath
+
+        dataset = openDataset(absoluteNetCdfFilePath)
         wrappedDataset = wrapDataset(dataset)
         availableVariables = scanAvailableVariables()
 

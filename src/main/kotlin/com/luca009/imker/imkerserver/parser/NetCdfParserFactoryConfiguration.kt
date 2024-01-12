@@ -9,7 +9,7 @@ import org.springframework.context.annotation.Scope
 class NetCdfParserFactoryConfiguration {
     @Bean
     fun netCdfParserFactory() = {
-            netCdfFilePath: String -> netCdfParser(netCdfFilePath)
+        netCdfFilePath: String -> netCdfParser(netCdfFilePath)
     }
 
     @Bean
@@ -19,5 +19,4 @@ class NetCdfParserFactoryConfiguration {
             netCdfFilePath
         )
     }
-
 }

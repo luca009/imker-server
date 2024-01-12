@@ -1,7 +1,6 @@
 package com.luca009.imker.imkerserver.filemanager
 
 import com.luca009.imker.imkerserver.AromeFileNameConstants
-import com.luca009.imker.imkerserver.IncaFileNameConstants
 import com.luca009.imker.imkerserver.filemanager.model.AromeFileNameManager
 import java.time.LocalDateTime
 import java.time.ZoneOffset
@@ -17,8 +16,8 @@ class AromeFileNameManagerImpl : AromeFileNameManager {
         return AromeFileNameConstants.FILE_NAME_PREFIX + timeString + AromeFileNameConstants.FILE_NAME_POSTFIX
     }
 
-    override fun getDateTimeForFileName(fileName: String): ZonedDateTime? {
-        val dateString = fileName
+    override fun getDateTimeForFile(file: String): ZonedDateTime? {
+        val dateString = file
             .removePrefix(AromeFileNameConstants.FILE_NAME_PREFIX)
             .removeSuffix(AromeFileNameConstants.FILE_NAME_POSTFIX)
 

@@ -1,17 +1,14 @@
 package com.luca009.imker.imkerserver.filemanager
 
 import com.luca009.imker.imkerserver.IncaFileNameConstants
-import com.luca009.imker.imkerserver.IncaFtpServerConstants
 import com.luca009.imker.imkerserver.filemanager.model.IncaFileNameManager
-import org.springframework.stereotype.Component
 import org.springframework.stereotype.Service
 import java.time.LocalDateTime
-import java.time.ZoneId
 import java.time.ZoneOffset
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
-import java.time.temporal.TemporalUnit
+import kotlin.io.path.Path
 
 @Service
 class IncaFileNameManagerImpl : IncaFileNameManager {
@@ -22,7 +19,10 @@ class IncaFileNameManagerImpl : IncaFileNameManager {
         return IncaFileNameConstants.FILE_NAME_PREFIX + timeString + IncaFileNameConstants.FILE_NAME_POSTFIX
     }
 
-    override fun getDateTimeForFileName(fileName: String): ZonedDateTime? {
+    override fun getDateTimeForFile(file: String): ZonedDateTime? {
+        val fileNamePath = Path(file).fileName ?: return null
+        val fileName = fileNamePath.toString()
+
         val dateString = fileName
             .removePrefix(IncaFileNameConstants.FILE_NAME_PREFIX)
             .removeSuffix(IncaFileNameConstants.FILE_NAME_POSTFIX)
