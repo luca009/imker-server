@@ -24,7 +24,7 @@ class IncaReceiverImpl(val localFileManager: LocalFileManagerService,
     private val logger: Logger = LoggerFactory.getLogger(this::class.java)
 
     override fun downloadData(dateTime: ZonedDateTime, downloadedFileName: String?): DownloadResult {
-        val dataLocation = localFileManager.getWeatherDataLocation(IncaFileNameConstants.FOLDER_NAME)
+        val dataLocation = localFileManager.getWeatherDataLocation("default", IncaFileNameConstants.FOLDER_NAME) // TODO: make this configurable
         val roundedDateTime = incaFileNameManager.roundDownToNearestValidDateTime(dateTime)
 
         val connectionSuccess = ftpClient.connect(IncaFtpServerConstants.ADDRESS, IncaFtpServerConstants.USERNAME, IncaFtpServerConstants.PASSWORD)
@@ -51,7 +51,7 @@ class IncaReceiverImpl(val localFileManager: LocalFileManagerService,
 
     override fun updateNecessary(dateTime: ZonedDateTime): Boolean {
         // Do a local lookup to see if an update might be necessary
-        val dataLocation = localFileManager.getWeatherDataLocation(IncaFileNameConstants.FOLDER_NAME).toFile()
+        val dataLocation = localFileManager.getWeatherDataLocation("default", IncaFileNameConstants.FOLDER_NAME).toFile()
         val roundedDateTime = incaFileNameManager.roundDownToNearestValidDateTime(dateTime)
 
         val availableFileNames = dataLocation.listFiles()?.map { Pair(it, it.absolutePath) }?.toMap()

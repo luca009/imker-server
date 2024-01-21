@@ -1,0 +1,5 @@
+storage:
+  storageLocations:
+    default: C:\Users\reall\Downloads\incadata
+update:
+  updateCheckInterval: 10
