@@ -9,6 +9,8 @@ import com.luca009.imker.imkerserver.receiver.model.DataReceiver
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Scope
+import kotlin.io.path.Path
+import kotlin.io.path.isDirectory
 
 @Configuration
 class DynamicDataParserConfiguration {
@@ -25,8 +27,14 @@ class DynamicDataParserConfiguration {
         bestFileSearchService: BestFileSearchService,
         fileNameManager: DataFileNameManager
     ): DynamicDataParser {
+        val initParser = if (Path(initFilePath).isDirectory()) {
+            null
+        } else {
+            parserFactory(initFilePath)
+        }
+
         return DynamicDataParserImpl(
-            parserFactory(initFilePath),
+            initParser,
             parserFactory,
             initFilePath,
             bestFileSearchService,

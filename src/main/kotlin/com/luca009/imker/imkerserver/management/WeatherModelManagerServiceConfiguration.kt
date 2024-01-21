@@ -6,6 +6,7 @@ import com.luca009.imker.imkerserver.configuration.model.WeatherModel
 import com.luca009.imker.imkerserver.configuration.model.WeatherVariableFileNameMapper
 import com.luca009.imker.imkerserver.filemanager.model.DataFileNameManager
 import com.luca009.imker.imkerserver.filemanager.model.IncaFileNameManager
+import com.luca009.imker.imkerserver.filemanager.model.LocalFileManagerService
 import com.luca009.imker.imkerserver.management.model.WeatherModelManagerService
 import com.luca009.imker.imkerserver.parser.model.DynamicDataParser
 import com.luca009.imker.imkerserver.parser.model.NetCdfParser
@@ -24,7 +25,8 @@ class WeatherModelManagerServiceConfiguration(
     val weatherVariableFileNameMapperFactory: (File) -> WeatherVariableFileNameMapper,
     val weatherRasterCompositeCacheFactory: (WeatherRasterCompositeCacheConfiguration, WeatherDataParser, WeatherVariableFileNameMapper) -> WeatherRasterCompositeCache,
     val incaFileNameManager: IncaFileNameManager,
-    val incaReceiver: IncaReceiver
+    val incaReceiver: IncaReceiver,
+    val fileManagerService: LocalFileManagerService
 ) {
     @Bean
     fun weatherModelManagerService(): WeatherModelManagerService {
@@ -37,8 +39,7 @@ class WeatherModelManagerServiceConfiguration(
                 "GeoSphere Austria under CC BY-SA 4.0",
 
                 incaReceiver,
-                //dynamicParserFactory(netCdfParserFactory, "src/test/resources/inca/inca_nowcast.nc", incaFileNameManager), // TODO: replace this with the actual files we have downloaded
-                dynamicParserFactory(netCdfParserFactory, "C:\\Users\\reall\\Downloads\\incadata\\inca\\nowcast_202309091345.nc", incaFileNameManager), // TODO: replace this with the actual files we have downloaded
+                dynamicParserFactory(netCdfParserFactory, fileManagerService.getWeatherDataLocation("default", "inca").toAbsolutePath().toString(), incaFileNameManager), // TODO: replace this with the actual files we have downloaded
                 weatherVariableFileNameMapperFactory(File("src/test/resources/inca/inca_map.csv")),
 
                 WeatherRasterCompositeCacheConfiguration(
