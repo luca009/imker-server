@@ -29,9 +29,7 @@ import com.luca009.imker.imkerserver.receiver.inca.IncaReceiverImpl
 import com.luca009.imker.imkerserver.receiver.model.FtpClient
 import com.luca009.imker.imkerserver.receiver.model.IncaReceiver
 import org.apache.commons.net.ftp.FTPFile
-import org.junit.jupiter.api.BeforeAll
-import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.TestInstance
+import org.junit.jupiter.api.*
 import org.mockito.Mockito.*
 import org.mockito.kotlin.whenever
 import org.mockito.stubbing.Answer
@@ -46,6 +44,7 @@ import kotlin.io.path.Path
 
 @SpringBootTest
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@TestMethodOrder(MethodOrderer.OrderAnnotation::class)
 class ImkerServerApplicationTests {
     private final val ZAMG_FTP_SERVER = "eaftp.zamg.ac.at"
     private final val TEST_RESOURCES_PATH = File("src/test/resources").absolutePath
@@ -274,6 +273,7 @@ class ImkerServerApplicationTests {
 //    }
 
     @Test
+    @Order(1)
     fun netCdfParserWorks() {
         // Variable count
         val rawVariables = netCdfParser.getAvailableRawVariables()
@@ -307,6 +307,8 @@ class ImkerServerApplicationTests {
 
     @Test
     fun compositeWeatherDataCacheWorks() {
+        weatherRasterCompositeCache.updateCaches()
+
         // Testing composite cache
         val temperatureVariableExistsInCompositeCache = weatherRasterCompositeCache.variableExists(WeatherVariableType.Temperature2m)
         Assert.isTrue(temperatureVariableExistsInCompositeCache, "Temperature variable was not in the composite cache despite being configured to be so")
@@ -362,6 +364,7 @@ class ImkerServerApplicationTests {
     }
 
     @Test
+    @Order(2)
     fun dynamicDataParserWorks() {
         // try to update at 2000-01-01 at 00:00:00 UTC (invalid as there is no relevant dataset available)
         val invalidUpdateSuccessful = dynamicNetCdfParser.updateParser(ZonedDateTime.of(2000, 1, 1, 0, 0, 0, 0, ZoneOffset.UTC))
