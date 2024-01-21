@@ -13,6 +13,6 @@ class StartupUpdater(
 ) : ApplicationListener<ContextRefreshedEvent> {
     override fun onApplicationEvent(event: ContextRefreshedEvent) {
         // Initialize all data parsers at startup by updating them, and also update any source data if lazyUpdate is off
-        weatherModelUpdateService.updateWeatherModels(!updateProperties.lazyUpdate)
+        weatherModelUpdateService.updateWeatherModels(!updateProperties.lazyUpdate, true)
     }
 }

@@ -27,11 +27,11 @@ class WeatherModelUpdateServiceImpl(
         updateWeatherModels(true)
     }
 
-    override fun updateWeatherModels(updateSources: Boolean) {
-        val updatedModels = if (updateSources) {
-            updateOnlineWeatherModels()
-        } else {
+    override fun updateWeatherModels(updateSources: Boolean, forceUpdateParsers: Boolean) {
+        val updatedModels = if (forceUpdateParsers || !updateSources) {
             weatherModelManagerService.getWeatherModels().values.map { requireNotNull(it) }.toMutableSet() // all available weather models
+        } else {
+            updateOnlineWeatherModels()
         }
 
         weatherModelManagerService.updateDataParsers(updatedModels)

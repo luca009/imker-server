@@ -40,7 +40,7 @@ class WeatherRasterCompositeCacheImpl(
     }
 
     private fun updateCache(weatherVariable: WeatherVariableType) {
-        if (!dataParser.getDataSources().contains(variableMapper.getWeatherVariableFileRule(weatherVariable)))
+        if (variableMapper.getMatchingFileName(weatherVariable, dataParser.getDataSources()) == null)
             return
 
         val variableName = variableMapper.getWeatherVariableName(weatherVariable) ?: return
