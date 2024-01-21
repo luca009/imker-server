@@ -7,6 +7,7 @@ import com.luca009.imker.imkerserver.configuration.model.WeatherVariableFileName
 import com.luca009.imker.imkerserver.management.model.WeatherModelManagerService
 import com.luca009.imker.imkerserver.parser.model.DynamicDataParser
 import com.luca009.imker.imkerserver.parser.model.WeatherDataParser
+import com.luca009.imker.imkerserver.parser.model.WeatherVariableType
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.time.ZonedDateTime
@@ -77,17 +78,21 @@ class WeatherModelManagerServiceImpl(
         weatherModel.parser.updateParser(dateTime)
     }
 
-    override fun getAvailableWeatherModelsForLatLon(variableName: String, latitude: Double, longitude: Double): SortedMap<Int, WeatherModel> {
+    override fun getAvailableWeatherModelsForLatLon(variable: WeatherVariableType, latitude: Double, longitude: Double): SortedMap<Int, WeatherModel> {
         return availableWeatherModels
-            .filter { it.value.parser.containsLatLon(variableName, latitude, longitude) }
+            .filter {
+                val weatherVariableName = it.value.mapper.getWeatherVariableName(variable)
+                requireNotNull(weatherVariableName) {
+                    false
+                }
+
+                it.value.parser.containsLatLon(weatherVariableName, latitude, longitude)
+            }
             .toSortedMap()
     }
 
-    override fun getPreferredWeatherModelForLatLon(variableName: String, latitude: Double, longitude: Double): WeatherModel? {
-        val filteredMap = availableWeatherModels
-            .filter { it.value.parser.containsLatLon(variableName, latitude, longitude) }
-            .toSortedMap()
-
+    override fun getPreferredWeatherModelForLatLon(variable: WeatherVariableType, latitude: Double, longitude: Double): WeatherModel? {
+        val filteredMap = getAvailableWeatherModelsForLatLon(variable, latitude, longitude)
         if (filteredMap.isEmpty()) {
             return null
         }

@@ -353,7 +353,11 @@ class ImkerServerApplicationTests {
 
     @Test
     fun weatherModelManagerWorks() {
-        val preferredWeatherModel = weatherModelManagerService.getPreferredWeatherModelForLatLon("TT", 48.20847274949422, 16.373155534546584) // Vienna
+        val preferredWeatherModel = weatherModelManagerService.getPreferredWeatherModelForLatLon(
+            WeatherVariableType.Temperature2m,
+            48.20847274949422,
+            16.373155534546584
+        ) // Vienna
         Assert.isTrue(preferredWeatherModel?.name == "INCA", "Preferred weather model was not INCA")
     }
 

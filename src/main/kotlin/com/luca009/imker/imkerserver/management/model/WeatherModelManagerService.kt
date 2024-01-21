@@ -2,6 +2,7 @@ package com.luca009.imker.imkerserver.management.model
 
 import com.luca009.imker.imkerserver.caching.model.WeatherRasterCompositeCache
 import com.luca009.imker.imkerserver.configuration.model.WeatherModel
+import com.luca009.imker.imkerserver.parser.model.WeatherVariableType
 import java.util.SortedMap
 
 interface WeatherModelManagerService {
@@ -15,8 +16,8 @@ interface WeatherModelManagerService {
     fun updateDataParsers()
     fun updateDataParsers(weatherModels: Set<WeatherModel>)
 
-    fun getAvailableWeatherModelsForLatLon(variableName: String, latitude: Double, longitude: Double): SortedMap<Int, WeatherModel>
-    fun getPreferredWeatherModelForLatLon(variableName: String, latitude: Double, longitude: Double): WeatherModel?
+    fun getAvailableWeatherModelsForLatLon(variable: WeatherVariableType, latitude: Double, longitude: Double): SortedMap<Int, WeatherModel>
+    fun getPreferredWeatherModelForLatLon(variable: WeatherVariableType, latitude: Double, longitude: Double): WeatherModel?
 
     fun getCompositeCacheForWeatherModel(weatherModel: WeatherModel): WeatherRasterCompositeCache?
 }

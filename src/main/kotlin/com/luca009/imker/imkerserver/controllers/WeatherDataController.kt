@@ -1,14 +1,13 @@
 package com.luca009.imker.imkerserver.controllers
 
 import com.luca009.imker.imkerserver.management.model.WeatherModelManagerService
+import com.luca009.imker.imkerserver.parser.model.WeatherVariable
 import com.luca009.imker.imkerserver.parser.model.WeatherVariableType
 import org.springframework.http.HttpStatus
-import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
-import org.springframework.web.client.HttpClientErrorException.BadRequest
 import org.springframework.web.server.ResponseStatusException
 
 
@@ -19,9 +18,11 @@ class WeatherDataController(
 ) {
     @GetMapping("/forecast")
     fun forecast(@RequestParam lat: Double, @RequestParam lon: Double, @RequestParam(required = false) model: String?): Double? {
+        val weatherVariableType = WeatherVariableType.Temperature2m
+
         val weatherModel = if (model == null) {
             // No weather model was given as an argument, use the preferred one
-            val preferredWeatherModel = weatherModelManagerService.getPreferredWeatherModelForLatLon("TT", lat, lon)
+            val preferredWeatherModel = weatherModelManagerService.getPreferredWeatherModelForLatLon(weatherVariableType, lat, lon)
             requireNotNull(preferredWeatherModel) {
                 throw ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "No weather model available at $lat $lon (lat, lon)")
             }
@@ -30,7 +31,7 @@ class WeatherDataController(
         } else {
             // A specific weather model was requested
             // First, look at all available weather models at the requested location, to see if it is available
-            val availableWeatherModels = weatherModelManagerService.getAvailableWeatherModelsForLatLon("TT", lat, lon)
+            val availableWeatherModels = weatherModelManagerService.getAvailableWeatherModelsForLatLon(weatherVariableType, lat, lon)
             val filteredWeatherModels = availableWeatherModels.filterValues { it.name == model }
 
             // Our search for the weather model had no results, this is a bad request :(
