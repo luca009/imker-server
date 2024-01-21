@@ -15,13 +15,10 @@ class WeatherRasterDiskCacheImpl(
 ) : WeatherRasterDiskCache {
     private fun getSafeVariableName(weatherVariableType: WeatherVariableType): String? {
         val variableName = fileNameMapper.getWeatherVariableName(weatherVariableType)
-        val variableFile = fileNameMapper.getWeatherVariableFile(weatherVariableType)
+        val variableFile = fileNameMapper.getMatchingFileName(weatherVariableType, dataParser.getDataSources())
 
         requireNotNull(variableName) { return null }
         requireNotNull(variableFile) { return null }
-
-        if (!dataParser.getDataSources().contains(variableFile))
-            return null
 
         return variableName
     }

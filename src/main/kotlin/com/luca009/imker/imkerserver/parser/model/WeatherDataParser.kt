@@ -17,16 +17,15 @@ interface WeatherDataParser {
 
     fun containsLatLon(name: String, latitude: Double, longitude: Double): Boolean
     fun latLonToCoordinates(name: String, latitude: Double, longitude: Double): WeatherVariable2dCoordinate?
+
+    fun close()
 }
 
 /**
- * Wrapper for any WeatherDataParser that also implements updating sources (like downloading new files).
+ * Wrapper for any WeatherDataParser that allows dynamically changing the underlying parser on the fly.
  */
 interface DynamicDataParser : WeatherDataParser {
-    /**
-     * Update all necessary sources. Returns whether the operation was a success.
-     */
-    suspend fun updateSources(dateTime: ZonedDateTime): Boolean
+    fun updateParser(dateTime: ZonedDateTime): Boolean
 }
 
 interface NetCdfParser : WeatherDataParser

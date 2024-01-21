@@ -2,7 +2,10 @@ package com.luca009.imker.imkerserver.caching.model
 
 import com.luca009.imker.imkerserver.parser.model.WeatherVariableType
 
-interface WeatherRasterCompositeCache : WeatherRasterCache
+interface WeatherRasterCompositeCache : WeatherRasterCache {
+    fun updateCaches()
+    fun updateCaches(weatherVariables: Set<WeatherVariableType>)
+}
 
 /**
  * Configuration for a WeatherRasterCacheManagerService.
@@ -10,6 +13,6 @@ interface WeatherRasterCompositeCache : WeatherRasterCache
  * [ignoredVariables] decides which variables will be ignored.
  */
 data class WeatherRasterCompositeCacheConfiguration(
-    val variablesInMemory: List<WeatherVariableType>,
-    val ignoredVariables: List<WeatherVariableType>
+    val variablesInMemory: Set<WeatherVariableType>,
+    val ignoredVariables: Set<WeatherVariableType>
 )

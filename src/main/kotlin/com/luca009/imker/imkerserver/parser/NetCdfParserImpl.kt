@@ -192,4 +192,8 @@ class NetCdfParserImpl(
             return null
         }
     }
+
+    override fun close() {
+        dataset.close()
+    }
 }

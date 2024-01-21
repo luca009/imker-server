@@ -18,28 +18,40 @@ class WeatherRasterCompositeCacheImpl(
 ) : WeatherRasterCompositeCache {
     private val logger: Logger = LoggerFactory.getLogger(this::class.java)
 
-    init {
-        updateCaches()
-    }
-
-    private fun updateCaches() {
-        // This is for loading all the variables that should be in memory into memory
+    /**
+     * Updates all the memory cached variables
+     */
+    override fun updateCaches() {
         configuration.variablesInMemory
             .forEach {
-                if (!dataParser.getDataSources().contains(variableMapper.getWeatherVariableFile(it)))
-                    return@forEach
-
-                val variableName = variableMapper.getWeatherVariableName(it) ?: return@forEach
-                if (dataParser.getRawVariable(variableName)?.type != "DOUBLE")
-                    return@forEach // Make sure the variable is actually a double, since that is the only type that can be stored at the moment
-
-                val variableData = weatherRasterCacheHelper.arraysToWeatherVariableSlice(
-                    dataParser.getGridEntireSlice(variableName) ?: return@forEach
-                ) ?: return@forEach
-
-                memoryCache.setVariable(it, variableData)
+                updateCache(it)
             }
-        
+    }
+
+    /**
+     * Updates the memory cached variables in [weatherVariables]
+     */
+    override fun updateCaches(weatherVariables: Set<WeatherVariableType>) {
+        configuration.variablesInMemory
+            .intersect(weatherVariables)
+            .forEach {
+                updateCache(it)
+            }
+    }
+
+    private fun updateCache(weatherVariable: WeatherVariableType) {
+        if (!dataParser.getDataSources().contains(variableMapper.getWeatherVariableFileRule(weatherVariable)))
+            return
+
+        val variableName = variableMapper.getWeatherVariableName(weatherVariable) ?: return
+        if (dataParser.getRawVariable(variableName)?.type != "DOUBLE")
+            return // Make sure the variable is actually a double, since that is the only type that can be stored at the moment
+
+        val variableData = weatherRasterCacheHelper.arraysToWeatherVariableSlice(
+            dataParser.getGridEntireSlice(variableName) ?: return
+        ) ?: return
+
+        memoryCache.setVariable(weatherVariable, variableData)
     }
 
     override fun variableExists(weatherVariableType: WeatherVariableType): Boolean {

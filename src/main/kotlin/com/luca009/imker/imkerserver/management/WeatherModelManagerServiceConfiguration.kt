@@ -1,19 +1,33 @@
 package com.luca009.imker.imkerserver.management
 
+import com.luca009.imker.imkerserver.caching.model.WeatherRasterCompositeCache
+import com.luca009.imker.imkerserver.caching.model.WeatherRasterCompositeCacheConfiguration
 import com.luca009.imker.imkerserver.configuration.model.WeatherModel
+import com.luca009.imker.imkerserver.configuration.model.WeatherVariableFileNameMapper
+import com.luca009.imker.imkerserver.filemanager.model.DataFileNameManager
+import com.luca009.imker.imkerserver.filemanager.model.IncaFileNameManager
 import com.luca009.imker.imkerserver.management.model.WeatherModelManagerService
+import com.luca009.imker.imkerserver.parser.model.DynamicDataParser
 import com.luca009.imker.imkerserver.parser.model.NetCdfParser
+import com.luca009.imker.imkerserver.parser.model.WeatherDataParser
+import com.luca009.imker.imkerserver.parser.model.WeatherVariableType
 import com.luca009.imker.imkerserver.receiver.model.IncaReceiver
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import java.io.File
 import java.util.SortedMap
 
 @Configuration
 class WeatherModelManagerServiceConfiguration(
-    val netCdfParserFactory: (String) -> NetCdfParser
+    val netCdfParserFactory: (String) -> NetCdfParser,
+    val dynamicParserFactory: ((String) -> WeatherDataParser, String, DataFileNameManager) -> DynamicDataParser,
+    val weatherVariableFileNameMapperFactory: (File) -> WeatherVariableFileNameMapper,
+    val weatherRasterCompositeCacheFactory: (WeatherRasterCompositeCacheConfiguration, WeatherDataParser, WeatherVariableFileNameMapper) -> WeatherRasterCompositeCache,
+    val incaFileNameManager: IncaFileNameManager,
+    val incaReceiver: IncaReceiver
 ) {
     @Bean
-    fun weatherModelManagerService(incaReceiver: IncaReceiver): WeatherModelManagerService {
+    fun weatherModelManagerService(): WeatherModelManagerService {
         // TODO: this needs to be replaced with configuration files. For now, we only have one weather model
 
         val weatherModels: SortedMap<Int, WeatherModel> = sortedMapOf(
@@ -21,14 +35,25 @@ class WeatherModelManagerServiceConfiguration(
                 "INCA",
                 "INCA",
                 "GeoSphere Austria under CC BY-SA 4.0",
-                "src/test/resources/inca/inca_map.csv",
+
                 incaReceiver,
-                netCdfParserFactory("src/test/resources/inca/inca_nowcast.nc") // TODO: replace this with the actual files we have downloaded
+                //dynamicParserFactory(netCdfParserFactory, "src/test/resources/inca/inca_nowcast.nc", incaFileNameManager), // TODO: replace this with the actual files we have downloaded
+                dynamicParserFactory(netCdfParserFactory, "C:\\Users\\reall\\Downloads\\incadata\\inca\\nowcast_202309091345.nc", incaFileNameManager), // TODO: replace this with the actual files we have downloaded
+                weatherVariableFileNameMapperFactory(File("src/test/resources/inca/inca_map.csv")),
+
+                WeatherRasterCompositeCacheConfiguration(
+                    setOf(
+                        // variables in memory
+                        WeatherVariableType.Temperature2m
+                    ),
+                    setOf() // ignored variables
+                )
             )
         )
 
         return WeatherModelManagerServiceImpl(
-            weatherModels
+            weatherModels,
+            weatherRasterCompositeCacheFactory
         )
     }
 }

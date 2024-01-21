@@ -2,7 +2,9 @@ package com.luca009.imker.imkerserver.receiver.ftp
 
 import com.luca009.imker.imkerserver.receiver.model.DownloadResult
 import com.luca009.imker.imkerserver.receiver.model.FtpClient
+import org.apache.commons.net.ftp.FTP
 import org.apache.commons.net.ftp.FTPClient
+import org.apache.commons.net.ftp.FTPClientConfig
 import org.apache.commons.net.ftp.FTPFile
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -21,7 +23,7 @@ class FtpClientImpl : FtpClient {
         return try {
             ftpClient.connect(serverUri)
             ftpClient.login(username, password)
-            ftpClient.setControlKeepAliveTimeout(Duration.ofMinutes(1))
+            ftpClient.setFileType(FTP.BINARY_FILE_TYPE)
             true
         } catch (e: Exception) {
             false

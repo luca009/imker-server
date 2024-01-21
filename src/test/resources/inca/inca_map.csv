@@ -1,2 +1,2 @@
-Temperature2m,TT,inca_nowcast.nc
-WindSpeed10m,FF,inca_nowcast.nc
+Temperature2m,TT,(?<=\.*\\)nowcast_\d{12}\.nc
+WindSpeed10m,FF,(?<=\.*\\)nowcast_\d{12}\.nc

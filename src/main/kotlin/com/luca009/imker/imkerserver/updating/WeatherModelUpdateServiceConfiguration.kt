@@ -1,5 +1,6 @@
 package com.luca009.imker.imkerserver.updating
 
+import com.luca009.imker.imkerserver.configuration.properties.UpdateProperties
 import com.luca009.imker.imkerserver.management.model.WeatherModelManagerService
 import com.luca009.imker.imkerserver.updating.model.WeatherModelUpdateService
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty

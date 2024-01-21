@@ -9,6 +9,7 @@ import com.luca009.imker.imkerserver.caching.model.WeatherRasterCompositeCacheCo
 import com.luca009.imker.imkerserver.caching.model.WeatherRasterDiskCache
 import com.luca009.imker.imkerserver.caching.model.WeatherRasterMemoryCache
 import com.luca009.imker.imkerserver.configuration.WeatherVariableFileNameMapperImpl
+import com.luca009.imker.imkerserver.configuration.model.WeatherModel
 import com.luca009.imker.imkerserver.configuration.model.WeatherVariableFileNameMapper
 import com.luca009.imker.imkerserver.filemanager.AromeFileNameManagerImpl
 import com.luca009.imker.imkerserver.filemanager.BestFileSearchServiceImpl
@@ -19,10 +20,9 @@ import com.luca009.imker.imkerserver.filemanager.model.IncaFileNameManager
 import com.luca009.imker.imkerserver.filemanager.model.LocalFileManagerService
 import com.luca009.imker.imkerserver.management.WeatherModelManagerServiceImpl
 import com.luca009.imker.imkerserver.management.model.WeatherModelManagerService
+import com.luca009.imker.imkerserver.parser.DynamicDataParserImpl
 import com.luca009.imker.imkerserver.parser.NetCdfParserImpl
-import com.luca009.imker.imkerserver.parser.model.NetCdfParser
-import com.luca009.imker.imkerserver.parser.model.WeatherVariable2dCoordinate
-import com.luca009.imker.imkerserver.parser.model.WeatherVariableType
+import com.luca009.imker.imkerserver.parser.model.*
 import com.luca009.imker.imkerserver.receiver.model.DownloadResult
 import com.luca009.imker.imkerserver.receiver.ftp.FtpClientImpl
 import com.luca009.imker.imkerserver.receiver.inca.IncaReceiverImpl
@@ -32,22 +32,16 @@ import org.apache.commons.net.ftp.FTPFile
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import org.mockito.InjectMocks
 import org.mockito.Mockito.*
 import org.mockito.kotlin.whenever
 import org.mockito.stubbing.Answer
-import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.util.Assert
-import ucar.nc2.constants.FeatureType
-import ucar.nc2.dataset.NetcdfDatasets
-import ucar.nc2.dt.grid.GridDataset
-import ucar.nc2.ft.FeatureDatasetFactoryManager
-import ucar.nc2.util.CancelTask
 import java.io.File
 import java.nio.file.Path
 import java.time.ZoneOffset
 import java.time.ZonedDateTime
+import java.util.*
 import kotlin.io.path.Path
 
 @SpringBootTest
@@ -55,7 +49,7 @@ import kotlin.io.path.Path
 class ImkerServerApplicationTests {
     private final val ZAMG_FTP_SERVER = "eaftp.zamg.ac.at"
     private final val TEST_RESOURCES_PATH = File("src/test/resources").absolutePath
-    private final val TEST_NETCDF_FILE_PATH = Path(TEST_RESOURCES_PATH, "inca", "inca_nowcast.nc").toString()
+    private final val TEST_NETCDF_FILE_PATH = Path(TEST_RESOURCES_PATH, "inca", "nowcast_202309091345.nc").toString()
     private final val TEST_MAPPER_CONFIG_FILE_PATH = Path(TEST_RESOURCES_PATH, "inca", "inca_map.csv").toString()
     private final val MOCK_INCA_FILES = arrayOf(
         MockFTPFile(true, "nowcast_202309091330.nc"),
@@ -68,15 +62,22 @@ class ImkerServerApplicationTests {
         MockFTPFile(true, "nwp_2023100103.nc")
     )
     private final val COMPOSITE_CACHE_CONFIG = WeatherRasterCompositeCacheConfiguration(
-        listOf(WeatherVariableType.Temperature2m),
-        listOf()
+        setOf(WeatherVariableType.Temperature2m),
+        setOf()
     )
+
+    val netCdfParserFactory = {
+            netCdfFilePath: String -> NetCdfParserImpl(netCdfFilePath)
+    }
+    val weatherVariableFileNameMapperFactory = {
+        weatherVariableMapFile: File -> WeatherVariableFileNameMapperImpl(weatherVariableMapFile)
+    }
 
     val ftpClient: FtpClient = FtpClientImpl()
     val incaFileNameManager: IncaFileNameManager = IncaFileNameManagerImpl()
     val aromeFileNameManager: AromeFileNameManager = AromeFileNameManagerImpl()
     val bestFileSearchService: BestFileSearchService = BestFileSearchServiceImpl()
-    val netCdfParser: NetCdfParser = NetCdfParserImpl(TEST_NETCDF_FILE_PATH)
+    val netCdfParser: NetCdfParser = netCdfParserFactory(TEST_NETCDF_FILE_PATH)
     val variableMapper: WeatherVariableFileNameMapper = WeatherVariableFileNameMapperImpl(File(TEST_MAPPER_CONFIG_FILE_PATH))
     val weatherRasterMemoryCache: WeatherRasterMemoryCache = WeatherRasterMemoryCacheImpl()
     val weatherRasterDiskCache: WeatherRasterDiskCache = WeatherRasterDiskCacheImpl(
@@ -93,15 +94,52 @@ class ImkerServerApplicationTests {
         WeatherRasterCacheHelper()
     )
 
-    @Autowired
-    lateinit var weatherModelManagerService: WeatherModelManagerService
-
     val mockFtpClient: FtpClient = org.mockito.kotlin.mock()
     val mockLocalFileManagerService: LocalFileManagerService = org.mockito.kotlin.mock()
 
+    val weatherModels: SortedMap<Int, WeatherModel> = sortedMapOf(
+        0 to WeatherModel(
+            "INCA",
+            "INCA",
+            "GeoSphere Austria under CC BY-SA 4.0",
+
+            IncaReceiverImpl(
+                mockLocalFileManagerService,
+                incaFileNameManager,
+                bestFileSearchService,
+                mockFtpClient
+            ),
+            DynamicDataParserImpl(netCdfParser, netCdfParserFactory, TEST_NETCDF_FILE_PATH, bestFileSearchService, incaFileNameManager),
+            weatherVariableFileNameMapperFactory(File("src/test/resources/inca/inca_map.csv")),
+
+            WeatherRasterCompositeCacheConfiguration(
+                setOf(
+                    // variables in memory
+                    WeatherVariableType.Temperature2m
+                ),
+                setOf() // ignored variables
+            )
+        )
+    )
+    val weatherDataCompositeCacheFactory = {
+            configuration: WeatherRasterCompositeCacheConfiguration, dataParser: WeatherDataParser, variableMapper: WeatherVariableFileNameMapper -> WeatherRasterCompositeCacheImpl(configuration, dataParser, variableMapper, weatherRasterMemoryCache, weatherRasterDiskCache, WeatherRasterCacheHelper())
+    }
+    val weatherModelManagerService: WeatherModelManagerService = WeatherModelManagerServiceImpl(
+        weatherModels,
+        weatherDataCompositeCacheFactory
+    )
+
+    val dynamicNetCdfParser: DynamicDataParser = DynamicDataParserImpl(
+        netCdfParser,
+        netCdfParserFactory,
+        TEST_NETCDF_FILE_PATH,
+        bestFileSearchService,
+        incaFileNameManager
+    )
+
     @BeforeAll
     fun setupMockLocalFileManager() {
-        whenever(mockLocalFileManagerService.getWeatherDataLocation(anyString())).thenAnswer(Answer {
+        whenever(mockLocalFileManagerService.getWeatherDataLocation(anyString(), anyString())).thenAnswer(Answer {
             val subPath = it.arguments[0].toString()
             return@Answer Path(TEST_RESOURCES_PATH, subPath)
         })
@@ -315,12 +353,24 @@ class ImkerServerApplicationTests {
 
     @Test
     fun weatherModelManagerWorks() {
-        if (!this::weatherModelManagerService.isInitialized) {
-            throw UninitializedPropertyAccessException("Weather model manager service was not initialized")
-        }
-
         val preferredWeatherModel = weatherModelManagerService.getPreferredWeatherModelForLatLon("TT", 48.20847274949422, 16.373155534546584) // Vienna
         Assert.isTrue(preferredWeatherModel?.name == "INCA", "Preferred weather model was not INCA")
+    }
+
+    @Test
+    fun dynamicDataParserWorks() {
+        // try to update at 2000-01-01 at 00:00:00 UTC (invalid as there is no relevant dataset available)
+        val invalidUpdateSuccessful = dynamicNetCdfParser.updateParser(ZonedDateTime.of(2000, 1, 1, 0, 0, 0, 0, ZoneOffset.UTC))
+        Assert.isTrue(!invalidUpdateSuccessful, "Invalid NetCDF parser update was successful")
+
+        val firstDataSources = dynamicNetCdfParser.getDataSources()
+
+        // try to update at 2023-09-09 at 14:00:00 UTC (valid, there should be a relevant dataset available)
+        val validUpdateSuccessful = dynamicNetCdfParser.updateParser(ZonedDateTime.of(2023, 9, 9, 14, 0, 0, 0, ZoneOffset.UTC))
+        Assert.isTrue(validUpdateSuccessful, "Valid NetCDF parser update was unsuccessful")
+
+        val secondDataSource = dynamicNetCdfParser.getDataSources()
+        Assert.isTrue(firstDataSources != secondDataSource, "Dynamic NetCDF parser was not updated, despite the update being reported as successful")
     }
 }
 

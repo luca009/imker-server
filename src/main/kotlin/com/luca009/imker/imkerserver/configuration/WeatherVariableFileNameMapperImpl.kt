@@ -5,7 +5,6 @@ import com.luca009.imker.imkerserver.configuration.model.WeatherVariableFileName
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.io.File
-import kotlin.io.path.Path
 
 class WeatherVariableFileNameMapperImpl(
     private val configurationFile: File
@@ -20,7 +19,7 @@ class WeatherVariableFileNameMapperImpl(
         map = reader.lineSequence()
             .filter { it.isNotBlank() }
             .mapNotNull {
-                val (enumName, variableName, filePathString) = it.split(',', ignoreCase = false, limit = 3)
+                val (enumName, variableName, fileRule) = it.split(',', ignoreCase = false, limit = 3)
                 val enum = WeatherVariableType.values().find { it.toString() == enumName }
 
                 if (enum == null) {
@@ -28,18 +27,11 @@ class WeatherVariableFileNameMapperImpl(
                     return@mapNotNull null
                 }
 
-                val uncheckedFilePath = Path(filePathString) // This might be an absolute or relative file path, hence "uncheckedFilePath"
-                val filePath = if (uncheckedFilePath.isAbsolute) {
-                    uncheckedFilePath.toString() // absolute path, leave it as is
-                } else {
-                    Path(configurationFileDirectory, uncheckedFilePath.toString()).toString() // relative path, join it to the config file's location
-                }
-
                 Pair(
                     enum,
                     Pair(
                         variableName,
-                        filePath
+                        fileRule
                     )
                 )
             }
@@ -57,12 +49,21 @@ class WeatherVariableFileNameMapperImpl(
         return matches.keys
     }
 
-    override fun getWeatherVariableFile(variable: WeatherVariableType): String? {
+    override fun getWeatherVariableFileRule(variable: WeatherVariableType): String? {
         return map[variable]?.second
     }
 
     override fun getWeatherVariableName(variable: WeatherVariableType): String? {
         return map[variable]?.first
+    }
+
+    override fun getMatchingFileName(variable: WeatherVariableType, availableFiles: Set<String>): String? {
+        val fileRule = getWeatherVariableFileRule(variable)
+        requireNotNull(fileRule) { return null }
+
+        val fileRuleRegex = Regex(fileRule)
+
+        return availableFiles.firstOrNull { fileRuleRegex.containsMatchIn(it) }
     }
 
     override fun containsWeatherVariable(variable: WeatherVariableType): Boolean {
