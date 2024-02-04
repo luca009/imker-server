@@ -7,6 +7,7 @@ import com.luca009.imker.imkerserver.parser.model.WeatherVariable2dCoordinate
 import com.luca009.imker.imkerserver.parser.model.WeatherVariableType
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import java.time.ZonedDateTime
 
 class WeatherRasterCompositeCacheImpl(
     val configuration: WeatherRasterCompositeCacheConfiguration,
@@ -14,29 +15,96 @@ class WeatherRasterCompositeCacheImpl(
     private val variableMapper: WeatherVariableFileNameMapper,
     private val memoryCache: WeatherRasterMemoryCache,
     private val diskCache: WeatherRasterDiskCache,
-    private val weatherRasterCacheHelper: WeatherRasterCacheHelper
+    private val weatherRasterCacheHelper: WeatherRasterCacheHelper,
+    private val timeCache: WeatherTimeCache
 ) : WeatherRasterCompositeCache {
     private val logger: Logger = LoggerFactory.getLogger(this::class.java)
 
-    /**
-     * Updates all the memory cached variables
-     */
     override fun updateCaches() {
         configuration.variablesInMemory
             .forEach {
                 updateCache(it)
             }
+
+        dataParser.getAvailableRawVariables().forEach {
+            val times = dataParser.getTimes(it.name)
+            requireNotNull(times) {
+                return@forEach
+            }
+
+            timeCache.setTimes(it.name, times)
+        }
     }
 
-    /**
-     * Updates the memory cached variables in [weatherVariables]
-     */
     override fun updateCaches(weatherVariables: Set<WeatherVariableType>) {
         configuration.variablesInMemory
             .intersect(weatherVariables)
             .forEach {
                 updateCache(it)
             }
+    }
+
+    override fun getEarliestTimeIndex(weatherVariable: WeatherVariableType, time: ZonedDateTime): Int? {
+        val variableName = variableMapper.getWeatherVariableName(weatherVariable)
+        requireNotNull(variableName) {
+            return null
+        }
+
+        return timeCache.getEarliestIndex(variableName, time)
+    }
+
+    override fun getClosestTimeIndex(weatherVariable: WeatherVariableType, time: ZonedDateTime): Int? {
+        val variableName = variableMapper.getWeatherVariableName(weatherVariable)
+        requireNotNull(variableName) {
+            return null
+        }
+
+        return timeCache.getClosestIndex(variableName, time)
+    }
+
+    override fun getLatestTimeIndex(weatherVariable: WeatherVariableType, time: ZonedDateTime): Int? {
+        val variableName = variableMapper.getWeatherVariableName(weatherVariable)
+        requireNotNull(variableName) {
+            return null
+        }
+
+        return timeCache.getLatestIndex(variableName, time)
+    }
+
+    override fun getEarliestTime(weatherVariable: WeatherVariableType, time: ZonedDateTime): ZonedDateTime? {
+        val variableName = variableMapper.getWeatherVariableName(weatherVariable)
+        requireNotNull(variableName) {
+            return null
+        }
+
+        return timeCache.getEarliestTime(variableName, time)
+    }
+
+    override fun getClosestTime(weatherVariable: WeatherVariableType, time: ZonedDateTime): ZonedDateTime? {
+        val variableName = variableMapper.getWeatherVariableName(weatherVariable)
+        requireNotNull(variableName) {
+            return null
+        }
+
+        return timeCache.getClosestTime(variableName, time)
+    }
+
+    override fun getLatestTime(weatherVariable: WeatherVariableType, time: ZonedDateTime): ZonedDateTime? {
+        val variableName = variableMapper.getWeatherVariableName(weatherVariable)
+        requireNotNull(variableName) {
+            return null
+        }
+
+        return timeCache.getLatestTime(variableName, time)
+    }
+
+    override fun getTime(weatherVariable: WeatherVariableType, index: Int): ZonedDateTime? {
+        val variableName = variableMapper.getWeatherVariableName(weatherVariable)
+        requireNotNull(variableName) {
+            return null
+        }
+
+        return timeCache.getTime(variableName, index)
     }
 
     private fun updateCache(weatherVariable: WeatherVariableType) {

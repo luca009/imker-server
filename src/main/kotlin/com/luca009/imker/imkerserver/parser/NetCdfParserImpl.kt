@@ -12,7 +12,11 @@ import ucar.nc2.dataset.NetcdfDatasets
 import ucar.nc2.dt.grid.GridDataset
 import ucar.nc2.ft.FeatureDataset
 import ucar.nc2.ft.FeatureDatasetFactoryManager
+import ucar.nc2.time.CalendarDate
 import ucar.nc2.util.CancelTask
+import java.time.ZoneOffset
+import java.time.ZonedDateTime
+import java.util.*
 import kotlin.io.path.Path
 
 class NetCdfParserImpl(
@@ -112,6 +116,19 @@ class NetCdfParserImpl(
         return weatherVariable.readDataSlice(timeIndex, coordinate.zIndex, coordinate.yIndex, coordinate.xIndex).getObject(0)
     }
 
+    override fun getTimes(name: String): Set<Pair<Int, ZonedDateTime>>? {
+        // Get the first gridset to contain a grid with our desired name
+        val gridset = wrappedGridDataset?.gridsets?.find {
+            it.grids?.find { it.name == name } != null
+        }
+        requireNotNull(gridset) { return null }
+
+        return gridset.geoCoordSystem.calendarDates.mapIndexed { index, date ->
+            val utilDate = date.toDate()
+            Pair(index, utilDate.toInstant().atZone(ZoneOffset.UTC))
+        }.toSet()
+    }
+
     override fun gridTimeSliceExists(name: String, timeIndex: Int): Boolean {
         val weatherVariable = wrappedGridDataset?.grids?.find { it.name == name }
         requireNotNull(weatherVariable) { return false }
@@ -150,6 +167,22 @@ class NetCdfParserImpl(
                     coordinate.isInRange(weatherVariable.xDimension.length, weatherVariable.yDimension.length, weatherVariable.zDimension.length)
         } catch (e: Exception) {
             logger.error("$sourceFilePath: $name: could not determine if 3d position slice exists, defaulting to false. ${e.message}")
+            false
+        }
+    }
+
+    override fun containsTime(name: String, time: ZonedDateTime): Boolean {
+        // Get the first gridset to contain a grid with our desired name
+        val gridset = wrappedGridDataset?.gridsets?.find {
+            it.grids?.find { it.name == name } != null
+        }
+        requireNotNull(gridset) { return false }
+
+        return try {
+            val calendarDate = CalendarDate.of(Date.from(time.toInstant()))
+            gridset.geoCoordSystem.timeAxis1D.hasCalendarDate(calendarDate)
+        } catch (e: Exception) {
+            logger.error("$sourceFilePath: $name: could not determine if $time is contained in the gridset. ${e.message}")
             false
         }
     }

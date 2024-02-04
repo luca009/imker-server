@@ -1,13 +1,7 @@
 package com.luca009.imker.imkerserver
 
-import com.luca009.imker.imkerserver.caching.WeatherRasterCacheHelper
-import com.luca009.imker.imkerserver.caching.WeatherRasterCompositeCacheImpl
-import com.luca009.imker.imkerserver.caching.WeatherRasterDiskCacheImpl
-import com.luca009.imker.imkerserver.caching.WeatherRasterMemoryCacheImpl
-import com.luca009.imker.imkerserver.caching.model.WeatherRasterCompositeCache
-import com.luca009.imker.imkerserver.caching.model.WeatherRasterCompositeCacheConfiguration
-import com.luca009.imker.imkerserver.caching.model.WeatherRasterDiskCache
-import com.luca009.imker.imkerserver.caching.model.WeatherRasterMemoryCache
+import com.luca009.imker.imkerserver.caching.*
+import com.luca009.imker.imkerserver.caching.model.*
 import com.luca009.imker.imkerserver.configuration.WeatherVariableFileNameMapperImpl
 import com.luca009.imker.imkerserver.configuration.model.WeatherModel
 import com.luca009.imker.imkerserver.configuration.model.WeatherVariableFileNameMapper
@@ -50,6 +44,11 @@ class ImkerServerApplicationTests {
     private final val TEST_RESOURCES_PATH = File("src/test/resources").absolutePath
     private final val TEST_NETCDF_FILE_PATH = Path(TEST_RESOURCES_PATH, "inca", "nowcast_202309091345.nc").toString()
     private final val TEST_MAPPER_CONFIG_FILE_PATH = Path(TEST_RESOURCES_PATH, "inca", "inca_map.csv").toString()
+    private final val TEST_DATES: Set<Pair<Int, ZonedDateTime>> = setOf(
+        Pair(1, ZonedDateTime.of(2023, 12, 20, 12, 20, 0, 0, ZoneOffset.UTC)),
+        Pair(2, ZonedDateTime.of(2023, 12, 20, 14, 0, 0, 0, ZoneOffset.UTC)),
+        Pair(3, ZonedDateTime.of(2023, 12, 21, 12, 0, 0, 0, ZoneOffset.UTC))
+    )
     private final val MOCK_INCA_FILES = arrayOf(
         MockFTPFile(true, "nowcast_202309091330.nc"),
         MockFTPFile(true, "nowcast_202309100915.nc"),
@@ -78,6 +77,7 @@ class ImkerServerApplicationTests {
     val bestFileSearchService: BestFileSearchService = BestFileSearchServiceImpl()
     val netCdfParser: NetCdfParser = netCdfParserFactory(TEST_NETCDF_FILE_PATH)
     val variableMapper: WeatherVariableFileNameMapper = WeatherVariableFileNameMapperImpl(File(TEST_MAPPER_CONFIG_FILE_PATH))
+    val weatherTimeCache: WeatherTimeCache = WeatherTimeCacheImpl()
     val weatherRasterMemoryCache: WeatherRasterMemoryCache = WeatherRasterMemoryCacheImpl()
     val weatherRasterDiskCache: WeatherRasterDiskCache = WeatherRasterDiskCacheImpl(
         netCdfParser,
@@ -90,7 +90,8 @@ class ImkerServerApplicationTests {
         variableMapper,
         weatherRasterMemoryCache,
         weatherRasterDiskCache,
-        WeatherRasterCacheHelper()
+        WeatherRasterCacheHelper(),
+        weatherTimeCache
     )
 
     val mockFtpClient: FtpClient = org.mockito.kotlin.mock()
@@ -121,7 +122,7 @@ class ImkerServerApplicationTests {
         )
     )
     val weatherDataCompositeCacheFactory = {
-            configuration: WeatherRasterCompositeCacheConfiguration, dataParser: WeatherDataParser, variableMapper: WeatherVariableFileNameMapper -> WeatherRasterCompositeCacheImpl(configuration, dataParser, variableMapper, weatherRasterMemoryCache, weatherRasterDiskCache, WeatherRasterCacheHelper())
+            configuration: WeatherRasterCompositeCacheConfiguration, dataParser: WeatherDataParser, variableMapper: WeatherVariableFileNameMapper -> WeatherRasterCompositeCacheImpl(configuration, dataParser, variableMapper, weatherRasterMemoryCache, weatherRasterDiskCache, WeatherRasterCacheHelper(), weatherTimeCache)
     }
     val weatherModelManagerService: WeatherModelManagerService = WeatherModelManagerServiceImpl(
         weatherModels,
@@ -378,6 +379,26 @@ class ImkerServerApplicationTests {
 
         val secondDataSource = dynamicNetCdfParser.getDataSources()
         Assert.isTrue(firstDataSources != secondDataSource, "Dynamic NetCDF parser was not updated, despite the update being reported as successful")
+    }
+
+    @Test
+    fun weatherTimeCacheWorks() {
+        weatherTimeCache.setTimes("TT", TEST_DATES)
+
+        // 2023-12-21 at 08:00:00 UTC
+        // in comparison to the test dates (not to scale :D):
+        // --1-----2-----3-- (indices 1, 2 and 3 in the test dataset)
+        // -------------T--- (this test date)
+        val testDate = ZonedDateTime.of(2023, 12, 21, 8, 0, 0, 0, ZoneOffset.UTC)
+
+        val earliestIndex = weatherTimeCache.getEarliestIndex("TT", testDate)
+        Assert.isTrue(earliestIndex == 2, "WeatherTimeCache earliest date calculation was incorrect")
+
+        val closestIndex = weatherTimeCache.getClosestIndex("TT", testDate)
+        Assert.isTrue(closestIndex == 3, "WeatherTimeCache closest date calculation was incorrect")
+
+        val latestIndex = weatherTimeCache.getLatestIndex("TT", testDate)
+        Assert.isTrue(latestIndex == 3, "WeatherTimeCache latest date calculation was incorrect")
     }
 }
 

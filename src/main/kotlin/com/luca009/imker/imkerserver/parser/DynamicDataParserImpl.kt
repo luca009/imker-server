@@ -70,6 +70,9 @@ class DynamicDataParserImpl(
         timeIndex: Int,
         coordinate: WeatherVariable3dCoordinate
     ) = weatherDataParser?.getGridTimeAnd3dPositionSlice(name, timeIndex, coordinate)
+
+    override fun getTimes(name: String) = weatherDataParser?.getTimes(name)
+
     override fun gridTimeSliceExists(name: String, timeIndex: Int) = weatherDataParser?.gridTimeSliceExists(name, timeIndex) ?: false
     override fun gridTimeAnd2dPositionSliceExists(
         name: String,
@@ -81,6 +84,9 @@ class DynamicDataParserImpl(
         timeIndex: Int,
         coordinate: WeatherVariable3dCoordinate
     ) = weatherDataParser?.gridTimeAnd3dPositionSliceExists(name, timeIndex, coordinate) ?: false
+
+    override fun containsTime(name: String, time: ZonedDateTime) = weatherDataParser?.containsTime(name, time) ?: false
+
     override fun containsLatLon(name: String, latitude: Double, longitude: Double) = weatherDataParser?.containsLatLon(name, latitude, longitude) ?: false
     override fun latLonToCoordinates(name: String, latitude: Double, longitude: Double) = weatherDataParser?.latLonToCoordinates(name, latitude, longitude)
     override fun close() {

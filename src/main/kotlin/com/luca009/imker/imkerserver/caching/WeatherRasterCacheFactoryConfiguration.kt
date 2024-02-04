@@ -1,9 +1,6 @@
 package com.luca009.imker.imkerserver.caching
 
-import com.luca009.imker.imkerserver.caching.model.WeatherRasterCompositeCache
-import com.luca009.imker.imkerserver.caching.model.WeatherRasterCompositeCacheConfiguration
-import com.luca009.imker.imkerserver.caching.model.WeatherRasterDiskCache
-import com.luca009.imker.imkerserver.caching.model.WeatherRasterMemoryCache
+import com.luca009.imker.imkerserver.caching.model.*
 import com.luca009.imker.imkerserver.configuration.model.WeatherVariableFileNameMapper
 import com.luca009.imker.imkerserver.parser.model.WeatherDataParser
 import org.springframework.context.annotation.Bean
@@ -28,7 +25,8 @@ class WeatherRasterCacheFactoryConfiguration {
             variableMapper,
             weatherRasterMemoryCache(),
             weatherRasterDiskCache(dataParser, variableMapper),
-            weatherRasterCacheMapper()
+            weatherRasterCacheMapper(),
+            weatherTimeCache()
         )
     }
 
@@ -46,6 +44,12 @@ class WeatherRasterCacheFactoryConfiguration {
     @Scope("prototype")
     fun weatherRasterMemoryCache(): WeatherRasterMemoryCache {
         return WeatherRasterMemoryCacheImpl()
+    }
+
+    @Bean
+    @Scope("prototype")
+    fun weatherTimeCache(): WeatherTimeCache {
+        return WeatherTimeCacheImpl()
     }
 
     @Bean
