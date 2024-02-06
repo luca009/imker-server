@@ -6,9 +6,11 @@ import com.luca009.imker.imkerserver.parser.model.WeatherVariable2dCoordinate
 import com.luca009.imker.imkerserver.parser.model.WeatherVariable3dCoordinate
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import ucar.nc2.Dimension
 import ucar.nc2.constants.FeatureType
 import ucar.nc2.dataset.NetcdfDataset
 import ucar.nc2.dataset.NetcdfDatasets
+import ucar.nc2.dt.GridDatatype
 import ucar.nc2.dt.grid.GridDataset
 import ucar.nc2.ft.FeatureDataset
 import ucar.nc2.ft.FeatureDatasetFactoryManager
@@ -70,6 +72,27 @@ class NetCdfParserImpl(
         }.toMap()
     }
 
+    private fun isInRange(dimension: Dimension?, index: Int): Boolean {
+        requireNotNull(dimension) {
+            return false
+        }
+
+        return index > 0 && index < dimension.length
+    }
+
+    private fun isIn2dRange(weatherVariable: GridDatatype, timeIndex: Int, xIndex: Int, yIndex: Int): Boolean {
+        return isInRange(weatherVariable.timeDimension, timeIndex) &&
+                isInRange(weatherVariable.xDimension, xIndex) &&
+                isInRange(weatherVariable.yDimension, yIndex)
+    }
+
+    private fun isIn3dRange(weatherVariable: GridDatatype, timeIndex: Int, xIndex: Int, yIndex: Int, zIndex: Int): Boolean {
+        return isInRange(weatherVariable.timeDimension, timeIndex) &&
+                isInRange(weatherVariable.xDimension, xIndex) &&
+                isInRange(weatherVariable.yDimension, yIndex) &&
+                isInRange(weatherVariable.zDimension, zIndex)
+    }
+
     override fun getDataSources(): Set<String> {
         return setOf(sourceFilePath)
     }
@@ -99,21 +122,33 @@ class NetCdfParserImpl(
         val weatherVariable = wrappedGridDataset?.grids?.find { it.name == name }
         requireNotNull(weatherVariable) { return null }
 
-        return weatherVariable.readVolumeData(timeIndex).copyToNDJavaArray() as Array<*>
+        return if (isInRange(weatherVariable.timeDimension, timeIndex)) {
+            weatherVariable.readVolumeData(timeIndex).copyToNDJavaArray() as Array<*>
+        } else {
+            null
+        }
     }
 
     override fun getGridTimeAnd2dPositionSlice(name: String, timeIndex: Int, coordinate: WeatherVariable2dCoordinate): Any? {
         val weatherVariable = wrappedGridDataset?.grids?.find { it.name == name }
         requireNotNull(weatherVariable) { return null }
 
-        return weatherVariable.readDataSlice(timeIndex, 0, coordinate.yIndex, coordinate.xIndex).getObject(0)
+        return if (isIn2dRange(weatherVariable, timeIndex, coordinate.xIndex, coordinate.yIndex)) {
+            weatherVariable.readDataSlice(timeIndex, 0, coordinate.yIndex, coordinate.xIndex).getObject(0)
+        } else {
+            null
+        }
     }
 
     override fun getGridTimeAnd3dPositionSlice(name: String, timeIndex: Int, coordinate: WeatherVariable3dCoordinate): Any? {
         val weatherVariable = wrappedGridDataset?.grids?.find { it.name == name }
         requireNotNull(weatherVariable) { return null }
 
-        return weatherVariable.readDataSlice(timeIndex, coordinate.zIndex, coordinate.yIndex, coordinate.xIndex).getObject(0)
+        return if (isIn3dRange(weatherVariable, timeIndex, coordinate.xIndex, coordinate.yIndex, coordinate.zIndex)) {
+            weatherVariable.readDataSlice(timeIndex, coordinate.zIndex, coordinate.yIndex, coordinate.xIndex).getObject(0)
+        } else {
+            null
+        }
     }
 
     override fun getTimes(name: String): Set<Pair<Int, ZonedDateTime>>? {
@@ -145,13 +180,7 @@ class NetCdfParserImpl(
         val weatherVariable = wrappedGridDataset?.grids?.find { it.name == name }
         requireNotNull(weatherVariable) { return false }
 
-        return try {
-            timeIndex >= 0 && timeIndex < weatherVariable.timeDimension.length &&
-                    coordinate.isInRange(weatherVariable.xDimension.length, weatherVariable.yDimension.length)
-        } catch (e: Exception) {
-            logger.error("$sourceFilePath: $name: could not determine if 2d position slice exists, defaulting to false. ${e.message}")
-            false
-        }
+        return isIn2dRange(weatherVariable, timeIndex, coordinate.xIndex, coordinate.yIndex)
     }
 
     override fun gridTimeAnd3dPositionSliceExists(
@@ -162,13 +191,7 @@ class NetCdfParserImpl(
         val weatherVariable = wrappedGridDataset?.grids?.find { it.name == name }
         requireNotNull(weatherVariable) { return false }
 
-        return try {
-            timeIndex >= 0 && timeIndex < weatherVariable.timeDimension.length &&
-                    coordinate.isInRange(weatherVariable.xDimension.length, weatherVariable.yDimension.length, weatherVariable.zDimension.length)
-        } catch (e: Exception) {
-            logger.error("$sourceFilePath: $name: could not determine if 3d position slice exists, defaulting to false. ${e.message}")
-            false
-        }
+        return isIn3dRange(weatherVariable, timeIndex, coordinate.xIndex, coordinate.yIndex, coordinate.zIndex)
     }
 
     override fun containsTime(name: String, time: ZonedDateTime): Boolean {
