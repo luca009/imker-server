@@ -1,0 +1,5 @@
+storage:
+  storageLocations:
+    default: /test/resources/inca
+update:
+  lazyUpdate: true

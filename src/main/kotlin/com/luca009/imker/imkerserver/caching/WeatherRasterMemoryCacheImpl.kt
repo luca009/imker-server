@@ -60,4 +60,13 @@ class WeatherRasterMemoryCacheImpl : WeatherRasterMemoryCache {
         // Looks confusing, but this is just a lookup in the store for the specified coordinates, just looks a bit ugly chained together like this
         return store[weatherVariableType]?.variableSlices?.get(timeIndex)?.raster?.get(coordinate.yIndex)?.get(coordinate.xIndex)
     }
+
+    override fun latLonToCoordinates(
+        weatherVariableType: WeatherVariableType,
+        latitude: Double,
+        longitude: Double
+    ): WeatherVariable2dCoordinate? {
+        // TODO: caching of coordinates?
+        return null
+    }
 }

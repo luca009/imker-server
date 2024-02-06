@@ -4,10 +4,11 @@ import com.luca009.imker.imkerserver.caching.model.WeatherTimeCache
 import org.springframework.stereotype.Component
 import java.time.Duration
 import java.time.ZonedDateTime
+import java.util.SortedSet
 
 @Component
 class WeatherTimeCacheImpl : WeatherTimeCache {
-    private val times: MutableMap<String, Set<Pair<Int, ZonedDateTime>>> = mutableMapOf()
+    private val times: MutableMap<String, SortedSet<Pair<Int, ZonedDateTime>>> = mutableMapOf()
 
     override fun getEarliestIndex(weatherVariableName: String, time: ZonedDateTime): Int? {
         return getEarliestTimeIndexPair(weatherVariableName, time)?.first
@@ -77,7 +78,31 @@ class WeatherTimeCacheImpl : WeatherTimeCache {
         return variableTimes.firstOrNull { it.first == index }?.second
     }
 
+    override fun containsTime(weatherVariableName: String, time: ZonedDateTime): Boolean {
+        val variableTimes = times[weatherVariableName]
+        requireNotNull(variableTimes) {
+            return false
+        }
+
+        val firstTime = variableTimes.firstOrNull()?.second ?: return false
+        val lastTime = variableTimes.lastOrNull()?.second ?: return false
+
+        return !time.isBefore(firstTime) && !time.isAfter(lastTime)
+    }
+
+    override fun containsTimeIndex(weatherVariableName: String, index: Int): Boolean {
+        val variableTimes = times[weatherVariableName]
+        requireNotNull(variableTimes) {
+            return false
+        }
+
+        val firstIndex = variableTimes.firstOrNull()?.first ?: return false
+        val lastIndex = variableTimes.lastOrNull()?.first ?: return false
+
+        return index in firstIndex..lastIndex
+    }
+
     override fun setTimes(weatherVariableName: String, times: Set<Pair<Int, ZonedDateTime>>) {
-        this.times[weatherVariableName] = times.sortedBy { it.second }.toSet()
+        this.times[weatherVariableName] = times.toSortedSet(compareBy { it.second })
     }
 }

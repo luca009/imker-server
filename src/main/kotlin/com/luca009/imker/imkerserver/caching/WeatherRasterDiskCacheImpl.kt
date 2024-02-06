@@ -87,4 +87,14 @@ class WeatherRasterDiskCacheImpl(
 
         return value as? Double
     }
+
+    override fun latLonToCoordinates(weatherVariableType: WeatherVariableType, latitude: Double, longitude: Double): WeatherVariable2dCoordinate? {
+        val variableName = getSafeVariableName(weatherVariableType)
+        requireNotNull(variableName) { return null }
+
+        val coordinate = dataParser.latLonToCoordinates(variableName, latitude, longitude)
+        requireNotNull(coordinate) { return null }
+
+        return coordinate
+    }
 }

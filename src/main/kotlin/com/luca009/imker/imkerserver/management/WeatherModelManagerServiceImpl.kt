@@ -96,13 +96,30 @@ class WeatherModelManagerServiceImpl(
     override fun getAvailableWeatherModelsForLatLon(variable: WeatherVariableType, latitude: Double, longitude: Double, time: ZonedDateTime): SortedMap<Int, WeatherModel> {
         return availableWeatherModels
             .filter {
-                val weatherVariableName = it.value.mapper.getWeatherVariableName(variable)
-                requireNotNull(weatherVariableName) {
+                val cache = weatherModelCaches[it.value]
+                requireNotNull(cache) {
+                    // We don't have the right cache :(
                     false
                 }
 
-                it.value.parser.containsLatLon(weatherVariableName, latitude, longitude) &&
-                        it.value.parser.containsTime(weatherVariableName, time)
+                if (!cache.containsTime(variable, time)) {
+                    // Cache does not contain specified time
+                    return@filter false
+                }
+
+                val coordinates = cache.latLonToCoordinates(variable, latitude, longitude)
+                requireNotNull(coordinates) {
+                    // Coordinates could not be determined
+                    false
+                }
+
+                val timeIndex = cache.getEarliestTimeIndex(variable, time)
+                requireNotNull(timeIndex) {
+                    // Time index could not be determined
+                    false
+                }
+
+                cache.variableExistsAtTimeAndPosition(variable, timeIndex, coordinates)
             }
             .toSortedMap()
     }

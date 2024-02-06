@@ -12,5 +12,8 @@ interface WeatherTimeCache {
     fun getLatestTime(weatherVariableName: String, time: ZonedDateTime): ZonedDateTime?
     fun getTime(weatherVariableName: String, index: Int): ZonedDateTime?
 
+    fun containsTime(weatherVariableName: String, time: ZonedDateTime): Boolean
+    fun containsTimeIndex(weatherVariableName: String, index: Int): Boolean
+
     fun setTimes(weatherVariableName: String, times: Set<Pair<Int, ZonedDateTime>>)
 }

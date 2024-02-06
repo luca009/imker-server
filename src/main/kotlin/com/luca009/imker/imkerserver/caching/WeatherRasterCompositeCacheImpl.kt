@@ -107,6 +107,24 @@ class WeatherRasterCompositeCacheImpl(
         return timeCache.getTime(variableName, index)
     }
 
+    override fun containsTime(weatherVariable: WeatherVariableType, time: ZonedDateTime): Boolean {
+        val variableName = variableMapper.getWeatherVariableName(weatherVariable)
+        requireNotNull(variableName) {
+            return false
+        }
+
+        return timeCache.containsTime(variableName, time)
+    }
+
+    override fun containsTimeIndex(weatherVariable: WeatherVariableType, index: Int): Boolean {
+        val variableName = variableMapper.getWeatherVariableName(weatherVariable)
+        requireNotNull(variableName) {
+            return false
+        }
+
+        return timeCache.containsTimeIndex(variableName, index)
+    }
+
     private fun updateCache(weatherVariable: WeatherVariableType) {
         if (variableMapper.getMatchingFileName(weatherVariable, dataParser.getDataSources()) == null)
             return
@@ -212,5 +230,18 @@ class WeatherRasterCompositeCacheImpl(
         }
 
         return diskCache.getVariableAtTimeAndPosition(weatherVariableType, timeIndex, coordinate)
+    }
+
+    override fun latLonToCoordinates(
+        weatherVariableType: WeatherVariableType,
+        latitude: Double,
+        longitude: Double
+    ): WeatherVariable2dCoordinate? {
+        if (configuration.ignoredVariables.contains(weatherVariableType)) {
+            return null
+        }
+
+        // TODO: caching of coordinates?
+        return diskCache.latLonToCoordinates(weatherVariableType, latitude, longitude)
     }
 }

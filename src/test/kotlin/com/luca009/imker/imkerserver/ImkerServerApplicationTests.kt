@@ -5,6 +5,7 @@ import com.luca009.imker.imkerserver.caching.model.*
 import com.luca009.imker.imkerserver.configuration.WeatherVariableFileNameMapperImpl
 import com.luca009.imker.imkerserver.configuration.model.WeatherModel
 import com.luca009.imker.imkerserver.configuration.model.WeatherVariableFileNameMapper
+import com.luca009.imker.imkerserver.configuration.properties.UpdateProperties
 import com.luca009.imker.imkerserver.filemanager.AromeFileNameManagerImpl
 import com.luca009.imker.imkerserver.filemanager.BestFileSearchServiceImpl
 import com.luca009.imker.imkerserver.filemanager.IncaFileNameManagerImpl
@@ -17,6 +18,9 @@ import com.luca009.imker.imkerserver.management.model.WeatherModelManagerService
 import com.luca009.imker.imkerserver.parser.DynamicDataParserImpl
 import com.luca009.imker.imkerserver.parser.NetCdfParserImpl
 import com.luca009.imker.imkerserver.parser.model.*
+import com.luca009.imker.imkerserver.queries.WeatherDataQueryServiceImpl
+import com.luca009.imker.imkerserver.queries.model.PreferredWeatherModelMode
+import com.luca009.imker.imkerserver.queries.model.WeatherDataQueryService
 import com.luca009.imker.imkerserver.receiver.model.DownloadResult
 import com.luca009.imker.imkerserver.receiver.ftp.FtpClientImpl
 import com.luca009.imker.imkerserver.receiver.inca.IncaReceiverImpl
@@ -28,7 +32,11 @@ import org.mockito.Mockito.*
 import org.mockito.kotlin.whenever
 import org.mockito.stubbing.Answer
 import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.http.HttpStatusCode
+import org.springframework.test.context.ContextConfiguration
+import org.springframework.test.context.TestPropertySource
 import org.springframework.util.Assert
+import org.springframework.web.server.ResponseStatusException
 import java.io.File
 import java.nio.file.Path
 import java.time.ZoneOffset
@@ -37,8 +45,10 @@ import java.util.*
 import kotlin.io.path.Path
 
 @SpringBootTest
+@ContextConfiguration(classes = [UpdateProperties::class])
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @TestMethodOrder(MethodOrderer.OrderAnnotation::class)
+@TestPropertySource(locations = ["/test-application.yaml"])
 class ImkerServerApplicationTests {
     private final val ZAMG_FTP_SERVER = "eaftp.zamg.ac.at"
     private final val TEST_RESOURCES_PATH = File("src/test/resources").absolutePath
@@ -122,12 +132,14 @@ class ImkerServerApplicationTests {
         )
     )
     val weatherDataCompositeCacheFactory = {
-            configuration: WeatherRasterCompositeCacheConfiguration, dataParser: WeatherDataParser, variableMapper: WeatherVariableFileNameMapper -> WeatherRasterCompositeCacheImpl(configuration, dataParser, variableMapper, weatherRasterMemoryCache, weatherRasterDiskCache, WeatherRasterCacheHelper(), weatherTimeCache)
+            configuration: WeatherRasterCompositeCacheConfiguration, dataParser: WeatherDataParser, variableMapper: WeatherVariableFileNameMapper -> WeatherRasterCompositeCacheImpl(configuration, dataParser, variableMapper, weatherRasterMemoryCache, weatherRasterDiskCache, WeatherRasterCacheHelper(), WeatherTimeCacheImpl())
     }
     val weatherModelManagerService: WeatherModelManagerService = WeatherModelManagerServiceImpl(
         weatherModels,
         weatherDataCompositeCacheFactory
     )
+
+    val weatherDataQueryService: WeatherDataQueryService = WeatherDataQueryServiceImpl(weatherModelManagerService)
 
     val dynamicNetCdfParser: DynamicDataParser = DynamicDataParserImpl(
         netCdfParser,
@@ -163,6 +175,15 @@ class ImkerServerApplicationTests {
             DownloadResult(true, location)
         }
         whenever(mockFtpClient.disconnect()).thenReturn(true)
+    }
+
+    @BeforeAll
+    fun setupTimeCache() {
+        weatherTimeCache.setTimes("TT", TEST_DATES)
+    }
+    @BeforeAll
+    fun setupWeatherModelManager() {
+        weatherModelManagerService.updateWeatherModelCaches()
     }
 
     @Test
@@ -383,8 +404,6 @@ class ImkerServerApplicationTests {
 
     @Test
     fun weatherTimeCacheWorks() {
-        weatherTimeCache.setTimes("TT", TEST_DATES)
-
         // 2023-12-21 at 08:00:00 UTC
         // in comparison to the test dates (not to scale :D):
         // --1-----2-----3-- (indices 1, 2 and 3 in the test dataset)
@@ -399,6 +418,37 @@ class ImkerServerApplicationTests {
 
         val latestIndex = weatherTimeCache.getLatestIndex("TT", testDate)
         Assert.isTrue(latestIndex == 3, "WeatherTimeCache latest date calculation was incorrect")
+    }
+
+    @Test
+    fun queryServiceWorks() {
+        // 2023-09-09 at 13:00:00 UTC
+        val firstDate = ZonedDateTime.of(2023, 9, 9, 13, 0, 0, 0, ZoneOffset.UTC)
+        try {
+            val firstTemperatureForecast = weatherDataQueryService.getVariableForecast(
+                WeatherVariableType.Temperature2m,
+                48.20847274949422,
+                16.373155534546584,
+                firstDate,
+                10,
+                PreferredWeatherModelMode.Static
+            )
+        } catch(ex: Exception) {
+            Assert.isTrue(ex is ResponseStatusException && ex.statusCode == HttpStatusCode.valueOf(400),
+                "Query for an invalid time did not throw a ResponseStatusException with 400 BAD REQUEST")
+        }
+
+        // 2023-09-09 at 13:45:00 UTC
+        // start time of the first dataset
+        val secondDate = ZonedDateTime.of(2023, 9, 9, 13, 45, 0, 0, ZoneOffset.UTC)
+        val secondTemperatureForecast = weatherDataQueryService.getVariableForecast(
+            WeatherVariableType.Temperature2m,
+            48.20847274949422,
+            16.373155534546584,
+            secondDate,
+            10,
+            PreferredWeatherModelMode.Static
+        )
     }
 }
 

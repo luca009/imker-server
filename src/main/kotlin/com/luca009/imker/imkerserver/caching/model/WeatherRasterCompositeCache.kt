@@ -48,6 +48,9 @@ interface WeatherRasterCompositeCache : WeatherRasterCache {
      * Get the ZonedDateTime associated with the [index]
      */
     fun getTime(weatherVariable: WeatherVariableType, index: Int): ZonedDateTime?
+
+    fun containsTime(weatherVariable: WeatherVariableType, time: ZonedDateTime): Boolean
+    fun containsTimeIndex(weatherVariable: WeatherVariableType, index: Int): Boolean
 }
 
 /**

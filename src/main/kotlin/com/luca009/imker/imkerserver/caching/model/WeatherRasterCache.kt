@@ -14,7 +14,9 @@ interface WeatherRasterCache {
     fun getVariable(weatherVariableType: WeatherVariableType): WeatherVariableSlice?
     fun getVariableAtTime(weatherVariableType: WeatherVariableType, timeIndex: Int): WeatherVariable2dRasterSlice?
     fun getVariableAtTimeAndPosition(weatherVariableType: WeatherVariableType, timeIndex: Int, coordinate: WeatherVariable2dCoordinate): Double?
-}
+
+    fun latLonToCoordinates(weatherVariableType: WeatherVariableType, latitude: Double, longitude: Double): WeatherVariable2dCoordinate?
+ }
 
 /**
  * A cache for weather raster data in memory. Supports getting and setting weather variables.
