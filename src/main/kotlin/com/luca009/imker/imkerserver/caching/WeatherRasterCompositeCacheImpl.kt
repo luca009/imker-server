@@ -20,111 +20,6 @@ class WeatherRasterCompositeCacheImpl(
 ) : WeatherRasterCompositeCache {
     private val logger: Logger = LoggerFactory.getLogger(this::class.java)
 
-    override fun updateCaches() {
-        configuration.variablesInMemory
-            .forEach {
-                updateCache(it)
-            }
-
-        dataParser.getAvailableRawVariables().forEach {
-            val times = dataParser.getTimes(it.name)
-            requireNotNull(times) {
-                return@forEach
-            }
-
-            timeCache.setTimes(it.name, times)
-        }
-    }
-
-    override fun updateCaches(weatherVariables: Set<WeatherVariableType>) {
-        configuration.variablesInMemory
-            .intersect(weatherVariables)
-            .forEach {
-                updateCache(it)
-            }
-    }
-
-    override fun getEarliestTimeIndex(weatherVariable: WeatherVariableType, time: ZonedDateTime): Int? {
-        val variableName = variableMapper.getWeatherVariableName(weatherVariable)
-        requireNotNull(variableName) {
-            return null
-        }
-
-        return timeCache.getEarliestIndex(variableName, time)
-    }
-
-    override fun getClosestTimeIndex(weatherVariable: WeatherVariableType, time: ZonedDateTime): Int? {
-        val variableName = variableMapper.getWeatherVariableName(weatherVariable)
-        requireNotNull(variableName) {
-            return null
-        }
-
-        return timeCache.getClosestIndex(variableName, time)
-    }
-
-    override fun getLatestTimeIndex(weatherVariable: WeatherVariableType, time: ZonedDateTime): Int? {
-        val variableName = variableMapper.getWeatherVariableName(weatherVariable)
-        requireNotNull(variableName) {
-            return null
-        }
-
-        return timeCache.getLatestIndex(variableName, time)
-    }
-
-    override fun getEarliestTime(weatherVariable: WeatherVariableType, time: ZonedDateTime): ZonedDateTime? {
-        val variableName = variableMapper.getWeatherVariableName(weatherVariable)
-        requireNotNull(variableName) {
-            return null
-        }
-
-        return timeCache.getEarliestTime(variableName, time)
-    }
-
-    override fun getClosestTime(weatherVariable: WeatherVariableType, time: ZonedDateTime): ZonedDateTime? {
-        val variableName = variableMapper.getWeatherVariableName(weatherVariable)
-        requireNotNull(variableName) {
-            return null
-        }
-
-        return timeCache.getClosestTime(variableName, time)
-    }
-
-    override fun getLatestTime(weatherVariable: WeatherVariableType, time: ZonedDateTime): ZonedDateTime? {
-        val variableName = variableMapper.getWeatherVariableName(weatherVariable)
-        requireNotNull(variableName) {
-            return null
-        }
-
-        return timeCache.getLatestTime(variableName, time)
-    }
-
-    override fun getTime(weatherVariable: WeatherVariableType, index: Int): ZonedDateTime? {
-        val variableName = variableMapper.getWeatherVariableName(weatherVariable)
-        requireNotNull(variableName) {
-            return null
-        }
-
-        return timeCache.getTime(variableName, index)
-    }
-
-    override fun containsTime(weatherVariable: WeatherVariableType, time: ZonedDateTime): Boolean {
-        val variableName = variableMapper.getWeatherVariableName(weatherVariable)
-        requireNotNull(variableName) {
-            return false
-        }
-
-        return timeCache.containsTime(variableName, time)
-    }
-
-    override fun containsTimeIndex(weatherVariable: WeatherVariableType, index: Int): Boolean {
-        val variableName = variableMapper.getWeatherVariableName(weatherVariable)
-        requireNotNull(variableName) {
-            return false
-        }
-
-        return timeCache.containsTimeIndex(variableName, index)
-    }
-
     private fun updateCache(weatherVariable: WeatherVariableType) {
         if (variableMapper.getMatchingFileName(weatherVariable, dataParser.getDataSources()) == null)
             return
@@ -139,6 +34,40 @@ class WeatherRasterCompositeCacheImpl(
 
         memoryCache.setVariable(weatherVariable, variableData)
     }
+
+    override fun updateCaches() {
+        configuration.variablesInMemory
+            .forEach {
+                updateCache(it)
+            }
+
+        variableMapper.getWeatherVariables().forEach {
+            val times = dataParser.getTimes(it.name)
+            requireNotNull(times) {
+                return@forEach
+            }
+
+            timeCache.setTimes(it, times)
+        }
+    }
+
+    override fun updateCaches(weatherVariables: Set<WeatherVariableType>) {
+        configuration.variablesInMemory
+            .intersect(weatherVariables)
+            .forEach {
+                updateCache(it)
+            }
+    }
+
+    override fun getEarliestTimeIndex(weatherVariable: WeatherVariableType, time: ZonedDateTime): Int? = timeCache.getEarliestIndex(weatherVariable, time)
+    override fun getClosestTimeIndex(weatherVariable: WeatherVariableType, time: ZonedDateTime): Int? = timeCache.getClosestIndex(weatherVariable, time)
+    override fun getLatestTimeIndex(weatherVariable: WeatherVariableType, time: ZonedDateTime): Int? = timeCache.getLatestIndex(weatherVariable, time)
+    override fun getEarliestTime(weatherVariable: WeatherVariableType, time: ZonedDateTime): ZonedDateTime? = timeCache.getEarliestTime(weatherVariable, time)
+    override fun getClosestTime(weatherVariable: WeatherVariableType, time: ZonedDateTime): ZonedDateTime? = timeCache.getClosestTime(weatherVariable, time)
+    override fun getLatestTime(weatherVariable: WeatherVariableType, time: ZonedDateTime): ZonedDateTime? = timeCache.getLatestTime(weatherVariable, time)
+    override fun getTime(weatherVariable: WeatherVariableType, index: Int): ZonedDateTime? = timeCache.getTime(weatherVariable, index)
+    override fun containsTime(weatherVariable: WeatherVariableType, time: ZonedDateTime): Boolean = timeCache.containsTime(weatherVariable, time)
+    override fun containsTimeIndex(weatherVariable: WeatherVariableType, index: Int): Boolean = timeCache.containsTimeIndex(weatherVariable, index)
 
     override fun variableExists(weatherVariableType: WeatherVariableType): Boolean {
         if (configuration.ignoredVariables.contains(weatherVariableType)) {

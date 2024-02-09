@@ -14,7 +14,6 @@ class WeatherVariableFileNameMapperImpl(
 
     init {
         val reader = configurationFile.inputStream().bufferedReader()
-        val configurationFileDirectory = configurationFile.parentFile.absolutePath
 
         map = reader.lineSequence()
             .filter { it.isNotBlank() }
@@ -22,7 +21,7 @@ class WeatherVariableFileNameMapperImpl(
                 val (enumName, variableName, fileRule) = it.split(',', ignoreCase = false, limit = 3)
                 val enum = WeatherVariableType.values().find { it.toString() == enumName }
 
-                if (enum == null) {
+                requireNotNull(enum) {
                     logger.warn("Unknown weather variable in configuration file ${configurationFile.name}: $enumName")
                     return@mapNotNull null
                 }
@@ -36,6 +35,21 @@ class WeatherVariableFileNameMapperImpl(
                 )
             }
             .toMap() // for any duplicate keys, only the last one in the list gets added
+    }
+
+    override fun getWeatherVariables(): Set<WeatherVariableType> {
+        return map.keys
+    }
+
+    override fun getWeatherVariables(variableName: String): Set<WeatherVariableType> {
+        val matches = map.filterValues { it.first == variableName }
+
+        if (matches.isEmpty()) {
+            logger.warn("Could not find weather variable in configuration file ${configurationFile.name}: $variableName")
+            return emptySet()
+        }
+
+        return matches.keys
     }
 
     override fun getWeatherVariables(variableName: String, filePath: String): Set<WeatherVariableType> {

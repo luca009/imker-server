@@ -57,8 +57,19 @@ class WeatherRasterMemoryCacheImpl : WeatherRasterMemoryCache {
         timeIndex: Int,
         coordinate: WeatherVariable2dCoordinate
     ): Double? {
-        // Looks confusing, but this is just a lookup in the store for the specified coordinates, just looks a bit ugly chained together like this
-        return store[weatherVariableType]?.variableSlices?.get(timeIndex)?.raster?.get(coordinate.yIndex)?.get(coordinate.xIndex)
+        val slices = store[weatherVariableType]?.variableSlices
+        requireNotNull(slices) {
+            // We don't have the correct slice
+            return null
+        }
+
+        val raster = slices.getOrNull(timeIndex)?.raster
+        requireNotNull(raster) {
+            // TimeIndex is out of range
+            return null
+        }
+
+        return raster.getOrNull(coordinate.yIndex)?.getOrNull(coordinate.xIndex)
     }
 
     override fun latLonToCoordinates(

@@ -4,16 +4,16 @@ import com.luca009.imker.imkerserver.parser.model.WeatherVariableType
 import java.time.ZonedDateTime
 
 interface WeatherTimeCache {
-    fun getEarliestIndex(weatherVariableName: String, time: ZonedDateTime): Int?
-    fun getClosestIndex(weatherVariableName: String, time: ZonedDateTime): Int?
-    fun getLatestIndex(weatherVariableName: String, time: ZonedDateTime): Int?
-    fun getEarliestTime(weatherVariableName: String, time: ZonedDateTime): ZonedDateTime?
-    fun getClosestTime(weatherVariableName: String, time: ZonedDateTime): ZonedDateTime?
-    fun getLatestTime(weatherVariableName: String, time: ZonedDateTime): ZonedDateTime?
-    fun getTime(weatherVariableName: String, index: Int): ZonedDateTime?
+    fun getEarliestIndex(weatherVariable: WeatherVariableType, time: ZonedDateTime): Int?
+    fun getClosestIndex(weatherVariable: WeatherVariableType, time: ZonedDateTime): Int?
+    fun getLatestIndex(weatherVariable: WeatherVariableType, time: ZonedDateTime): Int?
+    fun getEarliestTime(weatherVariable: WeatherVariableType, time: ZonedDateTime): ZonedDateTime?
+    fun getClosestTime(weatherVariable: WeatherVariableType, time: ZonedDateTime): ZonedDateTime?
+    fun getLatestTime(weatherVariable: WeatherVariableType, time: ZonedDateTime): ZonedDateTime?
+    fun getTime(weatherVariable: WeatherVariableType, index: Int): ZonedDateTime?
 
-    fun containsTime(weatherVariableName: String, time: ZonedDateTime): Boolean
-    fun containsTimeIndex(weatherVariableName: String, index: Int): Boolean
+    fun containsTime(weatherVariable: WeatherVariableType, time: ZonedDateTime): Boolean
+    fun containsTimeIndex(weatherVariable: WeatherVariableType, index: Int): Boolean
 
-    fun setTimes(weatherVariableName: String, times: Set<Pair<Int, ZonedDateTime>>)
+    fun setTimes(weatherVariable: WeatherVariableType, times: Set<Pair<Int, ZonedDateTime>>)
 }
