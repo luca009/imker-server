@@ -2,6 +2,7 @@ package com.luca009.imker.imkerserver.caching
 
 import com.luca009.imker.imkerserver.caching.model.*
 import com.luca009.imker.imkerserver.configuration.model.WeatherVariableFileNameMapper
+import com.luca009.imker.imkerserver.configuration.model.WeatherVariableUnitMapper
 import com.luca009.imker.imkerserver.parser.model.WeatherDataParser
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -13,20 +14,22 @@ class WeatherRasterCacheFactoryConfiguration {
     // This is meant to be injected somewhere else as a factory, so we don't have to provide direct access to this configuration class
     @Bean
     fun weatherRasterCompositeCacheFactory() = {
-        configuration: WeatherRasterCompositeCacheConfiguration, dataParser: WeatherDataParser, variableMapper: WeatherVariableFileNameMapper -> weatherRasterCompositeCache(configuration, dataParser, variableMapper)
+        configuration: WeatherRasterCompositeCacheConfiguration, dataParser: WeatherDataParser, variableMapper: WeatherVariableFileNameMapper, unitMapper: WeatherVariableUnitMapper -> weatherRasterCompositeCache(configuration, dataParser, variableMapper, unitMapper)
     }
 
     @Bean
     @Scope("prototype")
-    fun weatherRasterCompositeCache(configuration: WeatherRasterCompositeCacheConfiguration, dataParser: WeatherDataParser, variableMapper: WeatherVariableFileNameMapper): WeatherRasterCompositeCache {
+    fun weatherRasterCompositeCache(configuration: WeatherRasterCompositeCacheConfiguration, dataParser: WeatherDataParser, variableMapper: WeatherVariableFileNameMapper, unitMapper: WeatherVariableUnitMapper): WeatherRasterCompositeCache {
         return WeatherRasterCompositeCacheImpl(
             configuration,
             dataParser,
             variableMapper,
+            unitMapper,
             weatherRasterMemoryCache(),
             weatherRasterDiskCache(dataParser, variableMapper),
             weatherRasterCacheMapper(),
-            weatherTimeCache()
+            weatherTimeCache(),
+            weatherVariableUnitCache()
         )
     }
 
@@ -50,6 +53,12 @@ class WeatherRasterCacheFactoryConfiguration {
     @Scope("prototype")
     fun weatherTimeCache(): WeatherTimeCache {
         return WeatherTimeCacheImpl()
+    }
+
+    @Bean
+    @Scope("prototype")
+    fun weatherVariableUnitCache(): WeatherVariableUnitCache {
+        return WeatherVariableUnitCacheImpl()
     }
 
     @Bean

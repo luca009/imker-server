@@ -1,6 +1,7 @@
 package com.luca009.imker.imkerserver.caching.model
 
 import com.luca009.imker.imkerserver.parser.model.WeatherVariableType
+import com.luca009.imker.imkerserver.parser.model.WeatherVariableUnit
 import java.time.ZonedDateTime
 
 interface WeatherRasterCompositeCache : WeatherRasterCache {
@@ -48,6 +49,8 @@ interface WeatherRasterCompositeCache : WeatherRasterCache {
      * Get the ZonedDateTime associated with the [index]
      */
     fun getTime(weatherVariable: WeatherVariableType, index: Int): ZonedDateTime?
+
+    fun getUnits(weatherVariable: WeatherVariableType): WeatherVariableUnit?
 
     fun containsTime(weatherVariable: WeatherVariableType, time: ZonedDateTime): Boolean
     fun containsTimeIndex(weatherVariable: WeatherVariableType, index: Int): Boolean

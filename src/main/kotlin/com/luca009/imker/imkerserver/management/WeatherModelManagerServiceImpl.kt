@@ -4,6 +4,7 @@ import com.luca009.imker.imkerserver.caching.model.WeatherRasterCompositeCache
 import com.luca009.imker.imkerserver.caching.model.WeatherRasterCompositeCacheConfiguration
 import com.luca009.imker.imkerserver.configuration.model.WeatherModel
 import com.luca009.imker.imkerserver.configuration.model.WeatherVariableFileNameMapper
+import com.luca009.imker.imkerserver.configuration.model.WeatherVariableUnitMapper
 import com.luca009.imker.imkerserver.management.model.WeatherModelManagerService
 import com.luca009.imker.imkerserver.parser.model.*
 import org.slf4j.Logger
@@ -13,7 +14,7 @@ import java.util.*
 
 class WeatherModelManagerServiceImpl(
     private val availableWeatherModels: SortedMap<Int, WeatherModel>,
-    private val weatherRasterCompositeCacheFactory: (WeatherRasterCompositeCacheConfiguration, WeatherDataParser, WeatherVariableFileNameMapper) -> WeatherRasterCompositeCache
+    private val weatherRasterCompositeCacheFactory: (WeatherRasterCompositeCacheConfiguration, WeatherDataParser, WeatherVariableFileNameMapper, WeatherVariableUnitMapper) -> WeatherRasterCompositeCache
 ) : WeatherModelManagerService {
     private val logger: Logger = LoggerFactory.getLogger(this::class.java)
     private val weatherModelCaches: Map<WeatherModel, WeatherRasterCompositeCache> = availableWeatherModels.mapNotNull {
@@ -22,7 +23,8 @@ class WeatherModelManagerServiceImpl(
             weatherRasterCompositeCacheFactory(
                 it.value.cacheConfiguration,
                 it.value.parser,
-                it.value.mapper
+                it.value.mapper,
+                it.value.unitMapper
             )
         )
     }.toMap()

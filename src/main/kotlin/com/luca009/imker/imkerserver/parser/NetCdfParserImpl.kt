@@ -77,7 +77,7 @@ class NetCdfParserImpl(
             return false
         }
 
-        return index > 0 && index < dimension.length
+        return index >= 0 && index < dimension.length
     }
 
     private fun isIn2dRange(weatherVariable: GridDatatype, timeIndex: Int, xIndex: Int, yIndex: Int): Boolean {

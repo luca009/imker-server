@@ -11,5 +11,6 @@ class WeatherModel(
     val receiver: DataReceiver, // TODO: Update these
     val parser: WeatherDataParser,
     val mapper: WeatherVariableFileNameMapper,
+    val unitMapper: WeatherVariableUnitMapper,
     val cacheConfiguration: WeatherRasterCompositeCacheConfiguration
 )

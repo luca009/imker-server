@@ -1,16 +1,18 @@
 package com.luca009.imker.imkerserver.caching
 
 import com.luca009.imker.imkerserver.caching.model.WeatherTimeCache
+import com.luca009.imker.imkerserver.caching.model.WeatherVariableUnitCache
 import com.luca009.imker.imkerserver.parser.model.WeatherVariable
 import com.luca009.imker.imkerserver.parser.model.WeatherVariableType
 import org.springframework.stereotype.Component
 import java.time.Duration
 import java.time.ZonedDateTime
+import java.util.EnumMap
 import java.util.SortedSet
 
 @Component
 class WeatherTimeCacheImpl : WeatherTimeCache {
-    private val times: MutableMap<WeatherVariableType, SortedSet<Pair<Int, ZonedDateTime>>> = mutableMapOf()
+    private val times: EnumMap<WeatherVariableType, SortedSet<Pair<Int, ZonedDateTime>>> = EnumMap(WeatherVariableType::class.java)
 
     override fun getEarliestIndex(weatherVariable: WeatherVariableType, time: ZonedDateTime): Int? {
         return getEarliestTimeIndexPair(weatherVariable, time)?.first
