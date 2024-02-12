@@ -3,8 +3,11 @@ package com.luca009.imker.imkerserver
 import com.luca009.imker.imkerserver.caching.*
 import com.luca009.imker.imkerserver.caching.model.*
 import com.luca009.imker.imkerserver.configuration.WeatherVariableFileNameMapperImpl
+import com.luca009.imker.imkerserver.configuration.WeatherVariableUnitMapperImpl
 import com.luca009.imker.imkerserver.configuration.model.WeatherModel
 import com.luca009.imker.imkerserver.configuration.model.WeatherVariableFileNameMapper
+import com.luca009.imker.imkerserver.configuration.model.WeatherVariableUnitMapper
+import com.luca009.imker.imkerserver.configuration.properties.QueryProperties
 import com.luca009.imker.imkerserver.configuration.properties.UpdateProperties
 import com.luca009.imker.imkerserver.filemanager.AromeFileNameManagerImpl
 import com.luca009.imker.imkerserver.filemanager.BestFileSearchServiceImpl
@@ -31,6 +34,7 @@ import org.junit.jupiter.api.*
 import org.mockito.Mockito.*
 import org.mockito.kotlin.whenever
 import org.mockito.stubbing.Answer
+import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.http.HttpStatusCode
 import org.springframework.test.context.ContextConfiguration
@@ -54,6 +58,7 @@ class ImkerServerApplicationTests {
     private final val TEST_RESOURCES_PATH = File("src/test/resources").absolutePath
     private final val TEST_NETCDF_FILE_PATH = Path(TEST_RESOURCES_PATH, "inca", "nowcast_202309091345.nc").toString()
     private final val TEST_MAPPER_CONFIG_FILE_PATH = Path(TEST_RESOURCES_PATH, "inca", "inca_map.csv").toString()
+    private final val TEST_UNIT_MAPPER_CONFIG_FILE_PATH = Path(TEST_RESOURCES_PATH, "unit_map.csv").toString()
     private final val TEST_DATES: Set<Pair<Int, ZonedDateTime>> = setOf(
         Pair(1, ZonedDateTime.of(2023, 12, 20, 12, 20, 0, 0, ZoneOffset.UTC)),
         Pair(2, ZonedDateTime.of(2023, 12, 20, 14, 0, 0, 0, ZoneOffset.UTC)),
@@ -73,12 +78,16 @@ class ImkerServerApplicationTests {
         setOf(WeatherVariableType.Temperature2m),
         setOf()
     )
+    private final val QUERY_PROPERTIES = QueryProperties()
 
     val netCdfParserFactory = {
             netCdfFilePath: String -> NetCdfParserImpl(netCdfFilePath)
     }
     val weatherVariableFileNameMapperFactory = {
         weatherVariableMapFile: File -> WeatherVariableFileNameMapperImpl(weatherVariableMapFile)
+    }
+    val weatherVariableUnitMapperFactory = {
+        weatherVariableMapFile: File -> WeatherVariableUnitMapperImpl(weatherVariableMapFile)
     }
 
     val ftpClient: FtpClient = FtpClientImpl()
@@ -87,7 +96,9 @@ class ImkerServerApplicationTests {
     val bestFileSearchService: BestFileSearchService = BestFileSearchServiceImpl()
     val netCdfParser: NetCdfParser = netCdfParserFactory(TEST_NETCDF_FILE_PATH)
     val variableMapper: WeatherVariableFileNameMapper = WeatherVariableFileNameMapperImpl(File(TEST_MAPPER_CONFIG_FILE_PATH))
+    val unitMapper: WeatherVariableUnitMapper = WeatherVariableUnitMapperImpl(File(TEST_UNIT_MAPPER_CONFIG_FILE_PATH))
     val weatherTimeCache: WeatherTimeCache = WeatherTimeCacheImpl()
+    val weatherUnitCache: WeatherVariableUnitCache = WeatherVariableUnitCacheImpl()
     val weatherRasterMemoryCache: WeatherRasterMemoryCache = WeatherRasterMemoryCacheImpl()
     val weatherRasterDiskCache: WeatherRasterDiskCache = WeatherRasterDiskCacheImpl(
         netCdfParser,
@@ -98,10 +109,12 @@ class ImkerServerApplicationTests {
         COMPOSITE_CACHE_CONFIG,
         netCdfParser,
         variableMapper,
+        unitMapper,
         weatherRasterMemoryCache,
         weatherRasterDiskCache,
         WeatherRasterCacheHelper(),
-        weatherTimeCache
+        weatherTimeCache,
+        weatherUnitCache
     )
 
     val mockFtpClient: FtpClient = org.mockito.kotlin.mock()
@@ -120,7 +133,8 @@ class ImkerServerApplicationTests {
                 mockFtpClient
             ),
             DynamicDataParserImpl(netCdfParser, netCdfParserFactory, TEST_NETCDF_FILE_PATH, bestFileSearchService, incaFileNameManager),
-            weatherVariableFileNameMapperFactory(File("src/test/resources/inca/inca_map.csv")),
+            weatherVariableFileNameMapperFactory(File(TEST_MAPPER_CONFIG_FILE_PATH)),
+            weatherVariableUnitMapperFactory(File(TEST_UNIT_MAPPER_CONFIG_FILE_PATH)),
 
             WeatherRasterCompositeCacheConfiguration(
                 setOf(
@@ -132,14 +146,14 @@ class ImkerServerApplicationTests {
         )
     )
     val weatherDataCompositeCacheFactory = {
-            configuration: WeatherRasterCompositeCacheConfiguration, dataParser: WeatherDataParser, variableMapper: WeatherVariableFileNameMapper -> WeatherRasterCompositeCacheImpl(configuration, dataParser, variableMapper, weatherRasterMemoryCache, weatherRasterDiskCache, WeatherRasterCacheHelper(), WeatherTimeCacheImpl())
+            configuration: WeatherRasterCompositeCacheConfiguration, dataParser: WeatherDataParser, variableMapper: WeatherVariableFileNameMapper, unitMapper: WeatherVariableUnitMapper -> WeatherRasterCompositeCacheImpl(configuration, dataParser, variableMapper, unitMapper, weatherRasterMemoryCache, weatherRasterDiskCache, WeatherRasterCacheHelper(), WeatherTimeCacheImpl(), WeatherVariableUnitCacheImpl())
     }
     val weatherModelManagerService: WeatherModelManagerService = WeatherModelManagerServiceImpl(
         weatherModels,
         weatherDataCompositeCacheFactory
     )
 
-    val weatherDataQueryService: WeatherDataQueryService = WeatherDataQueryServiceImpl(weatherModelManagerService)
+    val weatherDataQueryService: WeatherDataQueryService = WeatherDataQueryServiceImpl(weatherModelManagerService, QUERY_PROPERTIES)
 
     val dynamicNetCdfParser: DynamicDataParser = DynamicDataParserImpl(
         netCdfParser,
@@ -179,7 +193,7 @@ class ImkerServerApplicationTests {
 
     @BeforeAll
     fun setupTimeCache() {
-        weatherTimeCache.setTimes("TT", TEST_DATES)
+        weatherTimeCache.setTimes(WeatherVariableType.Temperature2m, TEST_DATES)
     }
     @BeforeAll
     fun setupWeatherModelManager() {
@@ -410,19 +424,22 @@ class ImkerServerApplicationTests {
         // -------------T--- (this test date)
         val testDate = ZonedDateTime.of(2023, 12, 21, 8, 0, 0, 0, ZoneOffset.UTC)
 
-        val earliestIndex = weatherTimeCache.getEarliestIndex("TT", testDate)
+        val earliestIndex = weatherTimeCache.getEarliestIndex(WeatherVariableType.Temperature2m, testDate)
         Assert.isTrue(earliestIndex == 2, "WeatherTimeCache earliest date calculation was incorrect")
 
-        val closestIndex = weatherTimeCache.getClosestIndex("TT", testDate)
+        val closestIndex = weatherTimeCache.getClosestIndex(WeatherVariableType.Temperature2m, testDate)
         Assert.isTrue(closestIndex == 3, "WeatherTimeCache closest date calculation was incorrect")
 
-        val latestIndex = weatherTimeCache.getLatestIndex("TT", testDate)
+        val latestIndex = weatherTimeCache.getLatestIndex(WeatherVariableType.Temperature2m, testDate)
         Assert.isTrue(latestIndex == 3, "WeatherTimeCache latest date calculation was incorrect")
     }
 
     @Test
     fun queryServiceWorks() {
+        // Testing date calculations
         // 2023-09-09 at 13:00:00 UTC
+        // (out of range for first data set; too early)
+        // TODO: maybe this should still return the next available results?
         val firstDate = ZonedDateTime.of(2023, 9, 9, 13, 0, 0, 0, ZoneOffset.UTC)
         try {
             val firstTemperatureForecast = weatherDataQueryService.getVariableForecast(
@@ -446,9 +463,84 @@ class ImkerServerApplicationTests {
             48.20847274949422,
             16.373155534546584,
             secondDate,
-            10,
+            15,
             PreferredWeatherModelMode.Static
         )
+        Assert.isTrue(secondTemperatureForecast.values.count() == 13, "Query returned wrong amount of forecast results")
+
+        // 2023-09-09 at 13:50:00 UTC
+        val thirdDate = ZonedDateTime.of(2023, 9, 9, 13, 50, 0, 0, ZoneOffset.UTC)
+        val thirdTemperatureForecast = weatherDataQueryService.getVariableForecast(
+            WeatherVariableType.Temperature2m,
+            48.20847274949422,
+            16.373155534546584,
+            thirdDate,
+            15,
+            PreferredWeatherModelMode.Static
+        )
+        Assert.isTrue(thirdTemperatureForecast == secondTemperatureForecast, "Query returned wrong forecast results (not equal to previous results despite being expected to be equal)")
+
+
+        // Testing multi-variable forecasts
+        // 2023-09-09 at 13:50:00 UTC
+        val windTemperatureForecastDate = ZonedDateTime.of(2023, 9, 9, 13, 50, 0, 0, ZoneOffset.UTC)
+        val windTemperatureForecast = weatherDataQueryService.getForecast(
+            listOf(WeatherVariableType.Temperature2m, WeatherVariableType.WindSpeed10m),
+            48.20847274949422,
+            16.373155534546584,
+            windTemperatureForecastDate,
+            15,
+            PreferredWeatherModelMode.Static
+        )
+        Assert.isTrue(windTemperatureForecast.variables.count() == 2, "Query returned wrong amount of variables")
+
+        val windTemperatureForecastTemperatureVariable = requireNotNull(windTemperatureForecast.variables.firstOrNull { it.variableName == WeatherVariableType.Temperature2m.name }) {
+            throw IllegalArgumentException("Temperature forecast was not contained in query result despite being requested")
+        }
+        Assert.isTrue(windTemperatureForecastTemperatureVariable == secondTemperatureForecast, "Query returned wrong forecast results (not equal to previous results despite being expected to be equal)")
+
+
+        // Testing dynamic forecasts
+        // 2023-09-09 at 13:50:00 UTC
+        val dynamicDate = ZonedDateTime.of(2023, 9, 9, 13, 50, 0, 0, ZoneOffset.UTC)
+        val dynamicTemperatureForecast = weatherDataQueryService.getVariableForecast(
+            WeatherVariableType.Temperature2m,
+            48.20847274949422,
+            16.373155534546584,
+            dynamicDate,
+            15,
+            PreferredWeatherModelMode.Dynamic
+        )
+        // TODO: update this once more weather models are introduced
+        Assert.isTrue(dynamicTemperatureForecast == secondTemperatureForecast, "Query returned wrong forecast results (not equal to previous results despite being expected to be equal)")
+
+
+        // Testing all forecasts
+        // 2023-09-09 at 13:50:00 UTC
+        val allDate = ZonedDateTime.of(2023, 9, 9, 13, 50, 0, 0, ZoneOffset.UTC)
+        val allTemperatureForecast = weatherDataQueryService.getVariableForecast(
+            WeatherVariableType.Temperature2m,
+            48.20847274949422,
+            16.373155534546584,
+            allDate,
+            15,
+            PreferredWeatherModelMode.All
+        )
+        // TODO: update this once more weather models are introduced
+        Assert.isTrue(allTemperatureForecast == secondTemperatureForecast, "Query returned wrong forecast results (not equal to previous results despite being expected to be equal)")
+
+        // Testing all forecasts with limits (same settings as above)
+        val allLimitedTemperatureForecast = weatherDataQueryService.getVariableForecast(
+            WeatherVariableType.Temperature2m,
+            48.20847274949422,
+            16.373155534546584,
+            allDate,
+            5,
+            PreferredWeatherModelMode.All
+        )
+        Assert.isTrue(allLimitedTemperatureForecast.values.count() == 5, "Query returned wrong amount of results")
+        // TODO: update this once more weather models are introduced
+        Assert.isTrue(allLimitedTemperatureForecast.values == secondTemperatureForecast.values.subList(0, 5), "Query returned wrong forecast results (not equal to previous results despite being expected to be equal)")
     }
 }
 

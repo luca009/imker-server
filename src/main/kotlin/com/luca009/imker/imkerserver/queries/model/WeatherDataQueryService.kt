@@ -12,24 +12,24 @@ interface WeatherDataQueryService {
     /**
      * Get a weather forecast for the preferred weather model for each variable in [weatherVariables] with a maximum amount of results of [limit] (per variable).
      */
-    fun getForecast(weatherVariables: List<WeatherVariableType>, lat: Double, lon: Double, time: ZonedDateTime, limit: Int, preferredWeatherModelMode: PreferredWeatherModelMode): WeatherForecastResponse
+    fun getForecast(weatherVariables: List<WeatherVariableType>, lat: Double, lon: Double, time: ZonedDateTime, limit: Int?, preferredWeatherModelMode: PreferredWeatherModelMode): WeatherForecastResponse
     /**
      * Get a weather forecast for the specified [weatherModel] for each variable in [weatherVariables] with a maximum amount of results of [limit] (per variable).
      */
-    fun getForecast(weatherVariables: List<WeatherVariableType>, lat: Double, lon: Double, time: ZonedDateTime, limit: Int, weatherModel: WeatherModel): WeatherForecastResponse
+    fun getForecast(weatherVariables: List<WeatherVariableType>, lat: Double, lon: Double, time: ZonedDateTime, limit: Int?, weatherModel: WeatherModel): WeatherForecastResponse
     /**
      * Get a weather forecast for each variable and its corresponding weather model in [weatherVariables] with a maximum amount of results of [limit].
      */
-    fun getForecast(weatherVariables: Map<WeatherVariableType, WeatherModel>, lat: Double, lon: Double, time: ZonedDateTime, limit: Int): WeatherForecastResponse
+    fun getForecast(weatherVariables: Map<WeatherVariableType, WeatherModel>, lat: Double, lon: Double, time: ZonedDateTime, limit: Int?): WeatherForecastResponse
 
     /**
      * Get a weather forecast for the preferred weather model (according to [preferredWeatherModelMode]) for the variable [weatherVariable] with a maximum amount of results of [limit].
      */
-    fun getVariableForecast(weatherVariable: WeatherVariableType, lat: Double, lon: Double, time: ZonedDateTime, limit: Int, preferredWeatherModelMode: PreferredWeatherModelMode): WeatherVariableForecastResponse
+    fun getVariableForecast(weatherVariable: WeatherVariableType, lat: Double, lon: Double, time: ZonedDateTime, limit: Int?, preferredWeatherModelMode: PreferredWeatherModelMode): WeatherVariableForecastResponse
     /**
      * Get a weather forecast for the specified [weatherModel] for the variable [weatherVariable] with a maximum amount of results of [limit].
      */
-    fun getVariableForecast(weatherVariable: WeatherVariableType, lat: Double, lon: Double, time: ZonedDateTime, limit: Int, weatherModel: WeatherModel): WeatherVariableForecastResponse
+    fun getVariableForecast(weatherVariable: WeatherVariableType, lat: Double, lon: Double, time: ZonedDateTime, limit: Int?, weatherModel: WeatherModel): WeatherVariableForecastResponse
 
     /**
      * Get a weather forecast at the specified [time] for the preferred weather model for each variable in [weatherVariables].

@@ -1,13 +1,13 @@
 package com.luca009.imker.imkerserver.queries
 
 import com.luca009.imker.imkerserver.configuration.model.WeatherModel
+import com.luca009.imker.imkerserver.configuration.properties.QueryProperties
 import com.luca009.imker.imkerserver.controllers.model.WeatherForecastResponse
 import com.luca009.imker.imkerserver.controllers.model.WeatherVariableForecastResponse
 import com.luca009.imker.imkerserver.controllers.model.WeatherVariableForecastResponseHelper
 import com.luca009.imker.imkerserver.controllers.model.WeatherVariableForecastValueResponse
 import com.luca009.imker.imkerserver.management.model.WeatherModelManagerService
 import com.luca009.imker.imkerserver.parser.model.WeatherVariableType
-import com.luca009.imker.imkerserver.parser.model.WeatherVariableUnit
 import com.luca009.imker.imkerserver.queries.model.PreferredWeatherModelMode
 import com.luca009.imker.imkerserver.queries.model.WeatherDataQueryService
 import com.luca009.imker.imkerserver.queries.model.WeatherVariableProperties
@@ -20,7 +20,8 @@ import java.time.ZonedDateTime
 
 @Service
 class WeatherDataQueryServiceImpl(
-    val weatherModelManagerService: WeatherModelManagerService
+    val weatherModelManagerService: WeatherModelManagerService,
+    val queryProperties: QueryProperties
 ) : WeatherDataQueryService {
     fun getWeatherVariableProperties(weatherModel: WeatherModel, weatherVariable: WeatherVariableType, lat: Double, lon: Double, time: ZonedDateTime, checkWeatherModelExists: Boolean): WeatherVariableProperties {
         if (checkWeatherModelExists) {
@@ -79,6 +80,15 @@ class WeatherDataQueryServiceImpl(
             forecasts
         }
     }
+    
+    fun getSafeLimit(limit: Int?): Int {        
+        val realLimit = (limit ?: queryProperties.maxResultLimit.toInt())
+        if (realLimit < 1) {
+            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Query limit was outside of the accepted range (1 to 32-bit signed integer limit)")
+        }
+        
+        return realLimit
+    }
 
     override fun findWeatherModel(name: String): WeatherModel? {
         val availableWeatherModels = weatherModelManagerService.getWeatherModels()
@@ -90,7 +100,7 @@ class WeatherDataQueryServiceImpl(
         lat: Double,
         lon: Double,
         time: ZonedDateTime,
-        limit: Int,
+        limit: Int?,
         preferredWeatherModelMode: PreferredWeatherModelMode
     ): WeatherForecastResponse {
         return WeatherForecastResponse(
@@ -105,7 +115,7 @@ class WeatherDataQueryServiceImpl(
         lat: Double,
         lon: Double,
         time: ZonedDateTime,
-        limit: Int,
+        limit: Int?,
         weatherModel: WeatherModel
     ): WeatherForecastResponse {
         return WeatherForecastResponse(
@@ -120,7 +130,7 @@ class WeatherDataQueryServiceImpl(
         lat: Double,
         lon: Double,
         time: ZonedDateTime,
-        limit: Int
+        limit: Int?
     ): WeatherForecastResponse {
         return WeatherForecastResponse(
             weatherVariables.map {
@@ -134,7 +144,7 @@ class WeatherDataQueryServiceImpl(
         lat: Double,
         lon: Double,
         time: ZonedDateTime,
-        limit: Int,
+        limit: Int?,
         preferredWeatherModelMode: PreferredWeatherModelMode
     ): WeatherVariableForecastResponse {
         return when (preferredWeatherModelMode) {
@@ -149,7 +159,7 @@ class WeatherDataQueryServiceImpl(
         lat: Double,
         lon: Double,
         time: ZonedDateTime,
-        limit: Int
+        limit: Int?
     ): WeatherVariableForecastResponse {
         // No weather model was given as an argument, use the preferred one
         val preferredWeatherModel = weatherModelManagerService.getPreferredWeatherModelForLatLon(weatherVariable, lat, lon, time)
@@ -165,7 +175,7 @@ class WeatherDataQueryServiceImpl(
         lat: Double,
         lon: Double,
         time: ZonedDateTime,
-        limit: Int
+        limit: Int?
     ): WeatherVariableForecastResponse? {
         return try {
             getFixedPreferredWeatherModelVariableForecast(weatherVariable, lat, lon, time, limit)
@@ -179,11 +189,13 @@ class WeatherDataQueryServiceImpl(
         lat: Double,
         lon: Double,
         time: ZonedDateTime,
-        limit: Int
+        limit: Int?
     ): WeatherVariableForecastResponse {
+        val safeLimit = getSafeLimit(limit)
+        
         val usedUnits: HashSet<String> = hashSetOf()
         val weatherVariableForecasts: MutableList<WeatherVariableForecastValueResponse> = mutableListOf()
-
+        
         var lastTime = time
         do {
             // Get the fixed preferred weather model forecast
@@ -197,13 +209,13 @@ class WeatherDataQueryServiceImpl(
             usedUnits.add(fixedWeatherForecast.units)
 
             // Early break, because we're going to do a more expensive operation now
-            if (weatherVariableForecasts.count() >= limit) {
+            if (weatherVariableForecasts.count() >= safeLimit) {
                 break
             }
 
             // Get the maximum time of the forecast and add one second, so it doesn't come up again (TODO: maybe fix this janky workaround)
             lastTime = Instant.ofEpochSecond(fixedWeatherForecast.values.maxBy { it.date }.date + 1).atZone(ZoneOffset.UTC)
-        } while (weatherVariableForecasts.count() < limit) // Have we reached the limit yet? If so, great, we're done!
+        } while (weatherVariableForecasts.count() < safeLimit) // Have we reached the limit yet? If so, great, we're done!
 
         if (weatherVariableForecasts.isEmpty()) {
             throw ResponseStatusException(HttpStatus.BAD_REQUEST, "No weather model available at $lat $lon (lat, lon)")
@@ -218,7 +230,7 @@ class WeatherDataQueryServiceImpl(
         return WeatherVariableForecastResponse(
             weatherVariable.name,
             finalUnits,
-            limitForecastList(weatherVariableForecasts, limit)
+            limitForecastList(weatherVariableForecasts, safeLimit)
         )
     }
 
@@ -227,12 +239,14 @@ class WeatherDataQueryServiceImpl(
         lat: Double,
         lon: Double,
         time: ZonedDateTime,
-        limit: Int
+        limit: Int?
     ): WeatherVariableForecastResponse {
+        val safeLimit = getSafeLimit(limit)
+        
         val weatherVariableForecasts: MutableList<WeatherVariableForecastValueResponse> = mutableListOf()
         val usedUnits: HashSet<String> = hashSetOf()
         val availableModels = weatherModelManagerService.getAvailableWeatherModelsForLatLon(weatherVariable, lat, lon).values.filterNotNull()
-
+        
         for (model in availableModels) {
             val forecast = getVariableForecast(weatherVariable, lat, lon, time, limit, model)
             weatherVariableForecasts.addAll(forecast.values)
@@ -250,7 +264,7 @@ class WeatherDataQueryServiceImpl(
         return WeatherVariableForecastResponse(
             weatherVariable.name,
             finalUnits,
-            limitForecastList(weatherVariableForecasts, limit)
+            limitForecastList(weatherVariableForecasts, safeLimit)
         )
     }
 
@@ -259,13 +273,15 @@ class WeatherDataQueryServiceImpl(
         lat: Double,
         lon: Double,
         time: ZonedDateTime,
-        limit: Int,
+        limit: Int?,
         weatherModel: WeatherModel
     ): WeatherVariableForecastResponse {
         val properties = getWeatherVariableProperties(weatherModel, weatherVariable, lat, lon, time, true)
 
+        val safeLimit = getSafeLimit(limit)
+        
         val variableValues: MutableMap<ZonedDateTime, Double> = mutableMapOf()
-        for (i in 0 until limit) {
+        for (i in 0 until safeLimit) {
             val value = properties.weatherModelCache.getVariableAtTimeAndPosition(weatherVariable, properties.timeIndex + i, properties.coordinates)
                 ?: continue
             val date = properties.weatherModelCache.getTime(weatherVariable, properties.timeIndex + i) ?: continue
