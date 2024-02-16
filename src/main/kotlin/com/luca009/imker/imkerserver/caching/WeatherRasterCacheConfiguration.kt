@@ -9,7 +9,7 @@ import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Scope
 
 @Configuration
-class WeatherRasterCacheFactoryConfiguration {
+class WeatherRasterCacheConfiguration {
     // Return a function for calling the weatherRasterCompositeCache() bean
     // This is meant to be injected somewhere else as a factory, so we don't have to provide direct access to this configuration class
     @Bean

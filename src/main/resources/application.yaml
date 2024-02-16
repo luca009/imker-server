@@ -3,3 +3,27 @@ storage:
     default: C:\Users\reall\Downloads\incadata
 update:
   updateCheckInterval: 10
+models:
+  definedModels:
+    0:
+      meta:
+        name: INCA
+        friendlyName: INCA
+        copyright: GeoSphere Austria under CC BY-SA 4.0
+      receiver:
+        receiverName: inca
+        parserName: netcdf
+      source:
+        prefix: nowcast_
+        postfix: .nc
+        dateFormat: yyyyMMddHHmm
+        updateFrequency: 15
+      mapping:
+        variableMapperFile: src/test/resources/inca/inca_map.csv
+        unitMapperFile: src/test/resources/unit_map.csv
+      storage:
+        storageLocationName: default
+        subFolderName: inca
+      cache:
+        variablesInMemory:
+          - Temperature2m

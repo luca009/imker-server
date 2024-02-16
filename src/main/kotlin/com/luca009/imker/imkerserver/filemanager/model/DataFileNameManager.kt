@@ -9,7 +9,3 @@ interface DataFileNameManager {
 
     fun roundDownToNearestValidDateTime(dateTime: ZonedDateTime): ZonedDateTime
 }
-
-interface IncaFileNameManager : DataFileNameManager
-
-interface AromeFileNameManager : DataFileNameManager

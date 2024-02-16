@@ -21,7 +21,7 @@ class LocalFileManagerServiceImpl(
 
         val storageLocationPath =
             if (preferredStorageLocationPath == null) {
-                logger.warn("$storageLocation is not a valid storage location. Are the storage locations configured correctly?")
+                logger.warn("$storageLocation is not a valid storage location. Defaulting to default storage location. Are the storage locations configured correctly?")
                 storageProperties.storageLocations["default"]
             } else {
                 preferredStorageLocationPath

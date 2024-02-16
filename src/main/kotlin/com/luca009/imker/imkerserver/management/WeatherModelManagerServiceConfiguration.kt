@@ -2,55 +2,69 @@ package com.luca009.imker.imkerserver.management
 
 import com.luca009.imker.imkerserver.caching.model.WeatherRasterCompositeCache
 import com.luca009.imker.imkerserver.caching.model.WeatherRasterCompositeCacheConfiguration
-import com.luca009.imker.imkerserver.configuration.model.WeatherModel
+import com.luca009.imker.imkerserver.configuration.model.WeatherModelPropertyMapperService
 import com.luca009.imker.imkerserver.configuration.model.WeatherVariableFileNameMapper
-import com.luca009.imker.imkerserver.filemanager.model.DataFileNameManager
-import com.luca009.imker.imkerserver.filemanager.model.IncaFileNameManager
-import com.luca009.imker.imkerserver.filemanager.model.LocalFileManagerService
+import com.luca009.imker.imkerserver.configuration.model.WeatherVariableUnitMapper
 import com.luca009.imker.imkerserver.management.model.WeatherModelManagerService
-import com.luca009.imker.imkerserver.parser.model.DynamicDataParser
-import com.luca009.imker.imkerserver.parser.model.NetCdfParser
 import com.luca009.imker.imkerserver.parser.model.WeatherDataParser
-import com.luca009.imker.imkerserver.parser.model.WeatherVariableType
-import com.luca009.imker.imkerserver.receiver.model.IncaReceiver
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import java.io.File
-import java.util.SortedMap
 
 @Configuration
 class WeatherModelManagerServiceConfiguration(
-    val netCdfParserFactory: (String) -> NetCdfParser,
-    val dynamicParserFactory: ((String) -> WeatherDataParser, String, DataFileNameManager) -> DynamicDataParser,
-    val weatherVariableFileNameMapperFactory: (File) -> WeatherVariableFileNameMapper,
-    val weatherRasterCompositeCacheFactory: (WeatherRasterCompositeCacheConfiguration, WeatherDataParser, WeatherVariableFileNameMapper) -> WeatherRasterCompositeCache,
-    val incaFileNameManager: IncaFileNameManager,
-    val incaReceiver: IncaReceiver,
-    val fileManagerService: LocalFileManagerService
+    val weatherRasterCompositeCacheFactory: (WeatherRasterCompositeCacheConfiguration, WeatherDataParser, WeatherVariableFileNameMapper, WeatherVariableUnitMapper) -> WeatherRasterCompositeCache,
+    val weatherModelPropertyMapperService: WeatherModelPropertyMapperService
 ) {
+    private val logger: Logger = LoggerFactory.getLogger(this::class.java)
+
     @Bean
     fun weatherModelManagerService(): WeatherModelManagerService {
-        // TODO: this needs to be replaced with configuration files. For now, we only have one weather model
+        val weatherModels = weatherModelPropertyMapperService.getWeatherModels()
 
-        val weatherModels: SortedMap<Int, WeatherModel> = sortedMapOf(
-            0 to WeatherModel(
-                "INCA",
-                "INCA",
-                "GeoSphere Austria under CC BY-SA 4.0",
+        if (weatherModels.isEmpty()) {
+            logger.error("No weather models were assembled/defined. Every request will be considered a bad request. Please check your configuration.")
+        }
 
-                incaReceiver,
-                dynamicParserFactory(netCdfParserFactory, fileManagerService.getWeatherDataLocation("default", "inca").toAbsolutePath().toString(), incaFileNameManager), // TODO: replace this with the actual files we have downloaded
-                weatherVariableFileNameMapperFactory(File("src/test/resources/inca/inca_map.csv")),
-
-                WeatherRasterCompositeCacheConfiguration(
-                    setOf(
-                        // variables in memory
-                        WeatherVariableType.Temperature2m
-                    ),
-                    setOf() // ignored variables
-                )
-            )
-        )
+//        val weatherModels: SortedMap<Int, WeatherModel> = sortedMapOf(
+//            0 to WeatherModel(
+//                "INCA",
+//                "INCA",
+//                "GeoSphere Austria under CC BY-SA 4.0",
+//
+//                incaReceiver,
+//                dynamicParserFactory(netCdfParserFactory, fileManagerService.getWeatherDataLocation("default", "inca").toAbsolutePath().toString(), incaFileNameManagerService), // TODO: replace this with the actual files we have downloaded
+//                weatherVariableFileNameMapperFactory(File("src/test/resources/inca/inca_map.csv")),
+//                weatherVariableUnitMapperFactory(File("src/test/resources/unit_map.csv")),
+//
+//                WeatherRasterCompositeCacheConfiguration(
+//                    setOf(
+//                        // variables in memory
+//                        WeatherVariableType.Temperature2m
+//                    ),
+//                    setOf() // ignored variables
+//                )
+//            ),
+//            1 to WeatherModel(
+//                "AROME",
+//                "AROME",
+//                "GeoSphere Austria under CC BY-SA 4.0",
+//
+//                aromeReceiver,
+//                dynamicParserFactory(netCdfParserFactory, fileManagerService.getWeatherDataLocation("default", "arome").toAbsolutePath().toString(), aromeFileNameManager), // TODO: replace this with the actual files we have downloaded
+//                weatherVariableFileNameMapperFactory(File("src/test/resources/arome/arome_map.csv")),
+//                weatherVariableUnitMapperFactory(File("src/test/resources/unit_map.csv")),
+//
+//                WeatherRasterCompositeCacheConfiguration(
+//                    setOf(
+//                        // variables in memory
+//                        WeatherVariableType.Temperature2m
+//                    ),
+//                    setOf() // ignored variables
+//                )
+//            )
+//        )
 
         return WeatherModelManagerServiceImpl(
             weatherModels,
