@@ -317,7 +317,7 @@ class ImkerServerApplicationTests {
 //    }
 
     @Test
-    @Order(1)
+    @Order(2)
     fun netCdfParserWorks() {
         // Variable count
         val rawVariables = netCdfParser.getAvailableRawVariables()
@@ -350,6 +350,7 @@ class ImkerServerApplicationTests {
     }
 
     @Test
+    @Order(2)
     fun compositeWeatherDataCacheWorks() {
         weatherRasterCompositeCache.updateCaches()
 
@@ -408,7 +409,7 @@ class ImkerServerApplicationTests {
     }
 
     @Test
-    @Order(2)
+    @Order(3)
     fun dynamicDataParserWorks() {
         // try to update at 2000-01-01 at 00:00:00 UTC (invalid as there is no relevant dataset available)
         val invalidUpdateSuccessful = dynamicNetCdfParser.updateParser(ZonedDateTime.of(2000, 1, 1, 0, 0, 0, 0, ZoneOffset.UTC))
@@ -425,6 +426,7 @@ class ImkerServerApplicationTests {
     }
 
     @Test
+    @Order(1)
     fun weatherTimeCacheWorks() {
         // 2023-12-21 at 08:00:00 UTC
         // in comparison to the test dates (not to scale :D):
@@ -443,6 +445,7 @@ class ImkerServerApplicationTests {
     }
 
     @Test
+    @Order(2)
     fun queryServiceWorks() {
         // Testing date calculations
         // 2023-09-09 at 13:00:00 UTC
