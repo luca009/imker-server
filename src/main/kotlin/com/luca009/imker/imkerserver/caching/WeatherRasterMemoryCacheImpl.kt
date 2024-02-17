@@ -5,11 +5,12 @@ import com.luca009.imker.imkerserver.parser.model.WeatherVariableType
 import com.luca009.imker.imkerserver.caching.model.WeatherVariable2dRasterSlice
 import com.luca009.imker.imkerserver.caching.model.WeatherVariableSlice
 import com.luca009.imker.imkerserver.parser.model.WeatherVariable2dCoordinate
+import java.util.EnumMap
 
 class WeatherRasterMemoryCacheImpl : WeatherRasterMemoryCache {
     // This is just a basic map of all weather variables that are loaded into memory, storing their data as well
     // The other functions in this class aren't really important, since they essentially just wrap this map
-    private val store: MutableMap<WeatherVariableType, WeatherVariableSlice> = mutableMapOf()
+    private val store: EnumMap<WeatherVariableType, WeatherVariableSlice> = EnumMap(WeatherVariableType::class.java)
 
     override fun setVariable(weatherVariableType: WeatherVariableType, variableData: WeatherVariableSlice) {
         store[weatherVariableType] = variableData

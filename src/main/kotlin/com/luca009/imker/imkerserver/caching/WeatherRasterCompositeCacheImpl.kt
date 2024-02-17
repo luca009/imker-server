@@ -104,20 +104,23 @@ class WeatherRasterCompositeCacheImpl(
                 diskCache.variableExistsAtTimeAndPosition(weatherVariableType, timeIndex, coordinate)
     }
 
+    private fun assertVariableExistsInMemoryCache(variableType: WeatherVariableType): Boolean {
+        return if (!memoryCache.variableExists(variableType)) {
+            logger.warn("Memory cache does not contain variable $variableType despite being configured to do so. Defaulting to disk cache.")
+            false
+        } else {
+            true
+        }
+    }
+
     override fun getVariable(weatherVariableType: WeatherVariableType): WeatherVariableSlice? {
         if (configuration.ignoredVariables.contains(weatherVariableType)) {
             return null
         }
 
-        if (configuration.variablesInMemory.contains(weatherVariableType)) {
-            val memoryValue = memoryCache.getVariable(weatherVariableType)
-
-            if (memoryValue == null) {
-                logger.warn("Memory cache does not contain variable $weatherVariableType despite being configured to do so. Defaulting to disk cache.")
-            }
-            else {
-                return memoryValue
-            }
+        if (configuration.variablesInMemory.contains(weatherVariableType) &&
+            assertVariableExistsInMemoryCache(weatherVariableType)) {
+            return memoryCache.getVariable(weatherVariableType)
         }
 
         return diskCache.getVariable(weatherVariableType)
@@ -128,15 +131,9 @@ class WeatherRasterCompositeCacheImpl(
             return null
         }
 
-        if (configuration.variablesInMemory.contains(weatherVariableType)) {
-            val memoryValue = memoryCache.getVariableAtTime(weatherVariableType, timeIndex)
-
-            if (memoryValue == null) {
-                logger.warn("Memory cache does not contain variable $weatherVariableType despite being configured to do so. Defaulting to disk cache.")
-            }
-            else {
-                return memoryValue
-            }
+        if (configuration.variablesInMemory.contains(weatherVariableType) &&
+            assertVariableExistsInMemoryCache(weatherVariableType)) {
+            return memoryCache.getVariableAtTime(weatherVariableType, timeIndex)
         }
 
         return diskCache.getVariableAtTime(weatherVariableType, timeIndex)
@@ -151,17 +148,10 @@ class WeatherRasterCompositeCacheImpl(
             return null
         }
 
-        if (configuration.variablesInMemory.contains(weatherVariableType)) {
-            val memoryValue = memoryCache.getVariableAtTimeAndPosition(weatherVariableType, timeIndex, coordinate)
-
-            if (memoryValue == null) {
-                logger.warn("Memory cache does not contain variable $weatherVariableType despite being configured to do so. Defaulting to disk cache.")
-            }
-            else {
-                return memoryValue
-            }
+        if (configuration.variablesInMemory.contains(weatherVariableType) &&
+            assertVariableExistsInMemoryCache(weatherVariableType)) {
+            return memoryCache.getVariableAtTimeAndPosition(weatherVariableType, timeIndex, coordinate)
         }
-
         return diskCache.getVariableAtTimeAndPosition(weatherVariableType, timeIndex, coordinate)
     }
 
