@@ -4,6 +4,7 @@ import com.luca009.imker.imkerserver.IncaFileNameConstants
 import com.luca009.imker.imkerserver.filemanager.model.DataFileNameManager
 import org.springframework.stereotype.Component
 import org.springframework.stereotype.Service
+import java.security.cert.TrustAnchor
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 import java.time.ZonedDateTime
@@ -46,10 +47,27 @@ class DataFileNameManagerImpl(
     override fun roundDownToNearestValidDateTime(dateTime: ZonedDateTime): ZonedDateTime {
         val utcTime = dateTime.withZoneSameInstant(ZoneOffset.UTC)
 
-        // Use integer division to our advantage and round down to the nearest multiple of updateFrequencyMins
-        val newMinute = utcTime.minute / updateFrequencyMins * updateFrequencyMins
+         if (updateFrequencyMins <= 60) {
+            // Update frequency is less than an hour, round down to the nearest minute
+            // Use integer division to our advantage and round down to the nearest multiple of updateFrequencyMins
+            val newMinute = utcTime.minute / updateFrequencyMins * updateFrequencyMins
 
-        val truncatedTime = utcTime.truncatedTo(ChronoUnit.HOURS)
-        return truncatedTime.plusMinutes(newMinute.toLong())
+            val truncatedTime = utcTime.truncatedTo(ChronoUnit.HOURS)
+            return truncatedTime.plusMinutes(newMinute.toLong())
+        } else if (updateFrequencyMins <= 86400) {
+            // Update frequency is more than an hour, but less than a day (86400 minutes), round down to the nearest hour
+            // Integer division as above
+            val newHour = utcTime.hour / (updateFrequencyMins / 60) * (updateFrequencyMins / 60)
+
+            val truncatedTime = utcTime.truncatedTo(ChronoUnit.DAYS)
+            return truncatedTime.plusHours(newHour.toLong())
+        } else {
+             // Update frequency is more than a day, round down to the nearest day
+             // Integer division as above
+             val newDay = utcTime.dayOfMonth / (updateFrequencyMins / 86400) * (updateFrequencyMins / 86400)
+
+             val truncatedTime = utcTime.truncatedTo(ChronoUnit.MONTHS)
+             return truncatedTime.plusDays(newDay.toLong())
+         }
     }
 }

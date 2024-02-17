@@ -9,12 +9,10 @@ import com.luca009.imker.imkerserver.configuration.model.WeatherVariableFileName
 import com.luca009.imker.imkerserver.configuration.model.WeatherVariableUnitMapper
 import com.luca009.imker.imkerserver.configuration.properties.QueryProperties
 import com.luca009.imker.imkerserver.configuration.properties.UpdateProperties
-import com.luca009.imker.imkerserver.filemanager.AromeFileNameManagerImpl
 import com.luca009.imker.imkerserver.filemanager.BestFileSearchServiceImpl
-import com.luca009.imker.imkerserver.filemanager.IncaFileNameManagerImpl
-import com.luca009.imker.imkerserver.filemanager.model.AromeFileNameManager
+import com.luca009.imker.imkerserver.filemanager.DataFileNameManagerImpl
 import com.luca009.imker.imkerserver.filemanager.model.BestFileSearchService
-import com.luca009.imker.imkerserver.filemanager.model.IncaFileNameManager
+import com.luca009.imker.imkerserver.filemanager.model.DataFileNameManager
 import com.luca009.imker.imkerserver.filemanager.model.LocalFileManagerService
 import com.luca009.imker.imkerserver.management.WeatherModelManagerServiceImpl
 import com.luca009.imker.imkerserver.management.model.WeatherModelManagerService
@@ -34,7 +32,6 @@ import org.junit.jupiter.api.*
 import org.mockito.Mockito.*
 import org.mockito.kotlin.whenever
 import org.mockito.stubbing.Answer
-import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.http.HttpStatusCode
 import org.springframework.test.context.ContextConfiguration
@@ -54,31 +51,31 @@ import kotlin.io.path.Path
 @TestMethodOrder(MethodOrderer.OrderAnnotation::class)
 @TestPropertySource(locations = ["/test-application.yaml"])
 class ImkerServerApplicationTests {
-    private final val ZAMG_FTP_SERVER = "eaftp.zamg.ac.at"
-    private final val TEST_RESOURCES_PATH = File("src/test/resources").absolutePath
-    private final val TEST_NETCDF_FILE_PATH = Path(TEST_RESOURCES_PATH, "inca", "nowcast_202309091345.nc").toString()
-    private final val TEST_MAPPER_CONFIG_FILE_PATH = Path(TEST_RESOURCES_PATH, "inca", "inca_map.csv").toString()
-    private final val TEST_UNIT_MAPPER_CONFIG_FILE_PATH = Path(TEST_RESOURCES_PATH, "unit_map.csv").toString()
-    private final val TEST_DATES: Set<Pair<Int, ZonedDateTime>> = setOf(
+    final val ZAMG_FTP_SERVER = "eaftp.zamg.ac.at"
+    final val TEST_RESOURCES_PATH = File("src/test/resources").absolutePath
+    final val TEST_NETCDF_FILE_PATH = Path(TEST_RESOURCES_PATH, "inca", "nowcast_202309091345.nc").toString()
+    final val TEST_MAPPER_CONFIG_FILE_PATH = Path(TEST_RESOURCES_PATH, "inca", "inca_map.csv").toString()
+    final val TEST_UNIT_MAPPER_CONFIG_FILE_PATH = Path(TEST_RESOURCES_PATH, "unit_map.csv").toString()
+    final val TEST_DATES: Set<Pair<Int, ZonedDateTime>> = setOf(
         Pair(1, ZonedDateTime.of(2023, 12, 20, 12, 20, 0, 0, ZoneOffset.UTC)),
         Pair(2, ZonedDateTime.of(2023, 12, 20, 14, 0, 0, 0, ZoneOffset.UTC)),
         Pair(3, ZonedDateTime.of(2023, 12, 21, 12, 0, 0, 0, ZoneOffset.UTC))
     )
-    private final val MOCK_INCA_FILES = arrayOf(
+    final val MOCK_INCA_FILES = arrayOf(
         MockFTPFile(true, "nowcast_202309091330.nc"),
         MockFTPFile(true, "nowcast_202309100915.nc"),
         MockFTPFile(true, "nowcast_202309181700.nc")
     )
-    private final val MOCK_AROME_FILES = arrayOf(
+    final val MOCK_AROME_FILES = arrayOf(
         MockFTPFile(true, "nwp_2023091006.nc"),
         MockFTPFile(true, "nwp_2023093021.nc"),
         MockFTPFile(true, "nwp_2023100103.nc")
     )
-    private final val COMPOSITE_CACHE_CONFIG = WeatherRasterCompositeCacheConfiguration(
+    final val COMPOSITE_CACHE_CONFIG = WeatherRasterCompositeCacheConfiguration(
         setOf(WeatherVariableType.Temperature2m),
         setOf()
     )
-    private final val QUERY_PROPERTIES = QueryProperties()
+    final val QUERY_PROPERTIES = QueryProperties()
 
     val netCdfParserFactory = {
             netCdfFilePath: String -> NetCdfParserImpl(netCdfFilePath)
@@ -91,8 +88,20 @@ class ImkerServerApplicationTests {
     }
 
     val ftpClient: FtpClient = FtpClientImpl()
-    val incaFileNameManager: IncaFileNameManager = IncaFileNameManagerImpl()
-    val aromeFileNameManager: AromeFileNameManager = AromeFileNameManagerImpl()
+
+    val incaFileNameManager: DataFileNameManager = DataFileNameManagerImpl(
+        "nowcast_",
+        ".nc",
+        "yyyyMMddHHmm",
+        15
+    )
+    val aromeFileNameManager: DataFileNameManager = DataFileNameManagerImpl(
+        "nwp_",
+        ".nc",
+        "yyyyMMddHH",
+        180
+    )
+
     val bestFileSearchService: BestFileSearchService = BestFileSearchServiceImpl()
     val netCdfParser: NetCdfParser = netCdfParserFactory(TEST_NETCDF_FILE_PATH)
     val variableMapper: WeatherVariableFileNameMapper = WeatherVariableFileNameMapperImpl(File(TEST_MAPPER_CONFIG_FILE_PATH))
@@ -120,18 +129,21 @@ class ImkerServerApplicationTests {
     val mockFtpClient: FtpClient = org.mockito.kotlin.mock()
     val mockLocalFileManagerService: LocalFileManagerService = org.mockito.kotlin.mock()
 
+    val incaReceiver: IncaReceiver = IncaReceiverImpl(
+        incaFileNameManager,
+        bestFileSearchService,
+        mockFtpClient,
+        15,
+        Path(TEST_RESOURCES_PATH, "inca")
+    )
+
     val weatherModels: SortedMap<Int, WeatherModel> = sortedMapOf(
         0 to WeatherModel(
             "INCA",
             "INCA",
             "GeoSphere Austria under CC BY-SA 4.0",
 
-            IncaReceiverImpl(
-                mockLocalFileManagerService,
-                incaFileNameManager,
-                bestFileSearchService,
-                mockFtpClient
-            ),
+            incaReceiver,
             DynamicDataParserImpl(netCdfParser, netCdfParserFactory, TEST_NETCDF_FILE_PATH, bestFileSearchService, incaFileNameManager),
             weatherVariableFileNameMapperFactory(File(TEST_MAPPER_CONFIG_FILE_PATH)),
             weatherVariableUnitMapperFactory(File(TEST_UNIT_MAPPER_CONFIG_FILE_PATH)),
@@ -252,8 +264,6 @@ class ImkerServerApplicationTests {
 
     @Test
     fun specificIncaFileDownloads() {
-        val incaReceiver: IncaReceiver = IncaReceiverImpl(mockLocalFileManagerService, incaFileNameManager, bestFileSearchService, mockFtpClient)
-
         // 2020-10-14 at 16:43:10 CEST
         val failingDateTime = ZonedDateTime.of(2020, 10, 14, 16, 43, 10, 0, ZoneOffset.ofHours(2))
 
@@ -271,8 +281,6 @@ class ImkerServerApplicationTests {
 
     @Test
     fun latestIncaFileDownloads() {
-        val incaReceiver: IncaReceiver = IncaReceiverImpl(mockLocalFileManagerService, incaFileNameManager, bestFileSearchService, mockFtpClient)
-
         val result = incaReceiver.downloadData(ZonedDateTime.now(), null)
         Assert.isTrue(result.successful
                 && result.fileLocation == Path(TEST_RESOURCES_PATH, IncaFileNameConstants.FOLDER_NAME, MOCK_INCA_FILES[2].name),

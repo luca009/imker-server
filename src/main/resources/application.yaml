@@ -27,3 +27,4 @@ models:
       cache:
         variablesInMemory:
           - Temperature2m
+          - WindSpeed10m
