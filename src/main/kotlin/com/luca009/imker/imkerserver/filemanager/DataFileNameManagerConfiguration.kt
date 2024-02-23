@@ -11,7 +11,6 @@ class DataFileNameManagerConfiguration {
         prefix: String, postfix: String, dateFormat: String, updateFrequencyMins: Int -> dataFileNameManager(prefix, postfix, dateFormat, updateFrequencyMins)
     }
 
-    @Bean
     fun dataFileNameManager(
         prefix: String,
         postfix: String,

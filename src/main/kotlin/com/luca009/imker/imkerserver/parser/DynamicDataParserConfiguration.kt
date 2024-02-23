@@ -19,9 +19,7 @@ class DynamicDataParserConfiguration {
         parserFactory: (String) -> WeatherDataParser, initFilePath: String, fileNameManager: DataFileNameManager -> dynamicDataParser(parserFactory, initFilePath, bestFileSearchService, fileNameManager)
     }
 
-    @Bean
-    @Scope("prototype")
-    fun dynamicDataParser(
+     fun dynamicDataParser(
         parserFactory: (String) -> WeatherDataParser,
         initFilePath: String,
         bestFileSearchService: BestFileSearchService,

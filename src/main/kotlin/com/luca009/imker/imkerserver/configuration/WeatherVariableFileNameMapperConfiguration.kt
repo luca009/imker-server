@@ -13,8 +13,6 @@ class WeatherVariableFileNameMapperConfiguration {
             mappingFile: File -> weatherVariableFileNameMapper(mappingFile)
     }
 
-    @Bean
-    @Scope("prototype")
     fun weatherVariableFileNameMapper(mappingFile: File): WeatherVariableFileNameMapper {
         return WeatherVariableFileNameMapperImpl(
             mappingFile

@@ -12,9 +12,7 @@ class NetCdfParserFactoryConfiguration {
         netCdfFilePath: String -> netCdfParser(netCdfFilePath)
     }
 
-    @Bean
-    @Scope("prototype")
-    fun netCdfParser(netCdfFilePath: String): NetCdfParser {
+     fun netCdfParser(netCdfFilePath: String): NetCdfParser {
         return NetCdfParserImpl(
             netCdfFilePath
         )

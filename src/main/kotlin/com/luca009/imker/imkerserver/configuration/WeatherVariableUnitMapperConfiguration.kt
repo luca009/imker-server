@@ -13,8 +13,6 @@ class WeatherVariableUnitMapperConfiguration {
             mappingFile: File -> weatherVariableUnitMapper(mappingFile)
     }
 
-    @Bean
-    @Scope("prototype")
     fun weatherVariableUnitMapper(mappingFile: File): WeatherVariableUnitMapper {
         return WeatherVariableUnitMapperImpl(
             mappingFile

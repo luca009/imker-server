@@ -14,7 +14,6 @@ class WeatherDataParserConfiguration(
             parserName: String -> weatherDataParserFactory(parserName)
     }
 
-    @Bean
     fun weatherDataParserFactory(name: String): ((String) -> WeatherDataParser)? {
         return when (name) {
             "netcdf" -> netCdfParserFactory // TODO: add more parsers if required
