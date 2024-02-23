@@ -111,8 +111,7 @@ class ImkerServerApplicationTests {
     val weatherRasterMemoryCache: WeatherRasterMemoryCache = WeatherRasterMemoryCacheImpl()
     val weatherRasterDiskCache: WeatherRasterDiskCache = WeatherRasterDiskCacheImpl(
         netCdfParser,
-        variableMapper,
-        WeatherRasterCacheHelper()
+        variableMapper
     )
     val weatherRasterCompositeCache: WeatherRasterCompositeCache = WeatherRasterCompositeCacheImpl(
         COMPOSITE_CACHE_CONFIG,
@@ -121,7 +120,6 @@ class ImkerServerApplicationTests {
         unitMapper,
         weatherRasterMemoryCache,
         weatherRasterDiskCache,
-        WeatherRasterCacheHelper(),
         weatherTimeCache,
         weatherUnitCache
     )
@@ -158,7 +156,7 @@ class ImkerServerApplicationTests {
         )
     )
     val weatherDataCompositeCacheFactory = {
-            configuration: WeatherRasterCompositeCacheConfiguration, dataParser: WeatherDataParser, variableMapper: WeatherVariableFileNameMapper, unitMapper: WeatherVariableUnitMapper -> WeatherRasterCompositeCacheImpl(configuration, dataParser, variableMapper, unitMapper, weatherRasterMemoryCache, weatherRasterDiskCache, WeatherRasterCacheHelper(), WeatherTimeCacheImpl(), WeatherVariableUnitCacheImpl())
+            configuration: WeatherRasterCompositeCacheConfiguration, dataParser: WeatherDataParser, variableMapper: WeatherVariableFileNameMapper, unitMapper: WeatherVariableUnitMapper -> WeatherRasterCompositeCacheImpl(configuration, dataParser, variableMapper, unitMapper, weatherRasterMemoryCache, weatherRasterDiskCache, WeatherTimeCacheImpl(), WeatherVariableUnitCacheImpl())
     }
     val weatherModelManagerService: WeatherModelManagerService = WeatherModelManagerServiceImpl(
         weatherModels,
@@ -329,13 +327,15 @@ class ImkerServerApplicationTests {
 
         // Get variable 2d slice
         val temperatureSlice = netCdfParser.getGridTimeSlice("TT", 0)
-        val temperatureRow = temperatureSlice?.firstOrNull()
-        if (temperatureRow !is DoubleArray)
-            throw IllegalArgumentException("Temperature slice was not a 2d double array")
+        val indirectTemperaturePoint = temperatureSlice?.getDoubleOrNull(50, 100) // coordinates insignificant
+        Assert.isTrue(indirectTemperaturePoint is Double, "Temperature point was not a double")
 
         // Get variable slice at point
-        val temperaturePoint = netCdfParser.getGridTimeAnd2dPositionSlice("TT", 0, WeatherVariable2dCoordinate(0, 0))
+        val temperaturePoint = netCdfParser.getGridTimeAnd2dPositionSlice("TT", 0, WeatherVariable2dCoordinate(50, 100)) // same coordinates as above
         Assert.isTrue(temperaturePoint is Double, "Temperature point was not a double")
+
+        // Compare getting value directly at point and via the 2d slice
+        Assert.isTrue(indirectTemperaturePoint == temperaturePoint, "Getting temperature value via 2d slice did not yield the same result as getting it directly")
 
         // Get if coordinates are in the dataset
         val correctCoordinatesInDataset = netCdfParser.containsLatLon("TT", 48.20847274949422, 16.373155534546584) // Vienna

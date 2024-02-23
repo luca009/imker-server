@@ -15,7 +15,6 @@ class WeatherRasterCompositeCacheImpl(
     private val unitMapper: WeatherVariableUnitMapper,
     private val memoryCache: WeatherRasterMemoryCache,
     private val diskCache: WeatherRasterDiskCache,
-    private val weatherRasterCacheHelper: WeatherRasterCacheHelper,
     private val timeCache: WeatherTimeCache,
     private val unitCache: WeatherVariableUnitCache
 ) : WeatherRasterCompositeCache {
@@ -29,9 +28,7 @@ class WeatherRasterCompositeCacheImpl(
         if (dataParser.getRawVariable(variableName)?.type != "DOUBLE")
             return // Make sure the variable is actually a double, since that is the only type that can be stored at the moment
 
-        val variableData = weatherRasterCacheHelper.arraysToWeatherVariableSlice(
-            dataParser.getGridEntireSlice(variableName) ?: return
-        ) ?: return
+        val variableData = dataParser.getGridEntireSlice(variableName) ?: return
 
         memoryCache.setVariable(weatherVariable, variableData)
     }
@@ -126,7 +123,7 @@ class WeatherRasterCompositeCacheImpl(
         return diskCache.getVariable(weatherVariableType)
     }
 
-    override fun getVariableAtTime(weatherVariableType: WeatherVariableType, timeIndex: Int): WeatherVariable2dRasterSlice? {
+    override fun getVariableAtTime(weatherVariableType: WeatherVariableType, timeIndex: Int): WeatherVariableRasterSlice? {
         if (configuration.ignoredVariables.contains(weatherVariableType)) {
             return null
         }

@@ -1,10 +1,7 @@
 package com.luca009.imker.imkerserver.caching
 
 import com.luca009.imker.imkerserver.caching.model.WeatherRasterMemoryCache
-import com.luca009.imker.imkerserver.parser.model.WeatherVariableType
-import com.luca009.imker.imkerserver.caching.model.WeatherVariable2dRasterSlice
-import com.luca009.imker.imkerserver.caching.model.WeatherVariableSlice
-import com.luca009.imker.imkerserver.parser.model.WeatherVariable2dCoordinate
+import com.luca009.imker.imkerserver.parser.model.*
 import java.util.EnumMap
 
 class WeatherRasterMemoryCacheImpl : WeatherRasterMemoryCache {
@@ -18,10 +15,10 @@ class WeatherRasterMemoryCacheImpl : WeatherRasterMemoryCache {
 
     override fun setVariableAtTime(
         weatherVariableType: WeatherVariableType,
-        variable2dData: WeatherVariable2dRasterSlice,
+        variableData: WeatherVariableRasterSlice,
         timeIndex: Int
     ) {
-        store[weatherVariableType]?.setSlice(timeIndex, variable2dData)
+        store[weatherVariableType]?.setSlice(timeIndex, variableData)
     }
 
     override fun variableExists(weatherVariableType: WeatherVariableType): Boolean {
@@ -38,18 +35,20 @@ class WeatherRasterMemoryCacheImpl : WeatherRasterMemoryCache {
         timeIndex: Int,
         coordinate: WeatherVariable2dCoordinate
     ): Boolean {
-        val raster = store[weatherVariableType]?.variableSlices?.get(timeIndex)?.raster
+        val raster = store[weatherVariableType]?.variableSlices?.getOrNull(timeIndex)
         requireNotNull(raster) { return false }
 
-        // Get if coordinate is in range. Since the yIndex might not be in range, but we don't know this when looking it up in the array, use a getOrNull just in case.
-        return coordinate.isInRange(raster.getOrNull(coordinate.yIndex)?.count() ?: return false, raster.count())
+        val xMax = raster.dimensions[WeatherVariableRasterDimensionType.x]?.size ?: return false
+        val yMax = raster.dimensions[WeatherVariableRasterDimensionType.y]?.size ?: return false
+
+        return coordinate.isInRange(xMax, yMax)
     }
 
     override fun getVariable(weatherVariableType: WeatherVariableType): WeatherVariableSlice? {
         return store[weatherVariableType]
     }
 
-    override fun getVariableAtTime(weatherVariableType: WeatherVariableType, timeIndex: Int): WeatherVariable2dRasterSlice? {
+    override fun getVariableAtTime(weatherVariableType: WeatherVariableType, timeIndex: Int): WeatherVariableRasterSlice? {
         return store[weatherVariableType]?.variableSlices?.get(timeIndex)
     }
 
@@ -64,13 +63,13 @@ class WeatherRasterMemoryCacheImpl : WeatherRasterMemoryCache {
             return null
         }
 
-        val raster = slices.getOrNull(timeIndex)?.raster
+        val raster = slices.getOrNull(timeIndex)
         requireNotNull(raster) {
-            // TimeIndex is out of range
+            // timeIndex is out of range
             return null
         }
 
-        return raster.getOrNull(coordinate.yIndex)?.getOrNull(coordinate.xIndex)
+        return raster.getDoubleOrNull(coordinate.xIndex, coordinate.yIndex)
     }
 
     override fun latLonToCoordinates(

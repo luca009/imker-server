@@ -1,18 +1,17 @@
 package com.luca009.imker.imkerserver.caching
 
 import com.luca009.imker.imkerserver.caching.model.WeatherRasterDiskCache
-import com.luca009.imker.imkerserver.parser.model.WeatherVariableType
-import com.luca009.imker.imkerserver.caching.model.WeatherVariable2dRasterSlice
-import com.luca009.imker.imkerserver.caching.model.WeatherVariableSlice
 import com.luca009.imker.imkerserver.configuration.model.WeatherVariableFileNameMapper
-import com.luca009.imker.imkerserver.parser.model.WeatherDataParser
-import com.luca009.imker.imkerserver.parser.model.WeatherVariable2dCoordinate
+import com.luca009.imker.imkerserver.parser.model.*
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 
 class WeatherRasterDiskCacheImpl(
     val dataParser: WeatherDataParser,
-    val fileNameMapper: WeatherVariableFileNameMapper,
-    val weatherRasterCacheHelper: WeatherRasterCacheHelper
+    val fileNameMapper: WeatherVariableFileNameMapper
 ) : WeatherRasterDiskCache {
+    private val logger: Logger = LoggerFactory.getLogger(this::class.java)
+
     private fun getSafeVariableName(weatherVariableType: WeatherVariableType): String? {
         val variableName = fileNameMapper.getWeatherVariableName(weatherVariableType)
         val variableFile = fileNameMapper.getMatchingFileName(weatherVariableType, dataParser.getDataSources())
@@ -52,26 +51,26 @@ class WeatherRasterDiskCacheImpl(
         val variableName = getSafeVariableName(weatherVariableType)
         requireNotNull(variableName) { return null }
 
-        val slice = dataParser.getGridEntireSlice(variableName)
-        requireNotNull(slice) { return null }
+        val raster = dataParser.getGridEntireSlice(variableName)
+        require(raster?.isDouble() == true) {
+            logger.warn("Data type of $weatherVariableType was not double. This is currently not supported. Returning null.")
+            return null
+        }
 
-        return weatherRasterCacheHelper.arraysToWeatherVariableSlice(slice)
+        return raster
     }
 
-    override fun getVariableAtTime(weatherVariableType: WeatherVariableType, timeIndex: Int): WeatherVariable2dRasterSlice? {
+    override fun getVariableAtTime(weatherVariableType: WeatherVariableType, timeIndex: Int): WeatherVariableRasterSlice? {
         val variableName = getSafeVariableName(weatherVariableType)
         requireNotNull(variableName) { return null }
 
-        val slice = dataParser.getGridTimeSlice(variableName, timeIndex)
-        requireNotNull(slice) { return null }
-
-        val firstSliceObject = slice.firstOrNull()
-        if (firstSliceObject !is List<*>)
+        val raster = dataParser.getGridTimeSlice(variableName, timeIndex)
+        require(raster?.isDouble() == true) {
+            logger.warn("Data type of $weatherVariableType was not double. This is currently not supported. Returning null.")
             return null
-        if (firstSliceObject.firstOrNull() !is Double)
-            return null
+        }
 
-        return WeatherVariable2dRasterSlice(slice as? List<List<Double>> ?: return null)
+        return raster
     }
 
     override fun getVariableAtTimeAndPosition(
@@ -85,7 +84,12 @@ class WeatherRasterDiskCacheImpl(
         val value = dataParser.getGridTimeAnd2dPositionSlice(variableName, timeIndex, coordinate)
         requireNotNull(value) { return null }
 
-        return value as? Double
+        require(value is Double) {
+            logger.warn("Data type of $weatherVariableType was not double. This is currently not supported. Returning null.")
+            return null
+        }
+
+        return value
     }
 
     override fun latLonToCoordinates(weatherVariableType: WeatherVariableType, latitude: Double, longitude: Double): WeatherVariable2dCoordinate? {

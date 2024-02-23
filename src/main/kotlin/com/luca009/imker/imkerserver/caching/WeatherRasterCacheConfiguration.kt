@@ -17,8 +17,6 @@ class WeatherRasterCacheConfiguration {
         configuration: WeatherRasterCompositeCacheConfiguration, dataParser: WeatherDataParser, variableMapper: WeatherVariableFileNameMapper, unitMapper: WeatherVariableUnitMapper -> weatherRasterCompositeCache(configuration, dataParser, variableMapper, unitMapper)
     }
 
-    @Bean
-    @Scope("prototype")
     fun weatherRasterCompositeCache(configuration: WeatherRasterCompositeCacheConfiguration, dataParser: WeatherDataParser, variableMapper: WeatherVariableFileNameMapper, unitMapper: WeatherVariableUnitMapper): WeatherRasterCompositeCache {
         return WeatherRasterCompositeCacheImpl(
             configuration,
@@ -27,19 +25,15 @@ class WeatherRasterCacheConfiguration {
             unitMapper,
             weatherRasterMemoryCache(),
             weatherRasterDiskCache(dataParser, variableMapper),
-            weatherRasterCacheMapper(),
             weatherTimeCache(),
             weatherVariableUnitCache()
         )
     }
 
-    @Bean
-    @Scope("prototype")
     fun weatherRasterDiskCache(dataParser: WeatherDataParser, variableMapper: WeatherVariableFileNameMapper): WeatherRasterDiskCache {
         return WeatherRasterDiskCacheImpl(
             dataParser,
-            variableMapper,
-            WeatherRasterCacheHelper()
+            variableMapper
         )
     }
 
@@ -59,11 +53,5 @@ class WeatherRasterCacheConfiguration {
     @Scope("prototype")
     fun weatherVariableUnitCache(): WeatherVariableUnitCache {
         return WeatherVariableUnitCacheImpl()
-    }
-
-    @Bean
-    @Scope("prototype")
-    fun weatherRasterCacheMapper(): WeatherRasterCacheHelper {
-        return WeatherRasterCacheHelper()
     }
 }

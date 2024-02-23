@@ -1,9 +1,6 @@
 package com.luca009.imker.imkerserver.parser
 
-import com.luca009.imker.imkerserver.parser.model.NetCdfParser
-import com.luca009.imker.imkerserver.parser.model.RawWeatherVariable
-import com.luca009.imker.imkerserver.parser.model.WeatherVariable2dCoordinate
-import com.luca009.imker.imkerserver.parser.model.WeatherVariable3dCoordinate
+import com.luca009.imker.imkerserver.parser.model.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import ucar.nc2.Dimension
@@ -93,6 +90,40 @@ class NetCdfParserImpl(
                 isInRange(weatherVariable.zDimension, zIndex)
     }
 
+    private fun getArrayFromAny(inputArray: Any?): Array<*>? {
+        // why, Kotlin, why?!?!?!
+        return when (inputArray) {
+            is Array<*> -> inputArray
+            is DoubleArray -> inputArray.toTypedArray()
+            is FloatArray -> inputArray.toTypedArray()
+            is IntArray -> inputArray.toTypedArray()
+            is LongArray -> inputArray.toTypedArray()
+            is ShortArray -> inputArray.toTypedArray()
+            is ByteArray -> inputArray.toTypedArray()
+            is BooleanArray -> inputArray.toTypedArray()
+            else -> null
+        }
+    }
+
+    private fun getTimeSliceFromGrid(grid: GridDatatype, timeIndex: Int): WeatherVariableRasterSlice? {
+        val volumeArray = grid.readVolumeData(timeIndex)
+
+        val dataType = volumeArray.dataType
+        val javaDataType = dataType.primitiveClassType.kotlin
+
+        val uncheckedArray = volumeArray.get1DJavaArray(dataType)
+        val castArray = getArrayFromAny(uncheckedArray)
+        requireNotNull(castArray) {
+            return null
+        }
+
+        return NetCdfWeatherVariableRasterSlice(
+            javaDataType,
+            castArray,
+            grid.dimensions
+        )
+    }
+
     override fun getDataSources(): Set<String> {
         return setOf(sourceFilePath)
     }
@@ -105,25 +136,32 @@ class NetCdfParserImpl(
         return availableVariables[name]
     }
 
-    override fun getGridEntireSlice(name: String): List<Array<*>>? {
+    override fun getGridEntireSlice(name: String): WeatherVariableSlice? {
         val weatherVariable = wrappedGridDataset?.grids?.find { it.name == name }
         requireNotNull(weatherVariable) { return null }
 
-        val allSlices: MutableList<Array<*>> = mutableListOf()
+        val allSlices: MutableList<WeatherVariableRasterSlice> = mutableListOf()
 
         for (x in 0 until weatherVariable.timeDimension.length) {
-            allSlices.add(weatherVariable.readVolumeData(x).copyToNDJavaArray() as Array<*>)
+            val slice = getTimeSliceFromGrid(weatherVariable, x)
+            requireNotNull(slice) {
+                return null
+            }
+
+            allSlices.add(slice)
         }
 
-        return allSlices
+        return WeatherVariableSlice(
+            allSlices
+        )
     }
 
-    override fun getGridTimeSlice(name: String, timeIndex: Int): Array<*>? {
+    override fun getGridTimeSlice(name: String, timeIndex: Int): WeatherVariableRasterSlice? {
         val weatherVariable = wrappedGridDataset?.grids?.find { it.name == name }
         requireNotNull(weatherVariable) { return null }
 
         return if (isInRange(weatherVariable.timeDimension, timeIndex)) {
-            weatherVariable.readVolumeData(timeIndex).copyToNDJavaArray() as Array<*>
+            getTimeSliceFromGrid(weatherVariable, timeIndex)
         } else {
             null
         }
