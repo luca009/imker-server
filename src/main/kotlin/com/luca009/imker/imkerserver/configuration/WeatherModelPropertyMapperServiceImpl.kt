@@ -75,12 +75,9 @@ class WeatherModelPropertyMapperServiceImpl(
         }
         val unitMapper = weatherVariableUnitMapperFactory(unitMapperFile)
 
-        val memoryVariables = mapVariableNames(rawWeatherModel.cache.variablesInMemory, rawWeatherModel.meta.name)
-        val ignoredVariables = mapVariableNames(rawWeatherModel.cache.ignoredVariables, rawWeatherModel.meta.name)
-
         val cacheConfig = WeatherRasterCompositeCacheConfiguration(
-            memoryVariables,
-            ignoredVariables
+            rawWeatherModel.cache.variablesInMemory,
+            rawWeatherModel.cache.ignoredVariables
         )
 
         return WeatherModel(
@@ -93,19 +90,6 @@ class WeatherModelPropertyMapperServiceImpl(
             unitMapper,
             cacheConfig
         )
-    }
-
-    fun mapVariableNames(names: Set<String>, weatherModelName: String): Set<WeatherVariableType> {
-        return names.mapNotNull {
-            val enum = WeatherVariableType.values().firstOrNull { enum -> it == enum.name } // get the first enum that matches the name
-            requireNotNull(enum) {
-                // Did not find an enum with the specified name
-                logger.error("Assembling ${weatherModelName}: Could not find weather variable \"${it}\". Check if your weather models are configured correctly.")
-                return@mapNotNull null
-            }
-
-            return@mapNotNull enum
-        }.toSet()
     }
 
     override fun getWeatherModels(): SortedMap<Int, WeatherModel> {

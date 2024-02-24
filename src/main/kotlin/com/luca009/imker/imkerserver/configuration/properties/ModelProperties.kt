@@ -1,5 +1,6 @@
 package com.luca009.imker.imkerserver.configuration.properties
 
+import com.luca009.imker.imkerserver.parser.model.WeatherVariableType
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.context.annotation.Configuration
 
@@ -48,6 +49,6 @@ data class RawWeatherModelStorageInfo(
 )
 
 data class RawWeatherModelCacheInfo(
-    val variablesInMemory: Set<String> = setOf(),
-    val ignoredVariables: Set<String> = setOf()
+    val variablesInMemory: Set<WeatherVariableType> = setOf(),
+    val ignoredVariables: Set<WeatherVariableType> = setOf()
 )
