@@ -95,34 +95,65 @@ class WeatherDataQueryServiceImpl(
         return availableWeatherModels.values.firstOrNull { it.name == name }
     }
 
+    /**
+     * Gets a forecast for multiple [weatherVariables] with the defined [query]. Catches any errors that may happen.
+     * If the final response is empty, a common error gets thrown, otherwise, any erroneous queries get ignored.
+     */
+    private inline fun <T> tryGetForecast(
+        weatherVariables: Set<T>,
+        query: (T) -> WeatherVariableForecastResponse
+    ): WeatherForecastResponse {
+        if (weatherVariables.isEmpty()) {
+            return WeatherForecastResponse(emptyList())
+        }
+
+        val errors: MutableSet<ResponseStatusException> = mutableSetOf()
+
+        val forecastData = weatherVariables.mapNotNull {
+            try {
+                query(it)
+            } catch (e: ResponseStatusException) {
+                errors.add(e)
+                null
+            }
+        }
+
+        // We did not get any successful query responses :(
+        if (forecastData.isEmpty()) {
+            if (errors.count() == 1) {
+                // Only one unique error occurred, throw that one
+                throw errors.first()
+            }
+
+            // Multiple unique errors occurred, throw generic message
+            throw ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Multiple errors occurred while processing request")
+        }
+
+        return WeatherForecastResponse(
+            forecastData
+        )
+    }
+
     override fun getForecast(
-        weatherVariables: List<WeatherVariableType>,
+        weatherVariables: Set<WeatherVariableType>,
         lat: Double,
         lon: Double,
         time: ZonedDateTime,
         limit: Int?,
         preferredWeatherModelMode: PreferredWeatherModelMode
-    ): WeatherForecastResponse {
-        return WeatherForecastResponse(
-            weatherVariables.map {
-                getVariableForecast(it, lat, lon, time, limit, preferredWeatherModelMode)
-            }
-        )
+    ) = tryGetForecast(weatherVariables) {
+        getVariableForecast(it, lat, lon, time, limit, preferredWeatherModelMode)
     }
 
     override fun getForecast(
-        weatherVariables: List<WeatherVariableType>,
+        weatherVariables: Set<WeatherVariableType>,
         lat: Double,
         lon: Double,
         time: ZonedDateTime,
         limit: Int?,
         weatherModel: WeatherModel
-    ): WeatherForecastResponse {
-        return WeatherForecastResponse(
-            weatherVariables.map {
-                getVariableForecast(it, lat, lon, time, limit, weatherModel)
-            }
-        )
+    ) = tryGetForecast(weatherVariables) {
+        getVariableForecast(it, lat, lon, time, limit, weatherModel)
     }
 
     override fun getForecast(
@@ -131,12 +162,8 @@ class WeatherDataQueryServiceImpl(
         lon: Double,
         time: ZonedDateTime,
         limit: Int?
-    ): WeatherForecastResponse {
-        return WeatherForecastResponse(
-            weatherVariables.map {
-                getVariableForecast(it.key, lat, lon, time, limit, it.value)
-            }
-        )
+    ) = tryGetForecast(weatherVariables.entries) {
+        getVariableForecast(it.key, lat, lon, time, limit, it.value)
     }
 
     override fun getVariableForecast(
@@ -293,25 +320,30 @@ class WeatherDataQueryServiceImpl(
     }
 
     override fun getForecastAtTimePoint(
-        weatherVariables: List<WeatherVariableType>,
+        weatherVariables: Set<WeatherVariableType>,
         lat: Double,
         lon: Double,
-        time: ZonedDateTime
+        time: ZonedDateTime,
+        ignoreUnknownVariables: Boolean
     ): WeatherForecastResponse {
         val preferredWeatherModelMap =
-            weatherVariables.associateWith {
+            weatherVariables.mapNotNull {
                 // No weather model was given as an argument, use the preferred one
                 val preferredWeatherModel = weatherModelManagerService.getPreferredWeatherModelForLatLon(it, lat, lon, time)
 
-                requireNotNull(preferredWeatherModel) {
+                if (preferredWeatherModel == null) {
+                    if (ignoreUnknownVariables) {
+                        return@mapNotNull null
+                    }
+
                     throw ResponseStatusException(
                         HttpStatus.INTERNAL_SERVER_ERROR,
                         "No weather model available at $lat $lon (lat, lon)"
                     )
                 }
 
-                preferredWeatherModel
-            }
+                Pair(it, preferredWeatherModel)
+            }.toMap()
 
         return getForecastAtTimePoint(preferredWeatherModelMap, lat, lon, time)
     }

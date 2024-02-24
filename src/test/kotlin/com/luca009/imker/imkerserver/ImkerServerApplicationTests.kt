@@ -496,7 +496,7 @@ class ImkerServerApplicationTests {
         // 2023-09-09 at 13:50:00 UTC
         val windTemperatureForecastDate = ZonedDateTime.of(2023, 9, 9, 13, 50, 0, 0, ZoneOffset.UTC)
         val windTemperatureForecast = weatherDataQueryService.getForecast(
-            listOf(WeatherVariableType.Temperature2m, WeatherVariableType.WindSpeed10m),
+            setOf(WeatherVariableType.Temperature2m, WeatherVariableType.WindSpeed10m),
             48.20847274949422,
             16.373155534546584,
             windTemperatureForecastDate,

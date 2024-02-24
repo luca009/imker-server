@@ -3,6 +3,10 @@ storage:
     default: C:\Users\reall\Downloads\incadata
 update:
   updateCheckInterval: 10
+endpoints:
+  simpleWeatherVariables:
+    - Temperature2m
+    - WindSpeed10m
 models:
   definedModels:
     0:

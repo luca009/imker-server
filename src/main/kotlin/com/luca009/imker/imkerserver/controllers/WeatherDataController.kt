@@ -1,8 +1,7 @@
 package com.luca009.imker.imkerserver.controllers
 
+import com.luca009.imker.imkerserver.configuration.properties.EndpointProperties
 import com.luca009.imker.imkerserver.controllers.model.WeatherForecastResponse
-import com.luca009.imker.imkerserver.management.model.WeatherModelManagerService
-import com.luca009.imker.imkerserver.parser.model.WeatherVariable
 import com.luca009.imker.imkerserver.parser.model.WeatherVariableType
 import com.luca009.imker.imkerserver.queries.model.PreferredWeatherModelMode
 import com.luca009.imker.imkerserver.queries.model.WeatherDataQueryService
@@ -13,7 +12,6 @@ import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.server.ResponseStatusException
 import java.time.Instant
-import java.time.ZoneId
 import java.time.ZoneOffset
 import java.time.ZonedDateTime
 
@@ -21,22 +19,26 @@ import java.time.ZonedDateTime
 @RestController
 @RequestMapping("/weather")
 class WeatherDataController(
-    val weatherModelManagerService: WeatherModelManagerService,
-    val weatherDataQueryService: WeatherDataQueryService
+    val weatherDataQueryService: WeatherDataQueryService,
+    val endpointProperties: EndpointProperties
 ) {
-    @GetMapping("/forecast")
-    fun forecast(@RequestParam lat: Double, @RequestParam lon: Double, @RequestParam(required = false) date: Long?, @RequestParam(required = false) limit: Int?, @RequestParam(required = false) model: String?): WeatherForecastResponse {
-        // TODO: make this configurable
-        val weatherVariables = listOf(WeatherVariableType.Temperature2m, WeatherVariableType.WindSpeed10m)
-
+    fun forecast(
+        lat: Double,
+        lon: Double,
+        date: Long?,
+        limit: Int?,
+        weatherVariables: Set<WeatherVariableType>,
+        model: String?
+    ): WeatherForecastResponse {
         val dateTime = if (date == null) {
-            ZonedDateTime.now(ZoneOffset.UTC)
+            ZonedDateTime.now(ZoneOffset.UTC) // No time specified, use current time
         } else {
-            Instant.ofEpochSecond(date).atZone(ZoneOffset.UTC)
+            Instant.ofEpochSecond(date).atZone(ZoneOffset.UTC) // Time specified, convert epoch to ZonedDateTime at UTC
         }
 
-        return if (model == null) {
-            weatherDataQueryService.getForecast(
+        if (model == null) {
+            // No model specified, query with PreferredWeatherModelMode.Dynamic
+            return weatherDataQueryService.getForecast(
                 weatherVariables,
                 lat,
                 lon,
@@ -44,20 +46,50 @@ class WeatherDataController(
                 limit,
                 PreferredWeatherModelMode.Dynamic
             )
-        } else {
-            val weatherModel = weatherDataQueryService.findWeatherModel(model)
-            requireNotNull(weatherModel) {
-                throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Weather model \"$model\" not available at $lat $lon (lat, lon)")
-            }
-
-           weatherDataQueryService.getForecast(
-               weatherVariables,
-               lat,
-               lon,
-               dateTime,
-               limit,
-               weatherModel
-           )
         }
+
+        val weatherModel = weatherDataQueryService.findWeatherModel(model)
+        requireNotNull(weatherModel) {
+            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Weather model \"$model\" not available at $lat $lon (lat, lon)")
+        }
+
+        return weatherDataQueryService.getForecast(
+            weatherVariables,
+            lat,
+            lon,
+            dateTime,
+            limit,
+            weatherModel
+        )
+    }
+
+    @GetMapping("/forecast/simple")
+    fun simpleForecast(
+        @RequestParam lat: Double,
+        @RequestParam lon: Double,
+        @RequestParam(required = false) date: Long?,
+        @RequestParam(required = false) limit: Int?,
+        @RequestParam(required = false) model: String?
+    ): WeatherForecastResponse {
+        val weatherVariables = endpointProperties.simpleWeatherVariables
+
+        return forecast(
+            lat, lon, date, limit, weatherVariables, model
+        )
+    }
+
+    @GetMapping("/forecast/complete")
+    fun completeForecast(
+        @RequestParam lat: Double,
+        @RequestParam lon: Double,
+        @RequestParam(required = false) date: Long?,
+        @RequestParam(required = false) limit: Int?,
+        @RequestParam(required = false) model: String?
+    ): WeatherForecastResponse {
+        val weatherVariables = WeatherVariableType.values().toSet()
+
+        return forecast(
+            lat, lon, date, limit, weatherVariables, model
+        )
     }
 }

@@ -24,7 +24,8 @@ data class WeatherVariableForecastResponse(
             return false
         }
 
-        if (variableName != other.variableName) {
+        if (variableName != other.variableName ||
+            units != other.units) {
             return false
         }
 
@@ -37,7 +38,6 @@ data class WeatherVariableForecastValueResponse(
     val date: Long,
     val value: Double
 )
-
 object WeatherVariableForecastResponseHelper {
     fun doubleMapToWeatherVariableForecastResponse(data: Map<ZonedDateTime, Double>, variableName: String, units: String, weatherModelName: String): WeatherVariableForecastResponse {
         return WeatherVariableForecastResponse(
