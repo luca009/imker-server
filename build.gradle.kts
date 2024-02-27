@@ -9,7 +9,7 @@ plugins {
 }
 
 group = "com.luca009.imker"
-version = "0.0.1-SNAPSHOT"
+version = "0.1-alpha1"
 
 java {
     sourceCompatibility = JavaVersion.VERSION_18
