@@ -1,2 +1,7 @@
-Temperature2m,TT,(?<=\.*\\)nowcast_\d{12}\.nc
+WindDirection10m,DD,(?<=\.*\\)nowcast_\d{12}\.nc
 WindSpeed10m,FF,(?<=\.*\\)nowcast_\d{12}\.nc
+GustSpeed10m,FX,(?<=\.*\\)nowcast_\d{12}\.nc
+RelativeHumidity2m,RH,(?<=\.*\\)nowcast_\d{12}\.nc
+PrecipitationSum,RR,(?<=\.*\\)nowcast_\d{12}\.nc
+DewPoint,TD,(?<=\.*\\)nowcast_\d{12}\.nc
+Temperature2m,TT,(?<=\.*\\)nowcast_\d{12}\.nc
