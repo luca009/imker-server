@@ -30,5 +30,10 @@ models:
         subFolderName: inca
       cache:
         variablesInMemory:
-          - Temperature2m
+          - WindDirection10m
           - WindSpeed10m
+          - GustSpeed10m
+          - RelativeHumidity2m
+          - PrecipitationSum
+          - DewPoint
+          - Temperature2m
