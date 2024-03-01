@@ -1,4 +1,4 @@
-package com.luca009.imker.server.management.model
+package com.luca009.imker.server.management.models.model
 
 import com.luca009.imker.server.caching.model.WeatherRasterCompositeCache
 import com.luca009.imker.server.configuration.model.WeatherModel

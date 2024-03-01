@@ -1,7 +1,7 @@
-package com.luca009.imker.server.filemanager
+package com.luca009.imker.server.management.files
 
 import com.luca009.imker.server.configuration.properties.StorageProperties
-import com.luca009.imker.server.filemanager.model.LocalFileManagerService
+import com.luca009.imker.server.management.files.model.LocalFileManagerService
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.context.annotation.Scope

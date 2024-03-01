@@ -6,7 +6,7 @@ import com.luca009.imker.server.controllers.model.WeatherForecastResponse
 import com.luca009.imker.server.controllers.model.WeatherVariableForecastResponse
 import com.luca009.imker.server.controllers.model.WeatherVariableForecastResponseHelper
 import com.luca009.imker.server.controllers.model.WeatherVariableForecastValueResponse
-import com.luca009.imker.server.management.model.WeatherModelManagerService
+import com.luca009.imker.server.management.models.model.WeatherModelManagerService
 import com.luca009.imker.server.parser.model.WeatherVariableType
 import com.luca009.imker.server.queries.model.PreferredWeatherModelMode
 import com.luca009.imker.server.queries.model.WeatherDataQueryService

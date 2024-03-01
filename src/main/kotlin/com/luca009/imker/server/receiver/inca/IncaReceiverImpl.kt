@@ -1,8 +1,8 @@
 package com.luca009.imker.server.receiver.inca
 
 import com.luca009.imker.server.IncaFtpServerConstants
-import com.luca009.imker.server.filemanager.model.BestFileSearchService
-import com.luca009.imker.server.filemanager.model.DataFileNameManager
+import com.luca009.imker.server.management.files.model.BestFileSearchService
+import com.luca009.imker.server.management.files.model.DataFileNameManager
 import com.luca009.imker.server.receiver.model.DownloadResult
 import com.luca009.imker.server.receiver.model.FtpClient
 import com.luca009.imker.server.receiver.model.IncaReceiver

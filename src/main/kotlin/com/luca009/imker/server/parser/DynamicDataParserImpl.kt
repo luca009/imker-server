@@ -1,7 +1,7 @@
 package com.luca009.imker.server.parser
 
-import com.luca009.imker.server.filemanager.model.BestFileSearchService
-import com.luca009.imker.server.filemanager.model.DataFileNameManager
+import com.luca009.imker.server.management.files.model.BestFileSearchService
+import com.luca009.imker.server.management.files.model.DataFileNameManager
 import com.luca009.imker.server.parser.model.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory

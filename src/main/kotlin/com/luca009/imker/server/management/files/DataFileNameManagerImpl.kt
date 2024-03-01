@@ -1,6 +1,6 @@
-package com.luca009.imker.server.filemanager
+package com.luca009.imker.server.management.files
 
-import com.luca009.imker.server.filemanager.model.DataFileNameManager
+import com.luca009.imker.server.management.files.model.DataFileNameManager
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 import java.time.ZonedDateTime

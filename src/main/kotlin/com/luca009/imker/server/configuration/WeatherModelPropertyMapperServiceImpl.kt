@@ -7,8 +7,8 @@ import com.luca009.imker.server.configuration.model.WeatherVariableFileNameMappe
 import com.luca009.imker.server.configuration.model.WeatherVariableUnitMapper
 import com.luca009.imker.server.configuration.properties.ModelProperties
 import com.luca009.imker.server.configuration.properties.RawWeatherModel
-import com.luca009.imker.server.filemanager.model.DataFileNameManager
-import com.luca009.imker.server.filemanager.model.LocalFileManagerService
+import com.luca009.imker.server.management.files.model.DataFileNameManager
+import com.luca009.imker.server.management.files.model.LocalFileManagerService
 import com.luca009.imker.server.parser.model.DynamicDataParser
 import com.luca009.imker.server.parser.model.WeatherDataParser
 import com.luca009.imker.server.receiver.model.DataReceiver

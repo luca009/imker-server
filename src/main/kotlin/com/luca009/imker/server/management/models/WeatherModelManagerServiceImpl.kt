@@ -1,11 +1,11 @@
-package com.luca009.imker.server.management
+package com.luca009.imker.server.management.models
 
 import com.luca009.imker.server.caching.model.WeatherRasterCompositeCache
 import com.luca009.imker.server.caching.model.WeatherRasterCompositeCacheConfiguration
 import com.luca009.imker.server.configuration.model.WeatherModel
 import com.luca009.imker.server.configuration.model.WeatherVariableFileNameMapper
 import com.luca009.imker.server.configuration.model.WeatherVariableUnitMapper
-import com.luca009.imker.server.management.model.WeatherModelManagerService
+import com.luca009.imker.server.management.models.model.WeatherModelManagerService
 import com.luca009.imker.server.parser.model.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory

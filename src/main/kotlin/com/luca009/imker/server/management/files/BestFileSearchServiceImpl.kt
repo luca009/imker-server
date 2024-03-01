@@ -1,7 +1,7 @@
-package com.luca009.imker.server.filemanager
+package com.luca009.imker.server.management.files
 
-import com.luca009.imker.server.filemanager.model.BestFileSearchService
-import com.luca009.imker.server.filemanager.model.DataFileNameManager
+import com.luca009.imker.server.management.files.model.BestFileSearchService
+import com.luca009.imker.server.management.files.model.DataFileNameManager
 import org.springframework.context.annotation.Scope
 import org.springframework.stereotype.Service
 import java.time.Duration

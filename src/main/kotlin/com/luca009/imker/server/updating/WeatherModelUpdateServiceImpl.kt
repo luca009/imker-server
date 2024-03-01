@@ -2,7 +2,7 @@ package com.luca009.imker.server.updating
 
 import com.luca009.imker.server.configuration.model.WeatherModel
 import com.luca009.imker.server.configuration.properties.UpdateProperties
-import com.luca009.imker.server.management.model.WeatherModelManagerService
+import com.luca009.imker.server.management.models.model.WeatherModelManagerService
 import com.luca009.imker.server.updating.model.WeatherModelUpdateService
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
