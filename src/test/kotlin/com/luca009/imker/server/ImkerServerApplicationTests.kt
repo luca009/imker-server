@@ -8,11 +8,14 @@ import com.luca009.imker.server.configuration.model.WeatherModel
 import com.luca009.imker.server.configuration.model.WeatherVariableFileNameMapper
 import com.luca009.imker.server.configuration.model.WeatherVariableUnitMapper
 import com.luca009.imker.server.configuration.properties.QueryProperties
+ import com.luca009.imker.server.configuration.properties.StorageProperties
 import com.luca009.imker.server.configuration.properties.UpdateProperties
 import com.luca009.imker.server.management.files.BestFileSearchServiceImpl
 import com.luca009.imker.server.management.files.DataFileNameManagerImpl
+import com.luca009.imker.server.management.files.LocalFileManagerServiceImpl
 import com.luca009.imker.server.management.files.model.BestFileSearchService
 import com.luca009.imker.server.management.files.model.DataFileNameManager
+import com.luca009.imker.server.management.files.model.LocalFileManagementConfiguration
 import com.luca009.imker.server.management.files.model.LocalFileManagerService
 import com.luca009.imker.server.management.models.WeatherModelManagerServiceImpl
 import com.luca009.imker.server.management.models.model.WeatherModelManagerService
@@ -31,7 +34,6 @@ import org.apache.commons.net.ftp.FTPFile
 import org.junit.jupiter.api.*
 import org.mockito.Mockito.*
 import org.mockito.kotlin.whenever
-import org.mockito.stubbing.Answer
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.http.HttpStatusCode
 import org.springframework.test.context.ContextConfiguration
@@ -53,7 +55,8 @@ import kotlin.io.path.Path
 class ImkerServerApplicationTests {
     final val ZAMG_FTP_SERVER = "eaftp.zamg.ac.at"
     final val TEST_RESOURCES_PATH = File("src/test/resources").absolutePath
-    final val TEST_NETCDF_FILE_PATH = Path(TEST_RESOURCES_PATH, "inca", "nowcast_202309091345.nc").toString()
+    final val TEST_NETCDF_FILES_PATH = Path(TEST_RESOURCES_PATH, "inca").toString()
+    final val TEST_NETCDF_FILE_PATH = Path(TEST_NETCDF_FILES_PATH, "nowcast_202309091345.nc").toString()
     final val TEST_MAPPER_CONFIG_FILE_PATH = Path(TEST_RESOURCES_PATH, "inca", "inca_map.csv").toString()
     final val TEST_UNIT_MAPPER_CONFIG_FILE_PATH = Path(TEST_RESOURCES_PATH, "unit_map.csv").toString()
     final val TEST_DATES: Set<Pair<Int, ZonedDateTime>> = setOf(
@@ -123,9 +126,13 @@ class ImkerServerApplicationTests {
         weatherTimeCache,
         weatherUnitCache
     )
+    val localFileManagerService: LocalFileManagerService = LocalFileManagerServiceImpl(
+        StorageProperties().apply {
+            this.storageLocations = mutableMapOf("default" to TEST_RESOURCES_PATH.toString())
+        }
+    )
 
     val mockFtpClient: FtpClient = org.mockito.kotlin.mock()
-    val mockLocalFileManagerService: LocalFileManagerService = org.mockito.kotlin.mock()
 
     val incaReceiver: IncaReceiver = IncaReceiverImpl(
         incaFileNameManager,
@@ -135,32 +142,41 @@ class ImkerServerApplicationTests {
         Path(TEST_RESOURCES_PATH, "inca")
     )
 
-    val weatherModels: SortedMap<Int, WeatherModel> = sortedMapOf(
-        0 to WeatherModel(
-            "INCA",
-            "INCA",
-            "GeoSphere Austria under CC BY-SA 4.0",
+    val incaModel = WeatherModel(
+        "INCA",
+        "INCA",
+        "GeoSphere Austria under CC BY-SA 4.0",
 
-            incaReceiver,
-            DynamicDataParserImpl(netCdfParser, netCdfParserFactory, TEST_NETCDF_FILE_PATH, bestFileSearchService, incaFileNameManager),
-            weatherVariableFileNameMapperFactory(File(TEST_MAPPER_CONFIG_FILE_PATH)),
-            weatherVariableUnitMapperFactory(File(TEST_UNIT_MAPPER_CONFIG_FILE_PATH)),
+        incaReceiver,
+        DynamicDataParserImpl(netCdfParser, netCdfParserFactory, TEST_NETCDF_FILES_PATH, bestFileSearchService, incaFileNameManager),
+        weatherVariableFileNameMapperFactory(File(TEST_MAPPER_CONFIG_FILE_PATH)),
+        incaFileNameManager,
+        weatherVariableUnitMapperFactory(File(TEST_UNIT_MAPPER_CONFIG_FILE_PATH)),
 
-            WeatherRasterCompositeCacheConfiguration(
-                setOf(
-                    // variables in memory
-                    WeatherVariableType.Temperature2m
-                ),
-                setOf() // ignored variables
-            )
+        WeatherRasterCompositeCacheConfiguration(
+            setOf(
+                // variables in memory
+                WeatherVariableType.Temperature2m
+            ),
+            setOf() // ignored variables
+        ),
+        LocalFileManagementConfiguration(
+            Path(TEST_NETCDF_FILES_PATH),
+            null,
+            null
         )
+    )
+
+    val weatherModels: SortedMap<Int, WeatherModel> = sortedMapOf(
+        0 to incaModel
     )
     val weatherDataCompositeCacheFactory = {
             configuration: WeatherRasterCompositeCacheConfiguration, dataParser: WeatherDataParser, variableMapper: WeatherVariableFileNameMapper, unitMapper: WeatherVariableUnitMapper -> WeatherRasterCompositeCacheImpl(configuration, dataParser, variableMapper, unitMapper, weatherRasterMemoryCache, weatherRasterDiskCache, WeatherTimeCacheImpl(), WeatherVariableUnitCacheImpl())
     }
     val weatherModelManagerService: WeatherModelManagerService = WeatherModelManagerServiceImpl(
         weatherModels,
-        weatherDataCompositeCacheFactory
+        weatherDataCompositeCacheFactory,
+        localFileManagerService
     )
 
     val weatherDataQueryService: WeatherDataQueryService = WeatherDataQueryServiceImpl(weatherModelManagerService, QUERY_PROPERTIES)
@@ -168,18 +184,10 @@ class ImkerServerApplicationTests {
     val dynamicNetCdfParser: DynamicDataParser = DynamicDataParserImpl(
         netCdfParser,
         netCdfParserFactory,
-        TEST_NETCDF_FILE_PATH,
+        TEST_NETCDF_FILES_PATH,
         bestFileSearchService,
         incaFileNameManager
     )
-
-    @BeforeAll
-    fun setupMockLocalFileManager() {
-        whenever(mockLocalFileManagerService.getWeatherDataLocation(anyString(), anyString())).thenAnswer(Answer {
-            val subPath = it.arguments[0].toString()
-            return@Answer Path(TEST_RESOURCES_PATH, subPath)
-        })
-    }
 
     @BeforeAll
     fun setupMockFtpClient() {
@@ -215,9 +223,8 @@ class ImkerServerApplicationTests {
     }
 
     @Test
+    @Disabled // This test pings an actual FTP server, not really the best look :(
     fun ftpClientConnects() {
-        requireNotNull(ftpClient)
-
         val connectionSuccess = ftpClient.connect(ZAMG_FTP_SERVER, "anonymous", "")
         Assert.isTrue(ftpClient.isConnected() && connectionSuccess, "FtpClient did not connect successfully")
         ftpClient.disconnect()
@@ -399,7 +406,24 @@ class ImkerServerApplicationTests {
     }
 
     @Test
-    fun weatherModelManagerWorks() {
+    fun fileManagerDeletionWorks() {
+        val noFilesForDeletion = localFileManagerService.getFilesForCleanup(incaModel)
+        Assert.isTrue(noFilesForDeletion?.isEmpty() ?: false, "Cleanup policy with no files expected to be deleted returned files to be deleted or null")
+
+        val incaWithMaxCountConfig = incaModel.copy(
+            fileManagementConfiguration = LocalFileManagementConfiguration(
+                Path(TEST_NETCDF_FILES_PATH),
+                null,
+                1u
+            )
+        )
+        val oneFileForDeletion = localFileManagerService.getFilesForCleanup(incaWithMaxCountConfig)
+        Assert.isTrue(oneFileForDeletion?.count() == 1, "Cleanup policy with a maximum file count of 1 returned ${oneFileForDeletion?.count()} files instead")
+        Assert.isTrue(oneFileForDeletion?.firstOrNull()?.first?.absolutePath == TEST_NETCDF_FILE_PATH, "Cleanup policy with a maximum file count of 1 returned the wrong file to be deleted")
+    }
+
+    @Test
+    fun weatherModelManagerSelectionWorks() {
         val preferredWeatherModel = weatherModelManagerService.getPreferredWeatherModelForLatLon(
             WeatherVariableType.Temperature2m,
             48.20847274949422,

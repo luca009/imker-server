@@ -75,13 +75,11 @@ class LocalFileManagerServiceImpl(
         }.toSet()
     }
 
-    override fun cleanupWeatherDataLocation(
-        weatherModel: WeatherModel
-    ): Boolean {
+    override fun getFilesForCleanup(weatherModel: WeatherModel): Set<Pair<File, ZonedDateTime>>? {
         // Neither cleanup policy is configured, don't do anything
         if (weatherModel.fileManagementConfiguration.maxAge == null &&
             weatherModel.fileManagementConfiguration.maxCount == null) {
-            return true
+            return setOf()
         }
 
         val storageLocationFile = weatherModel.fileManagementConfiguration.storageLocation.toFile()
@@ -95,14 +93,14 @@ class LocalFileManagerServiceImpl(
 
                 // Ensure that the file and its date isn't null
                 Pair(
-                    requireNotNull(it),
+                    it ?: return@mapNotNull null,
                     weatherModel.fileNameManager.getDateTimeForFile(it.name) ?: return@mapNotNull null
                 )
             }
             ?.toSet()
 
         requireNotNull(files) {
-            return false
+            return null
         }
 
         // Filter by max count. If the maxFiles storage policy is null, use files as default value
@@ -116,7 +114,23 @@ class LocalFileManagerServiceImpl(
         }
 
         // Negate the results because we've filtered out the files we want to keep, but we want the ones we want to delete
-        val filesToBeDeleted = files.subtract(maxAgeFilteredFiles)
+        return files.subtract(maxAgeFilteredFiles)
+    }
+
+    override fun cleanupWeatherDataLocation(
+        weatherModel: WeatherModel
+    ): Boolean {
+        // Neither cleanup policy is configured: don't do anything, but return a success
+        if (weatherModel.fileManagementConfiguration.maxAge == null &&
+            weatherModel.fileManagementConfiguration.maxCount == null) {
+            return true
+        }
+
+        val filesToBeDeleted = getFilesForCleanup(weatherModel)
+
+        requireNotNull(filesToBeDeleted) {
+            return false
+        }
 
         // We're using all instead of forEach to populate the success variable (file.delete() returns boolean indicating success)
         return filesToBeDeleted.all {

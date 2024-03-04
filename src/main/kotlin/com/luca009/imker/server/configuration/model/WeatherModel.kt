@@ -6,7 +6,7 @@ import com.luca009.imker.server.management.files.model.LocalFileManagementConfig
 import com.luca009.imker.server.parser.model.WeatherDataParser
 import com.luca009.imker.server.receiver.model.DataReceiver
 
-class WeatherModel(
+data class WeatherModel(
     val name: String,
     val friendlyName: String,
     val copyright: String,
