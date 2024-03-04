@@ -11,6 +11,9 @@ interface WeatherModelManagerService {
 
     fun getWeatherModels(): SortedMap<Int, WeatherModel>
 
+    fun cleanupDataStorageLocations()
+    fun cleanupDataStorageLocations(weatherModels: Set<WeatherModel>)
+
     fun updateWeatherModelCaches()
     fun updateWeatherModelCaches(weatherModels: Set<WeatherModel>)
 

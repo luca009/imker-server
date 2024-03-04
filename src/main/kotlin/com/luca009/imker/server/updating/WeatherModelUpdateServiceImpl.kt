@@ -41,6 +41,8 @@ class WeatherModelUpdateServiceImpl(
         // TODO: maybe update each data parser immediately after downloading? the current solution causes "lag" when a weather model takes longer to download
         weatherModelManagerService.updateDataParsers(updatedModels)
 
+        weatherModelManagerService.cleanupDataStorageLocations(updatedModels)
+
         // Lazy caching is on, don't update the caches
         if (updateProperties.lazyCaching) {
             return

@@ -5,6 +5,7 @@ import com.luca009.imker.server.caching.model.WeatherRasterCompositeCacheConfigu
 import com.luca009.imker.server.configuration.model.WeatherModelPropertyMapperService
 import com.luca009.imker.server.configuration.model.WeatherVariableFileNameMapper
 import com.luca009.imker.server.configuration.model.WeatherVariableUnitMapper
+import com.luca009.imker.server.management.files.model.LocalFileManagerService
 import com.luca009.imker.server.management.models.model.WeatherModelManagerService
 import com.luca009.imker.server.parser.model.WeatherDataParser
 import org.slf4j.Logger
@@ -14,8 +15,9 @@ import org.springframework.context.annotation.Configuration
 
 @Configuration
 class WeatherModelManagerServiceConfiguration(
-    val weatherRasterCompositeCacheFactory: (WeatherRasterCompositeCacheConfiguration, WeatherDataParser, WeatherVariableFileNameMapper, WeatherVariableUnitMapper) -> WeatherRasterCompositeCache,
-    val weatherModelPropertyMapperService: WeatherModelPropertyMapperService
+    private val weatherRasterCompositeCacheFactory: (WeatherRasterCompositeCacheConfiguration, WeatherDataParser, WeatherVariableFileNameMapper, WeatherVariableUnitMapper) -> WeatherRasterCompositeCache,
+    private val weatherModelPropertyMapperService: WeatherModelPropertyMapperService,
+    private val fileManagerService: LocalFileManagerService
 ) {
     private val logger: Logger = LoggerFactory.getLogger(this::class.java)
 
@@ -68,7 +70,8 @@ class WeatherModelManagerServiceConfiguration(
 
         return WeatherModelManagerServiceImpl(
             weatherModels,
-            weatherRasterCompositeCacheFactory
+            weatherRasterCompositeCacheFactory,
+            fileManagerService
         )
     }
 }

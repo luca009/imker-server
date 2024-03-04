@@ -8,6 +8,7 @@ import com.luca009.imker.server.configuration.model.WeatherVariableUnitMapper
 import com.luca009.imker.server.configuration.properties.ModelProperties
 import com.luca009.imker.server.configuration.properties.RawWeatherModel
 import com.luca009.imker.server.management.files.model.DataFileNameManager
+import com.luca009.imker.server.management.files.model.LocalFileManagementConfiguration
 import com.luca009.imker.server.management.files.model.LocalFileManagerService
 import com.luca009.imker.server.parser.model.DynamicDataParser
 import com.luca009.imker.server.parser.model.WeatherDataParser
@@ -17,6 +18,9 @@ import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import java.io.File
 import java.nio.file.Path
+import java.time.Duration
+import java.time.temporal.ChronoUnit
+import java.time.temporal.TemporalUnit
 import java.util.*
 
 @Component
@@ -40,6 +44,9 @@ class WeatherModelPropertyMapperServiceImpl(
             )
         }.toMap().toSortedMap()
     }
+
+    private fun Int.isNegativeOrZero(): Boolean = this <= 0
+    private fun Int.toDuration(unit: TemporalUnit) = Duration.of(this.toLong(), unit)
 
     fun assembleWeatherModel(rawWeatherModel: RawWeatherModel): WeatherModel? {
         // Get the factory for our desired DataParser
@@ -79,6 +86,19 @@ class WeatherModelPropertyMapperServiceImpl(
             rawWeatherModel.cache.ignoredVariables
         )
 
+        val maxFiles = if (rawWeatherModel.storage.policy.maxFiles?.isNegativeOrZero() == true) {
+            logger.warn("Assembling ${rawWeatherModel.meta.name}: Storage policy specified that there should be <= 0 files at most. Defaulting to unlimited files. Check if your weather models are configured correctly.")
+            null
+        } else {
+            rawWeatherModel.storage.policy.maxFiles?.toUInt()
+        }
+
+        val fileManagementConfig = LocalFileManagementConfiguration(
+            storagePath,
+            rawWeatherModel.storage.policy.maxAge?.toDuration(ChronoUnit.HOURS), // TODO: don't hardcode units
+            maxFiles
+        )
+
         return WeatherModel(
             rawWeatherModel.meta.name,
             rawWeatherModel.meta.friendlyName,
@@ -86,8 +106,10 @@ class WeatherModelPropertyMapperServiceImpl(
             dataReceiver,
             dataParser,
             variableMapper,
+            fileNameManager,
             unitMapper,
-            cacheConfig
+            cacheConfig,
+            fileManagementConfig
         )
     }
 

@@ -5,6 +5,7 @@ import com.luca009.imker.server.caching.model.WeatherRasterCompositeCacheConfigu
 import com.luca009.imker.server.configuration.model.WeatherModel
 import com.luca009.imker.server.configuration.model.WeatherVariableFileNameMapper
 import com.luca009.imker.server.configuration.model.WeatherVariableUnitMapper
+import com.luca009.imker.server.management.files.model.LocalFileManagerService
 import com.luca009.imker.server.management.models.model.WeatherModelManagerService
 import com.luca009.imker.server.parser.model.*
 import org.slf4j.Logger
@@ -14,7 +15,8 @@ import java.util.*
 
 class WeatherModelManagerServiceImpl(
     private val availableWeatherModels: SortedMap<Int, WeatherModel>,
-    private val weatherRasterCompositeCacheFactory: (WeatherRasterCompositeCacheConfiguration, WeatherDataParser, WeatherVariableFileNameMapper, WeatherVariableUnitMapper) -> WeatherRasterCompositeCache
+    private val weatherRasterCompositeCacheFactory: (WeatherRasterCompositeCacheConfiguration, WeatherDataParser, WeatherVariableFileNameMapper, WeatherVariableUnitMapper) -> WeatherRasterCompositeCache,
+    private val fileManagerService: LocalFileManagerService
 ) : WeatherModelManagerService {
     private val logger: Logger = LoggerFactory.getLogger(this::class.java)
     private val weatherModelCaches: Map<WeatherModel, WeatherRasterCompositeCache> = availableWeatherModels.mapNotNull {
@@ -30,6 +32,21 @@ class WeatherModelManagerServiceImpl(
     }.toMap()
 
     override fun getWeatherModels() = availableWeatherModels
+
+    override fun cleanupDataStorageLocations() = cleanupDataStorageLocationsFromCollection(availableWeatherModels.values)
+    override fun cleanupDataStorageLocations(weatherModels: Set<WeatherModel>) = cleanupDataStorageLocationsFromCollection(weatherModels)
+
+    private fun cleanupDataStorageLocationsFromCollection(weatherModels: Collection<WeatherModel>) {
+        weatherModels.forEach {
+            val success = fileManagerService.cleanupWeatherDataLocation(it)
+
+            if (success) {
+                logger.info("Purged weather model files for ${it.name}")
+            } else {
+                logger.error("Failed to purge weather model files for ${it.name}")
+            }
+        }
+    }
 
     override fun updateWeatherModelCaches() {
         weatherModelCaches.forEach {

@@ -28,6 +28,8 @@ models:
       storage:
         storageLocationName: default
         subFolderName: inca
+        policy:
+          maxFiles: 1
       cache:
         variablesInMemory:
           - WindDirection10m

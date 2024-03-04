@@ -44,8 +44,13 @@ data class RawWeatherModelMappingInfo(
 
 data class RawWeatherModelStorageInfo(
     val storageLocationName: String,
-    val subFolderName: String? = null
-    // TODO: properties for auto-deletion/storage policy
+    val subFolderName: String? = null,
+    val policy: RawWeatherModelStoragePolicyInfo
+)
+
+data class RawWeatherModelStoragePolicyInfo(
+    val maxFiles: Int? = null,
+    val maxAge: Int? = null // TODO: don't hardcode units
 )
 
 data class RawWeatherModelCacheInfo(
