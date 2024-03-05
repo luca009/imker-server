@@ -8,8 +8,8 @@ import java.time.ZonedDateTime
 
 interface LocalFileManagerService {
     fun getWeatherDataLocation(storageLocation: String, subFolder: String? = null): Path
-    fun getFilesForCleanup(weatherModel: WeatherModel): Set<Pair<File, ZonedDateTime>>?
-    fun cleanupWeatherDataLocation(weatherModel: WeatherModel): Boolean
+    fun getFilesForCleanup(weatherModel: WeatherModel, referenceDateTime: ZonedDateTime = ZonedDateTime.now()): Set<Pair<File, ZonedDateTime>>?
+    fun cleanupWeatherDataLocation(weatherModel: WeatherModel, referenceDateTime: ZonedDateTime = ZonedDateTime.now()): Boolean
 }
 
 data class LocalFileManagementConfiguration(

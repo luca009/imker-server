@@ -42,6 +42,7 @@ import org.springframework.util.Assert
 import org.springframework.web.server.ResponseStatusException
 import java.io.File
 import java.nio.file.Path
+import java.time.Duration
 import java.time.ZoneOffset
 import java.time.ZonedDateTime
 import java.util.*
@@ -407,9 +408,12 @@ class ImkerServerApplicationTests {
 
     @Test
     fun fileManagerDeletionWorks() {
+        // Testing without config
         val noFilesForDeletion = localFileManagerService.getFilesForCleanup(incaModel)
         Assert.isTrue(noFilesForDeletion?.isEmpty() ?: false, "Cleanup policy with no files expected to be deleted returned files to be deleted or null")
 
+
+        // Testing maximum file count
         val incaWithMaxCountConfig = incaModel.copy(
             fileManagementConfiguration = LocalFileManagementConfiguration(
                 Path(TEST_NETCDF_FILES_PATH),
@@ -417,9 +421,38 @@ class ImkerServerApplicationTests {
                 1u
             )
         )
-        val oneFileForDeletion = localFileManagerService.getFilesForCleanup(incaWithMaxCountConfig)
-        Assert.isTrue(oneFileForDeletion?.count() == 1, "Cleanup policy with a maximum file count of 1 returned ${oneFileForDeletion?.count()} files instead")
-        Assert.isTrue(oneFileForDeletion?.firstOrNull()?.first?.absolutePath == TEST_NETCDF_FILE_PATH, "Cleanup policy with a maximum file count of 1 returned the wrong file to be deleted")
+        val maxCountFilesForDeletion = localFileManagerService.getFilesForCleanup(incaWithMaxCountConfig)
+        Assert.isTrue(maxCountFilesForDeletion?.count() == 1, "Cleanup policy with a maximum file count of 1 returned ${maxCountFilesForDeletion?.count()} files instead")
+        Assert.isTrue(maxCountFilesForDeletion?.firstOrNull()?.first?.absolutePath == TEST_NETCDF_FILE_PATH, "Cleanup policy with a maximum file count of 1 returned the wrong file to be deleted")
+
+
+        // Testing maximum age
+        val incaWithMaxAgeConfig = incaModel.copy(
+            fileManagementConfiguration = LocalFileManagementConfiguration(
+                Path(TEST_NETCDF_FILES_PATH),
+                Duration.ofMinutes(15),
+                null
+            )
+        )
+
+        // 2023-09-09 at 14:10:00 UTC (10 minutes after the second test file)
+        val referenceDateTime = ZonedDateTime.of(2023, 9, 9, 14, 10, 0, 0, ZoneOffset.UTC)
+        val maxAgeFilesForDeletion = localFileManagerService.getFilesForCleanup(incaWithMaxAgeConfig, referenceDateTime)
+        Assert.isTrue(maxAgeFilesForDeletion?.count() == 1, "Cleanup policy with a maximum age of 15 minutes returned ${maxAgeFilesForDeletion?.count()} files instead of the expected 1")
+        Assert.isTrue(maxAgeFilesForDeletion?.firstOrNull()?.first?.absolutePath == TEST_NETCDF_FILE_PATH, "Cleanup policy with a maximum age of 15 minutes returned the wrong file to be deleted")
+
+        // 2023-09-09 at 14:15:00 UTC (15 minutes after the second test file)
+        // Explanation: because the maximum age is set to be 15 minutes, files that are exactly 15 minutes old shouldn't be deleted because they are still within the maximum age
+        val edgeCaseReferenceDateTime = ZonedDateTime.of(2023, 9, 9, 14, 15, 0, 0, ZoneOffset.UTC)
+        val maxAgeEdgeCaseFilesForDeletion = localFileManagerService.getFilesForCleanup(incaWithMaxAgeConfig, edgeCaseReferenceDateTime)
+        Assert.isTrue(maxAgeEdgeCaseFilesForDeletion?.count() == 1, "Cleanup policy with a maximum age of 15 minutes returned ${maxAgeEdgeCaseFilesForDeletion?.count()} files instead of the expected 1")
+        Assert.isTrue(maxAgeEdgeCaseFilesForDeletion?.firstOrNull()?.first?.absolutePath == TEST_NETCDF_FILE_PATH, "Cleanup policy with a maximum age of 15 minutes returned the wrong file to be deleted")
+
+        // 2023-09-09 at 14:20:00 UTC (20 minutes after the second test file)
+        val allFilesReferenceDateTime = ZonedDateTime.of(2023, 9, 9, 14, 20, 0, 0, ZoneOffset.UTC)
+        val maxAgeAllFilesForDeletion = localFileManagerService.getFilesForCleanup(incaWithMaxAgeConfig, allFilesReferenceDateTime)
+        Assert.isTrue(maxAgeAllFilesForDeletion?.count() == 2, "Cleanup policy with a maximum age of 15 minutes returned ${maxAgeAllFilesForDeletion?.count()} files instead of the expected 2")
+        Assert.isTrue(maxAgeAllFilesForDeletion?.firstOrNull()?.first?.absolutePath == TEST_NETCDF_FILE_PATH, "Cleanup policy with a maximum age of 15 minutes returned the wrong file to be deleted")
     }
 
     @Test
