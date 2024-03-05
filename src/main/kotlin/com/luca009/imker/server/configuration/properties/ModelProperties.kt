@@ -3,6 +3,7 @@ package com.luca009.imker.server.configuration.properties
 import com.luca009.imker.server.parser.model.WeatherVariableType
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.context.annotation.Configuration
+import java.time.Duration
 
 @Configuration
 @ConfigurationProperties(prefix = "models")
@@ -50,7 +51,7 @@ data class RawWeatherModelStorageInfo(
 
 data class RawWeatherModelStoragePolicyInfo(
     val maxFiles: Int? = null,
-    val maxAge: Int? = null // TODO: don't hardcode units
+    val maxAge: Duration? = null
 )
 
 data class RawWeatherModelCacheInfo(

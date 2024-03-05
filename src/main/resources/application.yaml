@@ -30,6 +30,7 @@ models:
         subFolderName: inca
         policy:
           maxFiles: 1
+          maxAge: PT30M
       cache:
         variablesInMemory:
           - WindDirection10m

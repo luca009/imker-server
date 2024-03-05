@@ -1,5 +1,7 @@
 package com.luca009.imker.server.configuration
 
+import com.luca009.imker.server.ArgumentNotNullHelper
+import com.luca009.imker.server.ArgumentNotNullHelper.requireArgumentNotNullOrDefault
 import com.luca009.imker.server.caching.model.WeatherRasterCompositeCacheConfiguration
 import com.luca009.imker.server.configuration.model.WeatherModel
 import com.luca009.imker.server.configuration.model.WeatherModelPropertyMapperService
@@ -19,6 +21,7 @@ import org.springframework.stereotype.Component
 import java.io.File
 import java.nio.file.Path
 import java.time.Duration
+import java.time.format.DateTimeParseException
 import java.time.temporal.ChronoUnit
 import java.time.temporal.TemporalUnit
 import java.util.*
@@ -95,7 +98,7 @@ class WeatherModelPropertyMapperServiceImpl(
 
         val fileManagementConfig = LocalFileManagementConfiguration(
             storagePath,
-            rawWeatherModel.storage.policy.maxAge?.toDuration(ChronoUnit.HOURS), // TODO: don't hardcode units
+            rawWeatherModel.storage.policy.maxAge,
             maxFiles
         )
 

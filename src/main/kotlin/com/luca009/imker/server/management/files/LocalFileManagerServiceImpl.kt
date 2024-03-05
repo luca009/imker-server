@@ -1,19 +1,16 @@
 package com.luca009.imker.server.management.files
 
+import com.luca009.imker.server.ArgumentNotNullHelper.requireArgumentNotNullOrDefault
 import com.luca009.imker.server.configuration.model.WeatherModel
 import com.luca009.imker.server.configuration.properties.StorageProperties
 import com.luca009.imker.server.management.files.model.LocalFileManagerService
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import org.springframework.context.annotation.Scope
 import org.springframework.stereotype.Service
 import java.io.File
 import java.nio.file.Path
 import java.time.Duration
 import java.time.ZonedDateTime
-import java.time.temporal.ChronoUnit
-import java.time.temporal.TemporalUnit
-import java.util.*
 import kotlin.io.path.Path
 
 @Service
@@ -42,14 +39,6 @@ class LocalFileManagerServiceImpl(
         } else {
             Path(storageLocationPath, subFolder)
         }
-    }
-
-    private inline fun <T, R> requireArgumentNotNullOrDefault(argument: R?, defaultValue: T, function: (R) -> T): T {
-        requireNotNull(argument) {
-            return defaultValue
-        }
-
-        return function(argument)
     }
 
     private fun Set<Pair<File, ZonedDateTime>>.filterByMaxCount(maxCount: UInt): Set<Pair<File, ZonedDateTime>> {
