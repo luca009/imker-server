@@ -11,19 +11,16 @@ interface WeatherModelManagerService {
 
     fun getWeatherModels(): SortedMap<Int, WeatherModel>
 
+    fun updateWeatherModel(weatherModel: WeatherModel, updateSource: Boolean = true, forceUpdateParser: Boolean = false, dateTime: ZonedDateTime = ZonedDateTime.now()): Boolean
+    fun updateWeatherModels(updateSources: Boolean = true, forceUpdateParsers: Boolean = false, dateTime: ZonedDateTime = ZonedDateTime.now()): Set<WeatherModel>
+
     fun cleanupDataStorageLocations()
     fun cleanupDataStorageLocations(weatherModels: Set<WeatherModel>)
-
-    fun updateWeatherModelCaches()
-    fun updateWeatherModelCaches(weatherModels: Set<WeatherModel>)
-
-    fun updateDataParsers()
-    fun updateDataParsers(weatherModels: Set<WeatherModel>)
 
     fun getAvailableWeatherModelsForLatLon(variable: WeatherVariableType, latitude: Double, longitude: Double): SortedMap<Int, WeatherModel>
     fun getAvailableWeatherModelsForLatLon(variable: WeatherVariableType, latitude: Double, longitude: Double, time: ZonedDateTime): SortedMap<Int, WeatherModel>
     fun getPreferredWeatherModelForLatLon(variable: WeatherVariableType, latitude: Double, longitude: Double, time: ZonedDateTime): WeatherModel?
-    fun getPreferredWeatherModelForLatLon(variable: WeatherVariableType, latitude: Double, longitude: Double): WeatherModel?
 
+    fun getPreferredWeatherModelForLatLon(variable: WeatherVariableType, latitude: Double, longitude: Double): WeatherModel?
     fun getCompositeCacheForWeatherModel(weatherModel: WeatherModel): WeatherRasterCompositeCache?
 }

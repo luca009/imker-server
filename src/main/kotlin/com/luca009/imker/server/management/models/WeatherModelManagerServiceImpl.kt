@@ -33,12 +33,69 @@ class WeatherModelManagerServiceImpl(
 
     override fun getWeatherModels() = availableWeatherModels
 
+    override fun updateWeatherModels(updateSources: Boolean, forceUpdateParsers: Boolean, dateTime: ZonedDateTime): Set<WeatherModel> {
+        // TODO: Make this concurrent at some point
+        // Issue with concurrency would be the fact that we might end up connecting to the same FTP server twice (like with INCA and AROME). This needs to be considered.
+        return availableWeatherModels.values.filter {
+            updateWeatherModel(it, updateSources, forceUpdateParsers, dateTime)
+        }.toSet()
+    }
+
+    override fun updateWeatherModel(weatherModel: WeatherModel, updateSource: Boolean, forceUpdateParser: Boolean, dateTime: ZonedDateTime): Boolean {
+        val sourceSuccess = if (updateSource) {
+            updateOnlineWeatherModel(weatherModel)
+        } else {
+            null
+        }
+
+        when (sourceSuccess) {
+            true -> logger.info("Updated source for ${weatherModel.name}.")
+            false ->
+                if (forceUpdateParser) {
+                    logger.warn("Weather model for ${weatherModel.name} could not be updated. Force-updating parser and cache.")
+                } else {
+                    logger.warn("Weather model for ${weatherModel.name} could not be updated. Skipping in update process.")
+                    return false
+                }
+            null -> logger.info("Skipped updating source for ${weatherModel.name}.")
+        }
+
+        val parserSuccess = updateDataParser(weatherModel)
+        if (!parserSuccess) {
+            logger.warn("Parser for ${weatherModel.name} could not be updated. Skipping in update process.")
+            return false
+        }
+
+        val cacheSuccess = updateWeatherModelCache(weatherModel)
+        if (!cacheSuccess) {
+            logger.warn("Cache for ${weatherModel.name} could not be updated. Skipping in update process.")
+            return false
+        }
+
+        val cleanupSuccess = cleanupDataStorageLocation(weatherModel)
+        if (!cleanupSuccess) {
+            logger.warn("Storage location for ${weatherModel.name} could not be cleaned.")
+            return false
+        }
+
+        return true
+    }
+
+    private fun updateOnlineWeatherModel(weatherModel: WeatherModel): Boolean {
+        if (!weatherModel.receiver.updateNecessary(ZonedDateTime.now())) {
+            // No update necessary
+            return true
+        }
+
+        return weatherModel.receiver.downloadData(ZonedDateTime.now(), null).successful // TODO: dynamic file names
+    }
+
     override fun cleanupDataStorageLocations() = cleanupDataStorageLocationsFromCollection(availableWeatherModels.values)
     override fun cleanupDataStorageLocations(weatherModels: Set<WeatherModel>) = cleanupDataStorageLocationsFromCollection(weatherModels)
 
     private fun cleanupDataStorageLocationsFromCollection(weatherModels: Collection<WeatherModel>) {
         weatherModels.forEach {
-            val success = fileManagerService.cleanupWeatherDataLocation(it)
+            val success = cleanupDataStorageLocation(it)
 
             if (success) {
                 logger.info("Purged weather model files for ${it.name}")
@@ -48,51 +105,26 @@ class WeatherModelManagerServiceImpl(
         }
     }
 
-    override fun updateWeatherModelCaches() {
-        weatherModelCaches.forEach {
-            it.value.updateCaches()
-            logger.info("Updated cache for ${it.key.name}")
+    private fun cleanupDataStorageLocation(weatherModel: WeatherModel, dateTime: ZonedDateTime = ZonedDateTime.now()) = fileManagerService.cleanupWeatherDataLocation(weatherModel, dateTime)
+
+    private fun updateWeatherModelCache(weatherModel: WeatherModel): Boolean {
+        val cache = weatherModelCaches[weatherModel]
+        requireNotNull(cache) {
+            logger.error("Could not update cache ${weatherModel.name}. Did not find cache.")
+            return false
         }
+
+        cache.updateCaches()
+        logger.info("Updated cache for ${weatherModel.name}")
+        return true
     }
 
-    override fun updateWeatherModelCaches(weatherModels: Set<WeatherModel>) {
-        weatherModels.forEach {
-            val cache = weatherModelCaches[it]
-            requireNotNull(cache) {
-                logger.error("Could not update cache ${it.name}. Did not find cache.")
-                return
-            }
-
-            cache.updateCaches()
-            logger.info("Updated cache for ${it.name}")
-        }
-    }
-
-    override fun updateDataParsers() {
-        val dateTime = ZonedDateTime.now()
-
-        weatherModelCaches.forEach {
-            updateDataParser(it.key, dateTime)
-        }
-    }
-
-    override fun updateDataParsers(weatherModels: Set<WeatherModel>) {
-        val dateTime = ZonedDateTime.now()
-
-        weatherModels
-            .filter { weatherModelCaches.containsKey(it) }
-            .forEach {
-                updateDataParser(it, dateTime)
-        }
-    }
-
-    private fun updateDataParser(weatherModel: WeatherModel, dateTime: ZonedDateTime) {
+    private fun updateDataParser(weatherModel: WeatherModel, dateTime: ZonedDateTime = ZonedDateTime.now()): Boolean {
         if (weatherModel.parser !is DynamicDataParser) {
-            logger.info("Parser for ${weatherModel.name} was not a DynamicDataParser. Skipping in update process.")
-            return
+            return false
         }
 
-        weatherModel.parser.updateParser(dateTime)
+        return weatherModel.parser.updateParser(dateTime)
     }
 
     override fun getAvailableWeatherModelsForLatLon(
