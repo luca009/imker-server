@@ -15,13 +15,15 @@ models:
         friendlyName: INCA
         copyright: GeoSphere Austria under CC BY-SA 4.0
       receiver:
-        receiverName: inca
+        receiverName: ftpSingleFile
         parserName: netcdf
       source:
+        ftpHost: eaftp.zamg.ac.at
+        ftpSubFolder: nowcast
         prefix: nowcast_
         postfix: .nc
         dateFormat: yyyyMMddHHmm
-        updateFrequency: 15
+        updateFrequency: PT15M
       mapping:
         variableMapperFile: src/test/resources/inca/inca_map.csv
         unitMapperFile: src/test/resources/unit_map.csv

@@ -10,6 +10,11 @@ interface FtpClient {
      */
     fun connect(serverUri: String, username: String = "anonymous", password: String = ""): Boolean
 
+    /**
+     * Connects to an FTP server with the given [ftpClientConfiguration]. Returns a boolean indicating whether the connection attempt was successful.
+     */
+    fun connect(ftpClientConfiguration: FtpClientConfiguration): Boolean
+
     fun isConnected(): Boolean
 
     fun disconnect(): Boolean
@@ -24,3 +29,9 @@ interface FtpClient {
      */
     fun downloadFile(remoteFilePath: String, downloadPath: Path, downloadName: String?): DownloadResult
 }
+
+data class FtpClientConfiguration(
+    val host: String,
+    val username: String = "anonymous",
+    val password: String = ""
+)

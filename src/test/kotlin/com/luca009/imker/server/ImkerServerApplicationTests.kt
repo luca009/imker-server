@@ -8,7 +8,7 @@ import com.luca009.imker.server.configuration.model.WeatherModel
 import com.luca009.imker.server.configuration.model.WeatherVariableFileNameMapper
 import com.luca009.imker.server.configuration.model.WeatherVariableUnitMapper
 import com.luca009.imker.server.configuration.properties.QueryProperties
- import com.luca009.imker.server.configuration.properties.StorageProperties
+import com.luca009.imker.server.configuration.properties.StorageProperties
 import com.luca009.imker.server.configuration.properties.UpdateProperties
 import com.luca009.imker.server.management.files.BestFileSearchServiceImpl
 import com.luca009.imker.server.management.files.DataFileNameManagerImpl
@@ -27,9 +27,10 @@ import com.luca009.imker.server.queries.model.PreferredWeatherModelMode
 import com.luca009.imker.server.queries.model.WeatherDataQueryService
 import com.luca009.imker.server.receiver.model.DownloadResult
 import com.luca009.imker.server.receiver.ftp.FtpClientImpl
-import com.luca009.imker.server.receiver.inca.IncaReceiverImpl
+import com.luca009.imker.server.receiver.ftp.FtpSingleFileReceiverImpl
 import com.luca009.imker.server.receiver.model.FtpClient
-import com.luca009.imker.server.receiver.model.IncaReceiver
+import com.luca009.imker.server.receiver.model.FtpClientConfiguration
+import com.luca009.imker.server.receiver.model.FtpSingleFileReceiver
 import org.apache.commons.net.ftp.FTPFile
 import org.junit.jupiter.api.*
 import org.mockito.Mockito.*
@@ -55,6 +56,8 @@ import kotlin.io.path.Path
 @TestPropertySource(locations = ["/test-application.yaml"])
 class ImkerServerApplicationTests {
     final val ZAMG_FTP_SERVER = "eaftp.zamg.ac.at"
+    final val ZAMG_FTP_INCA_SUBFOLDER = "nowcast"
+    final val ZAMG_FTP_AROME_SUBFOLDER = "nwp"
     final val TEST_RESOURCES_PATH = File("src/test/resources").absolutePath
     final val TEST_NETCDF_FILES_PATH = Path(TEST_RESOURCES_PATH, "inca").toString()
     final val TEST_NETCDF_FILE_PATH = Path(TEST_NETCDF_FILES_PATH, "nowcast_202309091345.nc").toString()
@@ -97,13 +100,13 @@ class ImkerServerApplicationTests {
         "nowcast_",
         ".nc",
         "yyyyMMddHHmm",
-        15
+        Duration.ofMinutes(15)
     )
     val aromeFileNameManager: DataFileNameManager = DataFileNameManagerImpl(
         "nwp_",
         ".nc",
         "yyyyMMddHH",
-        180
+        Duration.ofHours(3)
     )
 
     val bestFileSearchService: BestFileSearchService = BestFileSearchServiceImpl()
@@ -135,11 +138,16 @@ class ImkerServerApplicationTests {
 
     val mockFtpClient: FtpClient = org.mockito.kotlin.mock()
 
-    val incaReceiver: IncaReceiver = IncaReceiverImpl(
+    val incaReceiver: FtpSingleFileReceiver = FtpSingleFileReceiverImpl(
+        "INCA",
         incaFileNameManager,
         bestFileSearchService,
         mockFtpClient,
-        15,
+        FtpClientConfiguration(
+            ZAMG_FTP_SERVER
+        ),
+        ZAMG_FTP_INCA_SUBFOLDER,
+        Duration.ofMinutes(15),
         Path(TEST_RESOURCES_PATH, "inca")
     )
 
@@ -192,10 +200,11 @@ class ImkerServerApplicationTests {
 
     @BeforeAll
     fun setupMockFtpClient() {
+        whenever(mockFtpClient.connect(org.mockito.kotlin.any<FtpClientConfiguration>())).thenReturn(true)
         whenever(mockFtpClient.connect(anyString(), anyString(), anyString())).thenReturn(true)
         whenever(mockFtpClient.isConnected()).thenReturn(true)
-        whenever(mockFtpClient.listFiles(IncaFtpServerConstants.SUB_FOLDER)).thenReturn(MOCK_INCA_FILES)
-        whenever(mockFtpClient.listFiles(AromeFtpServerConstants.SUB_FOLDER)).thenReturn(MOCK_AROME_FILES)
+        whenever(mockFtpClient.listFiles(ZAMG_FTP_INCA_SUBFOLDER)).thenReturn(MOCK_INCA_FILES)
+        whenever(mockFtpClient.listFiles(ZAMG_FTP_AROME_SUBFOLDER)).thenReturn(MOCK_AROME_FILES)
         whenever(mockFtpClient.downloadFile(org.mockito.kotlin.any(), org.mockito.kotlin.any(), org.mockito.kotlin.anyOrNull())).thenAnswer {
             val path = it.arguments[1]!! as Path
             var fileName = it.arguments[2]?.toString()
@@ -216,7 +225,7 @@ class ImkerServerApplicationTests {
     }
     @BeforeAll
     fun setupWeatherModelManager() {
-        weatherModelManagerService.updateWeatherModelCaches()
+        weatherModelManagerService.updateWeatherModels(updateSources = false, forceUpdateParsers = true)
     }
 
     @Test
@@ -281,7 +290,7 @@ class ImkerServerApplicationTests {
 
         val succeedingResult = incaReceiver.downloadData(succeedingDateTime, null)
         Assert.isTrue(succeedingResult.successful
-                && succeedingResult.fileLocation == Path(TEST_RESOURCES_PATH, IncaFileNameConstants.FOLDER_NAME, MOCK_INCA_FILES[1].name),
+                && succeedingResult.fileLocation == Path(TEST_NETCDF_FILES_PATH, MOCK_INCA_FILES[1].name),
             "Download did not succeed for file that should exist.")
     }
 
@@ -289,7 +298,7 @@ class ImkerServerApplicationTests {
     fun latestIncaFileDownloads() {
         val result = incaReceiver.downloadData(ZonedDateTime.now(), null)
         Assert.isTrue(result.successful
-                && result.fileLocation == Path(TEST_RESOURCES_PATH, IncaFileNameConstants.FOLDER_NAME, MOCK_INCA_FILES[2].name),
+                && result.fileLocation == Path(TEST_NETCDF_FILES_PATH, MOCK_INCA_FILES[2].name),
             "Download did not succeed for file that should exist.")
     }
 
@@ -360,8 +369,6 @@ class ImkerServerApplicationTests {
     @Test
     @Order(2)
     fun compositeWeatherDataCacheWorks() {
-        weatherRasterCompositeCache.updateCaches()
-
         // Testing composite cache
         val temperatureVariableExistsInCompositeCache = weatherRasterCompositeCache.variableExists(WeatherVariableType.Temperature2m)
         Assert.isTrue(temperatureVariableExistsInCompositeCache, "Temperature variable was not in the composite cache despite being configured to be so")

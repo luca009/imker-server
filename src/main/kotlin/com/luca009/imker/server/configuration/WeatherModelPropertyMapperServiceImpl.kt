@@ -1,7 +1,5 @@
 package com.luca009.imker.server.configuration
 
-import com.luca009.imker.server.ArgumentNotNullHelper
-import com.luca009.imker.server.ArgumentNotNullHelper.requireArgumentNotNullOrDefault
 import com.luca009.imker.server.caching.model.WeatherRasterCompositeCacheConfiguration
 import com.luca009.imker.server.configuration.model.WeatherModel
 import com.luca009.imker.server.configuration.model.WeatherModelPropertyMapperService
@@ -15,25 +13,23 @@ import com.luca009.imker.server.management.files.model.LocalFileManagerService
 import com.luca009.imker.server.parser.model.DynamicDataParser
 import com.luca009.imker.server.parser.model.WeatherDataParser
 import com.luca009.imker.server.receiver.model.DataReceiver
+import com.luca009.imker.server.receiver.model.FtpClientConfiguration
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import java.io.File
 import java.nio.file.Path
 import java.time.Duration
-import java.time.format.DateTimeParseException
-import java.time.temporal.ChronoUnit
-import java.time.temporal.TemporalUnit
 import java.util.*
 
 @Component
 class WeatherModelPropertyMapperServiceImpl(
-    private val dataReceiverFactory: (String, DataFileNameManager, Int, Path) -> DataReceiver?,
+    private val dataReceiverFactory: (String, String, FtpClientConfiguration, String, DataFileNameManager, Duration, Path) -> DataReceiver?,
     private val weatherVariableFileNameMapperFactory: (File) -> WeatherVariableFileNameMapper,
     private val weatherVariableUnitMapperFactory: (File) -> WeatherVariableUnitMapper,
     private val weatherDataParserFactoryFactory: (String) -> ((String) -> WeatherDataParser)?,
     private val dynamicDataParserFactory: ((String) -> WeatherDataParser, String, DataFileNameManager) -> DynamicDataParser,
-    private val dataFileNameManagerFactory: (String, String, String, Int) -> DataFileNameManager,
+    private val dataFileNameManagerFactory: (String, String, String, Duration) -> DataFileNameManager,
     private val fileManagerService: LocalFileManagerService,
     weatherModelProperties: ModelProperties
 ): WeatherModelPropertyMapperService {
@@ -49,7 +45,6 @@ class WeatherModelPropertyMapperServiceImpl(
     }
 
     private fun Int.isNegativeOrZero(): Boolean = this <= 0
-    private fun Int.toDuration(unit: TemporalUnit) = Duration.of(this.toLong(), unit)
 
     fun assembleWeatherModel(rawWeatherModel: RawWeatherModel): WeatherModel? {
         // Get the factory for our desired DataParser
@@ -64,7 +59,19 @@ class WeatherModelPropertyMapperServiceImpl(
         val storagePath = fileManagerService.getWeatherDataLocation(rawWeatherModel.storage.storageLocationName, rawWeatherModel.storage.subFolderName).toAbsolutePath()
         val dataParser = dynamicDataParserFactory(dataParserFactory, storagePath.toString(), fileNameManager)
 
-        val dataReceiver = dataReceiverFactory(rawWeatherModel.receiver.receiverName, fileNameManager, rawWeatherModel.source.updateFrequency, storagePath)
+        val dataReceiver = dataReceiverFactory(
+            rawWeatherModel.meta.name,
+            rawWeatherModel.receiver.receiverName,
+            FtpClientConfiguration(
+                rawWeatherModel.source.ftpHost,
+                rawWeatherModel.source.ftpUsername,
+                rawWeatherModel.source.ftpPassword
+            ),
+            rawWeatherModel.source.ftpSubFolder,
+            fileNameManager,
+            rawWeatherModel.source.updateFrequency,
+            storagePath
+        )
         requireNotNull(dataReceiver) {
             logger.error("Assembling ${rawWeatherModel.meta.name}: Could not resolve data receiver \"${rawWeatherModel.receiver.receiverName}\". Check if your weather models are configured correctly.")
             return null

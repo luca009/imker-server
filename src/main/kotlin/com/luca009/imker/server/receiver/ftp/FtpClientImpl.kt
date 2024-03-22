@@ -2,6 +2,7 @@ package com.luca009.imker.server.receiver.ftp
 
 import com.luca009.imker.server.receiver.model.DownloadResult
 import com.luca009.imker.server.receiver.model.FtpClient
+import com.luca009.imker.server.receiver.model.FtpClientConfiguration
 import org.apache.commons.net.ftp.FTP
 import org.apache.commons.net.ftp.FTPClient
 import org.apache.commons.net.ftp.FTPFile
@@ -26,6 +27,14 @@ class FtpClientImpl : FtpClient {
         } catch (e: Exception) {
             false
         }
+    }
+
+    override fun connect(ftpClientConfiguration: FtpClientConfiguration): Boolean {
+        return connect(
+            ftpClientConfiguration.host,
+            ftpClientConfiguration.username,
+            ftpClientConfiguration.password
+        )
     }
 
     override fun isConnected(): Boolean {

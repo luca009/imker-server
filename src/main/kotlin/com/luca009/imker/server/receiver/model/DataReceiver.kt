@@ -15,6 +15,4 @@ interface DataReceiver {
     fun updateNecessary(dateTime: ZonedDateTime): Boolean
 }
 
-interface AromeReceiver : DataReceiver
-
-interface IncaReceiver : DataReceiver
+interface FtpSingleFileReceiver : DataReceiver

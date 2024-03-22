@@ -32,10 +32,14 @@ data class RawWeatherModelReceiverInfo(
 )
 
 data class RawWeatherModelSourceFileInfo(
+    val ftpHost: String,
+    val ftpUsername: String = "anonymous",
+    val ftpPassword: String = "",
+    val ftpSubFolder: String,
     val prefix: String,
     val postfix: String,
     val dateFormat: String,
-    val updateFrequency: Int
+    val updateFrequency: Duration
 )
 
 data class RawWeatherModelMappingInfo(
