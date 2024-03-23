@@ -1,6 +1,6 @@
 storage:
   storageLocations:
-    default: C:\Users\reall\Downloads\incadata
+    default: D:\DataSSD\Imker\Data
 update:
   updateCheckInterval: 10
 endpoints:
@@ -41,4 +41,30 @@ models:
           - RelativeHumidity2m
           - PrecipitationSum
           - DewPoint
+          - Temperature2m
+    1:
+      meta:
+        name: AROME
+        friendlyName: AROME
+        copyright: GeoSphere Austria under CC BY-SA 4.0
+      receiver:
+        receiverName: ftpSingleFile
+        parserName: netcdf
+      source:
+        ftpHost: eaftp.zamg.ac.at
+        ftpSubFolder: nwp
+        prefix: nwp_
+        postfix: .nc
+        dateFormat: yyyyMMddHH
+        updateFrequency: PT3H
+      mapping:
+        variableMapperFile: src/test/resources/arome/arome_map.csv
+        unitMapperFile: src/test/resources/unit_map.csv
+      storage:
+        storageLocationName: default
+        subFolderName: arome
+        policy:
+          maxFiles: 1
+      cache:
+        variablesInMemory:
           - Temperature2m

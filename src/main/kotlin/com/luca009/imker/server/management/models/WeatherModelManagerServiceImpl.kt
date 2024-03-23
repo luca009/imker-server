@@ -43,13 +43,14 @@ class WeatherModelManagerServiceImpl(
 
     override fun updateWeatherModel(weatherModel: WeatherModel, updateSource: Boolean, forceUpdateParser: Boolean, dateTime: ZonedDateTime): Boolean {
         val sourceSuccess = if (updateSource) {
+            logger.info("Updating source for ${weatherModel.name}...")
             updateOnlineWeatherModel(weatherModel)
         } else {
             null
         }
 
         when (sourceSuccess) {
-            true -> logger.info("Updated source for ${weatherModel.name}.")
+            true -> logger.info("Updated source for ${weatherModel.name}")
             false ->
                 if (forceUpdateParser) {
                     logger.warn("Weather model for ${weatherModel.name} could not be updated. Force-updating parser and cache.")
@@ -57,7 +58,7 @@ class WeatherModelManagerServiceImpl(
                     logger.warn("Weather model for ${weatherModel.name} could not be updated. Skipping in update process.")
                     return false
                 }
-            null -> logger.info("Skipped updating source for ${weatherModel.name}.")
+            null -> logger.info("Skipped updating source for ${weatherModel.name}")
         }
 
         val parserSuccess = updateDataParser(weatherModel)
@@ -74,7 +75,7 @@ class WeatherModelManagerServiceImpl(
 
         val cleanupSuccess = cleanupDataStorageLocation(weatherModel)
         if (!cleanupSuccess) {
-            logger.warn("Storage location for ${weatherModel.name} could not be cleaned.")
+            logger.warn("Storage location for ${weatherModel.name} could not be cleaned")
             return false
         }
 
