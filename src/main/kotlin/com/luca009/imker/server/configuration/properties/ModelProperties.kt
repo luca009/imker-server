@@ -28,6 +28,7 @@ data class RawWeatherModelMetaInfo(
 
 data class RawWeatherModelReceiverInfo(
     val receiverName: String,
+    val receiverGroup: String = "default",
     val parserName: String
 )
 

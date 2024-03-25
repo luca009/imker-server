@@ -13,6 +13,7 @@ import com.luca009.imker.server.management.files.model.LocalFileManagerService
 import com.luca009.imker.server.parser.model.DynamicDataParser
 import com.luca009.imker.server.parser.model.WeatherDataParser
 import com.luca009.imker.server.receiver.model.DataReceiver
+import com.luca009.imker.server.receiver.model.DataReceiverConfiguration
 import com.luca009.imker.server.receiver.model.FtpClientConfiguration
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -24,7 +25,7 @@ import java.util.*
 
 @Component
 class WeatherModelPropertyMapperServiceImpl(
-    private val dataReceiverFactory: (String, String, FtpClientConfiguration, String, DataFileNameManager, Duration, Path) -> DataReceiver?,
+    private val dataReceiverFactory: (String, DataReceiverConfiguration, DataFileNameManager) -> DataReceiver?,
     private val weatherVariableFileNameMapperFactory: (File) -> WeatherVariableFileNameMapper,
     private val weatherVariableUnitMapperFactory: (File) -> WeatherVariableUnitMapper,
     private val weatherDataParserFactoryFactory: (String) -> ((String) -> WeatherDataParser)?,
@@ -60,17 +61,20 @@ class WeatherModelPropertyMapperServiceImpl(
         val dataParser = dynamicDataParserFactory(dataParserFactory, storagePath.toString(), fileNameManager)
 
         val dataReceiver = dataReceiverFactory(
-            rawWeatherModel.meta.name,
             rawWeatherModel.receiver.receiverName,
-            FtpClientConfiguration(
-                rawWeatherModel.source.ftpHost,
-                rawWeatherModel.source.ftpUsername,
-                rawWeatherModel.source.ftpPassword
+            DataReceiverConfiguration(
+                rawWeatherModel.meta.name,
+                rawWeatherModel.source.updateFrequency,
+                storagePath,
+                rawWeatherModel.receiver.receiverGroup,
+                FtpClientConfiguration(
+                    rawWeatherModel.source.ftpHost,
+                    rawWeatherModel.source.ftpUsername,
+                    rawWeatherModel.source.ftpPassword
+                ),
+                rawWeatherModel.source.ftpSubFolder
             ),
-            rawWeatherModel.source.ftpSubFolder,
-            fileNameManager,
-            rawWeatherModel.source.updateFrequency,
-            storagePath
+            fileNameManager
         )
         requireNotNull(dataReceiver) {
             logger.error("Assembling ${rawWeatherModel.meta.name}: Could not resolve data receiver \"${rawWeatherModel.receiver.receiverName}\". Check if your weather models are configured correctly.")

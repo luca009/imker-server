@@ -3,37 +3,33 @@ package com.luca009.imker.server.receiver.ftp
 import com.luca009.imker.server.management.files.model.BestFileNotFoundException
 import com.luca009.imker.server.management.files.model.BestFileSearchService
 import com.luca009.imker.server.management.files.model.DataFileNameManager
+import com.luca009.imker.server.receiver.model.DataReceiverConfiguration
 import com.luca009.imker.server.receiver.model.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.onCompletion
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import java.nio.file.Path
 import java.time.Duration
 import java.time.ZonedDateTime
 import kotlin.io.path.Path
 
 class FtpSingleFileReceiverImpl(
-    private val weatherModelName: String,
+    private val dataReceiverConfiguration: DataReceiverConfiguration,
     private val fileNameManager: DataFileNameManager,
     private val bestFileSearchService: BestFileSearchService,
-    private val ftpClient: FtpClient,
-    private val ftpClientConfiguration: FtpClientConfiguration,
-    private val subFolder: String,
-    private val updateFrequency: Duration,
-    private val storageLocation: Path
+    private val ftpClient: FtpClient
 ) : FtpSingleFileReceiver {
     private val logger: Logger = LoggerFactory.getLogger(this::class.java)
 
     override suspend fun downloadData(dateTime: ZonedDateTime, downloadedFileName: String?, autoDisconnect: Boolean): Flow<Int?> {
-        val dataLocation = storageLocation
+        val dataLocation = dataReceiverConfiguration.storageLocation
         val roundedDateTime = fileNameManager.roundDownToNearestValidDateTime(dateTime)
 
         if (!ftpClient.isConnected()) {
-            ftpClient.connect(ftpClientConfiguration)
+            ftpClient.connect(dataReceiverConfiguration.ftpClientConfiguration)
         }
 
-        val availableFiles = ftpClient.listFiles(subFolder)
+        val availableFiles = ftpClient.listFiles(dataReceiverConfiguration.subFolder)
 
         val availableFileNames = availableFiles
             .associateWith { it.name }
@@ -42,7 +38,7 @@ class FtpSingleFileReceiverImpl(
         val bestFile = bestFileSearchService.getBestFile(availableFileNames, roundedDateTime, fileNameManager)
             ?: throw BestFileNotFoundException("Best file could not be found")
 
-        val filePath = Path(subFolder, bestFile.name)
+        val filePath = Path(dataReceiverConfiguration.subFolder, bestFile.name)
 
         return ftpClient
             .downloadFile(filePath, dataLocation, downloadedFileName ?: bestFile.name)
@@ -64,7 +60,7 @@ class FtpSingleFileReceiverImpl(
 
     override fun updateNecessary(dateTime: ZonedDateTime): Boolean {
         // Do a local lookup to see if an update might be necessary
-        val dataLocation = storageLocation.toFile()
+        val dataLocation = dataReceiverConfiguration.storageLocation.toFile()
         val roundedDateTime = fileNameManager.roundDownToNearestValidDateTime(dateTime)
 
         val availableFileNames = dataLocation.listFiles()?.associate { Pair(it, it.absolutePath) }
@@ -77,20 +73,20 @@ class FtpSingleFileReceiverImpl(
         val bestFileTimeDifference = Duration.between(bestFileTime, dateTime)
 
         if (bestFileTimeDifference.isNegative) {
-            logger.warn("Best downloaded $weatherModelName file was in the future")
+            logger.warn("Best downloaded ${dataReceiverConfiguration.modelName} file was in the future")
         }
 
         // Calculate: (time since the last update) - (time between updates)
         // If this is negative, we haven't surpassed the update interval yet, so no update is necessary (return false)
         // If this is positive or zero, double-check online if a new file has been published yet
-        if (bestFileTimeDifference.minus(updateFrequency).isNegative) {
+        if (bestFileTimeDifference.minus(dataReceiverConfiguration.updateFrequency).isNegative) {
             return false
         }
 
         // Check online
-        ftpClient.connect(ftpClientConfiguration)
+        ftpClient.connect(dataReceiverConfiguration.ftpClientConfiguration)
 
-        val availableOnlineFiles = ftpClient.listFiles(subFolder)
+        val availableOnlineFiles = ftpClient.listFiles(dataReceiverConfiguration.subFolder)
         val availableOnlineFileNames = availableOnlineFiles
             .associateWith { it.name }
             .filterNot { it.value == null || !it.key.isFile }
@@ -102,13 +98,13 @@ class FtpSingleFileReceiverImpl(
         // This is because using the current time to compare doesn't reflect the current state of our downloaded files.
         val bestOnlineFileTimeDifference = Duration.between(bestFileTime, fileNameManager.getDateTimeForFile(bestOnlineFile.name))
         if (bestOnlineFileTimeDifference.isNegative) {
-            logger.warn("Best online $weatherModelName file was in the future")
+            logger.warn("Best online ${dataReceiverConfiguration.modelName} file was in the future")
         }
 
         ftpClient.disconnect()
 
         // Calculate: (time since the last update) - (time between updates)
-        val bestOnlineFileTimeDifferenceMinusDataUpdateFrequency = bestOnlineFileTimeDifference.minus(updateFrequency)
+        val bestOnlineFileTimeDifferenceMinusDataUpdateFrequency = bestOnlineFileTimeDifference.minus(dataReceiverConfiguration.updateFrequency)
 
         // If this is negative, the online file hasn't surpassed the update interval yet, so no update is necessary (return false)
         // If this is positive or zero, the online file is newer, return true
