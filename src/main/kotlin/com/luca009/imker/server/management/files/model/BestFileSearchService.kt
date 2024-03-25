@@ -7,3 +7,5 @@ import java.time.ZonedDateTime
 interface BestFileSearchService {
     fun <T> getBestFile(files: Map<T, String?>, referenceDateTime: ZonedDateTime, fileNameManager: DataFileNameManager): T?
 }
+
+class BestFileNotFoundException(message: String? = null) : IllegalArgumentException(message)

@@ -17,6 +17,8 @@ import java.time.Duration
 class DataReceiverConfiguration(
     val bestFileSearchService: BestFileSearchService
 ) {
+    val ftpClientsByHost: MutableMap<String, FtpClient> = mutableMapOf()
+
     @Bean
     fun dataReceiverFactory() = {
             modelName: String, receiverName: String, ftpClientConfiguration: FtpClientConfiguration, subFolder: String, fileNameManager: DataFileNameManager, updateFrequency: Duration, storageLocation: Path -> dataReceiver(modelName, receiverName, ftpClientConfiguration, subFolder, fileNameManager, updateFrequency, storageLocation)
@@ -24,12 +26,15 @@ class DataReceiverConfiguration(
 
     fun dataReceiver(modelName: String, receiverName: String, ftpClientConfiguration: FtpClientConfiguration, subFolder: String, fileNameManager: DataFileNameManager, updateFrequency: Duration, storageLocation: Path): DataReceiver? {
         return when (receiverName) {
-            "ftpSingleFile" -> ftpSingleFileReceiver(modelName, ftpClient(), ftpClientConfiguration, subFolder, fileNameManager, updateFrequency, storageLocation) // TODO: add more receivers, including generic ones
+            "ftpSingleFile" -> ftpSingleFileReceiver(modelName, ftpClientConfiguration, subFolder, fileNameManager, updateFrequency, storageLocation) // TODO: add more receivers, including generic ones
             else -> null
         }
     }
 
-    fun ftpSingleFileReceiver(weatherModelName: String, ftpClient: FtpClient, ftpClientConfiguration: FtpClientConfiguration, subFolder: String, fileNameManager: DataFileNameManager, updateFrequency: Duration, storageLocation: Path): FtpSingleFileReceiver {
+    fun ftpSingleFileReceiver(weatherModelName: String, ftpClientConfiguration: FtpClientConfiguration, subFolder: String, fileNameManager: DataFileNameManager, updateFrequency: Duration, storageLocation: Path): FtpSingleFileReceiver {
+        // Look up if we already have an FtpClient for this host, otherwise create a new one
+        val ftpClient = ftpClientsByHost[ftpClientConfiguration.host] ?: ftpClient()
+
         return FtpSingleFileReceiverImpl(weatherModelName, fileNameManager, bestFileSearchService, ftpClient, ftpClientConfiguration, subFolder, updateFrequency, storageLocation)
     }
 

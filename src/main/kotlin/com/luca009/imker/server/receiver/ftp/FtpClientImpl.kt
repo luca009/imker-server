@@ -1,108 +1,106 @@
 package com.luca009.imker.server.receiver.ftp
 
-import com.luca009.imker.server.receiver.model.DownloadResult
 import com.luca009.imker.server.receiver.model.FtpClient
 import com.luca009.imker.server.receiver.model.FtpClientConfiguration
+import com.luca009.imker.server.receiver.model.FtpClientProgress
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.flowOn
 import org.apache.commons.net.ftp.FTP
 import org.apache.commons.net.ftp.FTPClient
+import org.apache.commons.net.ftp.FTPConnectionClosedException
 import org.apache.commons.net.ftp.FTPFile
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
+import java.io.File
 import java.io.FileOutputStream
+import java.io.InputStream
+import java.io.OutputStream
 import java.nio.file.Path
-import kotlin.io.path.Path
 
 @Component
 class FtpClientImpl : FtpClient {
     private val ftpClient: FTPClient = FTPClient()
-    private val logger: Logger = LoggerFactory.getLogger(this::class.java)
 
-    override fun connect(serverUri: String, username: String, password: String): Boolean {
-        return try {
-            ftpClient.connect(serverUri)
-            ftpClient.login(username, password)
-            ftpClient.setFileType(FTP.BINARY_FILE_TYPE)
-            true
-        } catch (e: Exception) {
-            false
-        }
+    override fun connect(serverUri: String, username: String, password: String) {
+        ftpClient.connect(serverUri)
+        ftpClient.login(username, password)
+        ftpClient.setFileType(FTP.BINARY_FILE_TYPE)
     }
 
-    override fun connect(ftpClientConfiguration: FtpClientConfiguration): Boolean {
-        return connect(
-            ftpClientConfiguration.host,
-            ftpClientConfiguration.username,
-            ftpClientConfiguration.password
+    override fun connect(ftpClientConfiguration: FtpClientConfiguration) = connect(
+        ftpClientConfiguration.host,
+        ftpClientConfiguration.username,
+        ftpClientConfiguration.password
+    )
+
+    override fun isConnected() = ftpClient.isConnected
+
+    override fun disconnect() = ftpClient.disconnect()
+
+    override fun listFiles(remotePath: String): Array<FTPFile> = ftpClient.listFiles(remotePath)
+
+    override fun listDirectories(remotePath: String): Array<FTPFile> = ftpClient.listDirectories(remotePath)
+
+    override suspend fun downloadFile(remoteFilePath: Path, downloadPath: Path, downloadName: String?): FtpClientProgress {
+        if (!ftpClient.isConnected) {
+            throw FTPConnectionClosedException("FTP Client was not connected")
+        }
+
+        val remoteFileName = remoteFilePath.fileName.toString()
+
+        // Combine the downloadPath with the downloadName, substituting it for the remoteFileName if needed
+        val outputFile = downloadPath.resolve(downloadName ?: remoteFileName)
+
+        val remoteFilePathString = remoteFilePath.toString().replace('\\', '/') // Janky fix for Windows file paths :/
+
+        return FtpClientProgress(
+            downloadFileAsFlow(remoteFilePathString, outputFile.toFile()),
+            outputFile
         )
     }
 
-    override fun isConnected(): Boolean {
-        return ftpClient.isConnected
+    private suspend fun downloadFileAsFlow(remoteFile: String, outputFile: File): Flow<Int?> = flow {
+        val file = ftpClient.mlistFile(remoteFile)
+
+        if (!file.isFile) {
+            throw IllegalArgumentException("Specified file path did not resolve to a file")
+        }
+
+        val fileSize = file.size
+
+        val ftpFileStream = ftpClient.retrieveFileStream(remoteFile)
+        val localFileStream = FileOutputStream(outputFile)
+
+        ftpFileStream
+            .copyToAsFlow(localFileStream)
+            .onCompletion {
+                // Close the streams on completion
+                ftpFileStream.close()
+                localFileStream.close()
+            }.collect {
+                // Emit the percentage of copied bytes
+                emit(it.approximatePercentageOf(fileSize).toInt())
+            }
+    }.flowOn(Dispatchers.IO).distinctUntilChanged()
+
+
+    // Courtesy of https://gist.github.com/naddeoa/4172e84aca533319a1cc5663d2fab39e?permalink_comment_id=4751332#gistcomment-4751332
+    private fun InputStream.copyToAsFlow(out: OutputStream, bufferSize: Int = DEFAULT_BUFFER_SIZE): Flow<Long> {
+        return flow {
+            val buffer = ByteArray(bufferSize)
+            var bytesCopied: Long = 0
+            var bytes = read(buffer)
+
+            while (bytes >= 0) {
+                out.write(buffer, 0, bytes)
+                bytesCopied += bytes
+
+                // Emit stream progress as bytes copied
+                emit(bytesCopied)
+                bytes = read(buffer)
+            }
+        }.flowOn(Dispatchers.IO)
     }
 
-    override fun disconnect(): Boolean {
-        return try {
-            ftpClient.disconnect()
-            true
-        } catch (e: Exception) {
-            false
-        }
-    }
-
-    override fun listFiles(remotePath: String): Array<out FTPFile>? {
-        if (!ftpClient.isConnected) {
-            return null
-        }
-
-        return try {
-            ftpClient.listFiles(remotePath)
-        } catch (e: Exception) {
-            null
-        }
-    }
-
-    override fun listDirectories(remotePath: String): Array<out FTPFile>? {
-        if (!ftpClient.isConnected) {
-            return null
-        }
-
-        return try {
-            ftpClient.listDirectories(remotePath)
-        } catch (e: Exception) {
-            null
-        }
-    }
-
-    override fun downloadFile(remoteFilePath: String, downloadPath: Path, downloadName: String?): DownloadResult {
-        if (!ftpClient.isConnected) {
-            return DownloadResult(false, null)
-        }
-
-        // Janky way to fix Windows file paths, ughhhhh
-        val remoteFilePath = remoteFilePath.replace('\\', '/')
-
-        val remoteFileName = Path(remoteFilePath).fileName.toString()
-
-        // Combine the downloadPath with the downloadName, substituting it for the remoteFileName if needed
-        val outputFilePath = downloadPath.resolve(downloadName ?: remoteFileName)
-        val outputFile = outputFilePath.toFile()
-
-        return try {
-            val ftpFileStream = ftpClient.retrieveFileStream(remoteFilePath)
-            val localFileStream = FileOutputStream(outputFile)
-            ftpFileStream.copyTo(localFileStream)
-            val success = ftpClient.completePendingCommand()
-
-            ftpFileStream.close()
-            localFileStream.close()
-
-            DownloadResult(success, downloadPath)
-        } catch (e: Exception) {
-            logger.error("Error while downloading $remoteFilePath: ${e.message}")
-
-            DownloadResult(false, downloadPath)
-        }
-    }
-
+    private fun Long.approximatePercentageOf(max: Long) = (this.toDouble() / max.toDouble()) * 100
 }

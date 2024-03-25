@@ -1,11 +1,11 @@
 package com.luca009.imker.server.receiver.ftp
 
+import com.luca009.imker.server.management.files.model.BestFileNotFoundException
 import com.luca009.imker.server.management.files.model.BestFileSearchService
 import com.luca009.imker.server.management.files.model.DataFileNameManager
-import com.luca009.imker.server.receiver.model.DownloadResult
-import com.luca009.imker.server.receiver.model.FtpClient
-import com.luca009.imker.server.receiver.model.FtpClientConfiguration
-import com.luca009.imker.server.receiver.model.FtpSingleFileReceiver
+import com.luca009.imker.server.receiver.model.*
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.onCompletion
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.nio.file.Path
@@ -14,42 +14,53 @@ import java.time.ZonedDateTime
 import kotlin.io.path.Path
 
 class FtpSingleFileReceiverImpl(
-    val weatherModelName: String,
-    val fileNameManager: DataFileNameManager,
-    val bestFileSearchService: BestFileSearchService,
-    val ftpClient: FtpClient,
-    val ftpClientConfiguration: FtpClientConfiguration,
-    val subFolder: String,
-    val updateFrequency: Duration,
-    val storageLocation: Path
+    private val weatherModelName: String,
+    private val fileNameManager: DataFileNameManager,
+    private val bestFileSearchService: BestFileSearchService,
+    private val ftpClient: FtpClient,
+    private val ftpClientConfiguration: FtpClientConfiguration,
+    private val subFolder: String,
+    private val updateFrequency: Duration,
+    private val storageLocation: Path
 ) : FtpSingleFileReceiver {
     private val logger: Logger = LoggerFactory.getLogger(this::class.java)
 
-    override fun downloadData(dateTime: ZonedDateTime, downloadedFileName: String?): DownloadResult {
+    override suspend fun downloadData(dateTime: ZonedDateTime, downloadedFileName: String?, autoDisconnect: Boolean): Flow<Int?> {
         val dataLocation = storageLocation
         val roundedDateTime = fileNameManager.roundDownToNearestValidDateTime(dateTime)
 
-        val connectionSuccess = ftpClient.connect(ftpClientConfiguration)
-        if (!connectionSuccess) {
-            return DownloadResult(false, null)
+        if (!ftpClient.isConnected()) {
+            ftpClient.connect(ftpClientConfiguration)
         }
 
         val availableFiles = ftpClient.listFiles(subFolder)
-            ?: return DownloadResult(false, null)
 
         val availableFileNames = availableFiles
             .associateWith { it.name }
             .filterNot { it.value == null || !it.key.isFile }
 
         val bestFile = bestFileSearchService.getBestFile(availableFileNames, roundedDateTime, fileNameManager)
-            ?: return DownloadResult(false, null)
+            ?: throw BestFileNotFoundException("Best file could not be found")
 
-        val filePath = Path(subFolder, bestFile.name).toString()
+        val filePath = Path(subFolder, bestFile.name)
 
-        val downloadResult = ftpClient.downloadFile(filePath, dataLocation, downloadedFileName ?: bestFile.name)
-        ftpClient.disconnect()
-        return downloadResult
+        return ftpClient
+            .downloadFile(filePath, dataLocation, downloadedFileName ?: bestFile.name)
+            .percentageFlow
+            .apply {
+                this.onCompletion {
+                    // Don't disconnect if autoDisconnect is off
+                    if (!autoDisconnect) {
+                        return@onCompletion
+                    }
+
+                    disconnect()
+                }
+            }
+
     }
+
+    override fun disconnect() = ftpClient.disconnect()
 
     override fun updateNecessary(dateTime: ZonedDateTime): Boolean {
         // Do a local lookup to see if an update might be necessary
@@ -77,14 +88,9 @@ class FtpSingleFileReceiverImpl(
         }
 
         // Check online
-        val connectionSuccess = ftpClient.connect(ftpClientConfiguration)
-        if (!connectionSuccess) {
-            return false
-        }
+        ftpClient.connect(ftpClientConfiguration)
 
         val availableOnlineFiles = ftpClient.listFiles(subFolder)
-            ?: return false
-
         val availableOnlineFileNames = availableOnlineFiles
             .associateWith { it.name }
             .filterNot { it.value == null || !it.key.isFile }
