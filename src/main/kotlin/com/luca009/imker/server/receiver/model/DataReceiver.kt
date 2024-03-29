@@ -6,6 +6,8 @@ import java.time.Duration
 import java.time.ZonedDateTime
 
 interface DataReceiver {
+    val receiverGroup: String
+
     /**
      * Downloads the weather data for the specified [dateTime] and saves it with the name [downloadedFileName] (or uses default name if null).
      * If no file is found for the specified time is found, the next-earliest file will be chosen instead. If there is no earlier file available, no file is downloaded.

@@ -11,8 +11,8 @@ interface WeatherModelManagerService {
 
     fun getWeatherModels(): SortedMap<Int, WeatherModel>
 
-    fun updateWeatherModel(weatherModel: WeatherModel, updateSource: Boolean = true, forceUpdateParser: Boolean = false, dateTime: ZonedDateTime = ZonedDateTime.now()): Boolean
-    fun updateWeatherModels(updateSources: Boolean = true, forceUpdateParsers: Boolean = false, dateTime: ZonedDateTime = ZonedDateTime.now()): Set<WeatherModel>
+    fun queueUpdateWeatherModel(weatherModel: WeatherModel, updateSource: Boolean = true, forceUpdateParser: Boolean = false)
+    suspend fun beginUpdateWeatherModels(updateSources: Boolean = true, forceUpdateParsers: Boolean = false)
 
     fun cleanupDataStorageLocations()
     fun cleanupDataStorageLocations(weatherModels: Set<WeatherModel>)

@@ -51,7 +51,7 @@ class WeatherDataQueryServiceImpl(
             throw ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Weather model ${weatherModel.name} had no cache associated with it")
         }
 
-        val coordinates = weatherModel.parser.latLonToCoordinates("TT", lat, lon)
+        val coordinates = weatherModel.parser.latLonToCoordinates(variableName, lat, lon)
         requireNotNull(coordinates) {
             throw ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to convert $lat $lon (lat, lon) into valid coordinates for weather model ${weatherModel.name}")
         }

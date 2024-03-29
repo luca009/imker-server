@@ -19,6 +19,9 @@ class FtpSingleFileReceiverImpl(
     private val bestFileSearchService: BestFileSearchService,
     private val ftpClient: FtpClient
 ) : FtpSingleFileReceiver {
+    override val receiverGroup: String
+        get() = dataReceiverConfiguration.receiverGroup
+
     private val logger: Logger = LoggerFactory.getLogger(this::class.java)
 
     override suspend fun downloadData(dateTime: ZonedDateTime, downloadedFileName: String?, autoDisconnect: Boolean): Flow<Int?> {
