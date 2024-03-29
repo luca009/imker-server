@@ -13,15 +13,15 @@ import ucar.nc2.ft.FeatureDataset
 import ucar.nc2.ft.FeatureDatasetFactoryManager
 import ucar.nc2.time.CalendarDate
 import ucar.nc2.util.CancelTask
+import java.nio.file.Path
 import java.time.ZoneOffset
 import java.time.ZonedDateTime
 import java.util.*
-import kotlin.io.path.Path
 
 class NetCdfParserImpl(
-    netCdfFilePath: String
+    netCdfFilePath: Path
 ) : NetCdfParser {
-    private val sourceFilePath: String
+    private val sourceFilePath: Path
     private val availableVariables: Map<String, RawWeatherVariable>
     private val dataset: NetcdfDataset
     private val wrappedDataset: FeatureDataset
@@ -29,10 +29,10 @@ class NetCdfParserImpl(
     private val logger: Logger = LoggerFactory.getLogger(this::class.java)
 
     init {
-        val absoluteNetCdfFilePath = Path(netCdfFilePath).toAbsolutePath().toString()
+        val absoluteNetCdfFilePath = netCdfFilePath.toAbsolutePath()
         sourceFilePath = absoluteNetCdfFilePath
 
-        dataset = openDataset(absoluteNetCdfFilePath)
+        dataset = openDataset(absoluteNetCdfFilePath.toString())
         wrappedDataset = wrapDataset(dataset)
         availableVariables = scanAvailableVariables()
 
@@ -124,7 +124,7 @@ class NetCdfParserImpl(
         )
     }
 
-    override fun getDataSources(): Set<String> {
+    override fun getDataSources(): Set<Path> {
         return setOf(sourceFilePath)
     }
 

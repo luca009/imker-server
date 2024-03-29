@@ -39,7 +39,7 @@ class FtpSingleFileReceiverImpl(
             .filterNot { it.value == null || !it.key.isFile }
 
         val bestFile = bestFileSearchService.getBestFile(availableFileNames, roundedDateTime, fileNameManager)
-            ?: throw BestFileNotFoundException("Best file could not be found")
+            ?: throw BestFileNotFoundException("Best file could not be found.")
 
         val filePath = Path(dataReceiverConfiguration.subFolder, bestFile.name)
 

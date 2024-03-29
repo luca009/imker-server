@@ -6,12 +6,14 @@ import com.luca009.imker.server.parser.model.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.io.File
+import java.nio.file.Path
 import java.time.ZonedDateTime
+import kotlin.io.path.Path
 
 class DynamicDataParserImpl(
     private var weatherDataParser: WeatherDataParser?,
-    private val dataParserFactory: (String) -> WeatherDataParser,
-    filePath: String,
+    private val dataParserFactory: (Path) -> WeatherDataParser,
+    filePath: Path,
     private val bestFileSearchService: BestFileSearchService,
     private val fileNameManager: DataFileNameManager
 ) : DynamicDataParser {
@@ -19,7 +21,7 @@ class DynamicDataParserImpl(
     private val baseFolder: File
 
     init {
-        val folder = File(filePath)
+        val folder = filePath.toFile()
 
         if (!folder.isDirectory) {
             logger.warn("Given file path was not a directory. Using parent directory instead.")
@@ -49,13 +51,13 @@ class DynamicDataParserImpl(
         }
 
         val oldWeatherParser = weatherDataParser // keep a copy of this to close, just to be on the safe side with thread-safety
-        weatherDataParser = dataParserFactory(bestFile.path)
+        weatherDataParser = dataParserFactory(Path(bestFile.path))
         oldWeatherParser?.close()
 
         return true
     }
 
-    override fun getDataSources() = weatherDataParser?.getDataSources() ?: setOf()
+    override fun getDataSources(): Set<Path> = weatherDataParser?.getDataSources() ?: setOf()
     override fun getAvailableRawVariables() = weatherDataParser?.getAvailableRawVariables() ?: setOf()
     override fun getRawVariable(name: String) = weatherDataParser?.getRawVariable(name)
     override fun getGridEntireSlice(name: String) = weatherDataParser?.getGridEntireSlice(name)

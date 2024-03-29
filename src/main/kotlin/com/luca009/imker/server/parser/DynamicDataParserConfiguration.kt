@@ -6,6 +6,7 @@ import com.luca009.imker.server.parser.model.DynamicDataParser
 import com.luca009.imker.server.parser.model.WeatherDataParser
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import java.nio.file.Path
 import kotlin.io.path.Path
 import kotlin.io.path.isDirectory
 
@@ -13,16 +14,16 @@ import kotlin.io.path.isDirectory
 class DynamicDataParserConfiguration {
     @Bean
     fun dynamicDataParserFactory(bestFileSearchService: BestFileSearchService) = {
-        parserFactory: (String) -> WeatherDataParser, initFilePath: String, fileNameManager: DataFileNameManager -> dynamicDataParser(parserFactory, initFilePath, bestFileSearchService, fileNameManager)
+        parserFactory: (Path) -> WeatherDataParser, initFilePath: Path, fileNameManager: DataFileNameManager -> dynamicDataParser(parserFactory, initFilePath, bestFileSearchService, fileNameManager)
     }
 
      fun dynamicDataParser(
-         parserFactory: (String) -> WeatherDataParser,
-         initFilePath: String,
+         parserFactory: (Path) -> WeatherDataParser,
+         initFilePath: Path,
          bestFileSearchService: BestFileSearchService,
          fileNameManager: DataFileNameManager
     ): DynamicDataParser {
-        val initParser = if (Path(initFilePath).isDirectory()) {
+        val initParser = if (initFilePath.isDirectory()) {
             null
         } else {
             parserFactory(initFilePath)

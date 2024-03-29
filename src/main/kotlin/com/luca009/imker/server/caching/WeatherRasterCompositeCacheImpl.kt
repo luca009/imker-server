@@ -21,7 +21,7 @@ class WeatherRasterCompositeCacheImpl(
     private val logger: Logger = LoggerFactory.getLogger(this::class.java)
 
     private fun updateCache(weatherVariable: WeatherVariableType) {
-        if (variableMapper.getMatchingFileName(weatherVariable, dataParser.getDataSources()) == null)
+        if (variableMapper.getMatchingFilePath(weatherVariable, dataParser.getDataSources()) == null)
             return
 
         val variableName = variableMapper.getWeatherVariableName(weatherVariable) ?: return

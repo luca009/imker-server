@@ -1,9 +1,10 @@
 package com.luca009.imker.server.parser.model
 
+import java.nio.file.Path
 import java.time.ZonedDateTime
 
 interface WeatherDataParser {
-    fun getDataSources(): Set<String>
+    fun getDataSources(): Set<Path>
     fun getAvailableRawVariables(): Set<RawWeatherVariable>
     fun getRawVariable(name: String): RawWeatherVariable?
     fun getGridEntireSlice(name: String): WeatherVariableSlice?

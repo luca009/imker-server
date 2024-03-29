@@ -28,8 +28,8 @@ class WeatherModelPropertyMapperServiceImpl(
     private val dataReceiverFactory: (String, DataReceiverConfiguration, DataFileNameManager) -> DataReceiver?,
     private val weatherVariableFileNameMapperFactory: (File) -> WeatherVariableFileNameMapper,
     private val weatherVariableUnitMapperFactory: (File) -> WeatherVariableUnitMapper,
-    private val weatherDataParserFactoryFactory: (String) -> ((String) -> WeatherDataParser)?,
-    private val dynamicDataParserFactory: ((String) -> WeatherDataParser, String, DataFileNameManager) -> DynamicDataParser,
+    private val weatherDataParserFactoryFactory: (String) -> ((Path) -> WeatherDataParser)?,
+    private val dynamicDataParserFactory: ((Path) -> WeatherDataParser, Path, DataFileNameManager) -> DynamicDataParser,
     private val dataFileNameManagerFactory: (String, String, String, Duration) -> DataFileNameManager,
     private val fileManagerService: LocalFileManagerService,
     weatherModelProperties: ModelProperties
@@ -58,7 +58,7 @@ class WeatherModelPropertyMapperServiceImpl(
         // Instantiate a DynamicDataParser with the factory from before
         val fileNameManager = dataFileNameManagerFactory(rawWeatherModel.source.prefix, rawWeatherModel.source.postfix, rawWeatherModel.source.dateFormat, rawWeatherModel.source.updateFrequency)
         val storagePath = fileManagerService.getWeatherDataLocation(rawWeatherModel.storage.storageLocationName, rawWeatherModel.storage.subFolderName).toAbsolutePath()
-        val dataParser = dynamicDataParserFactory(dataParserFactory, storagePath.toString(), fileNameManager)
+        val dataParser = dynamicDataParserFactory(dataParserFactory, storagePath, fileNameManager)
 
         val dataReceiver = dataReceiverFactory(
             rawWeatherModel.receiver.receiverName,

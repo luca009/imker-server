@@ -5,6 +5,7 @@ import com.luca009.imker.server.configuration.model.WeatherVariableFileNameMappe
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.io.File
+import java.nio.file.Path
 
 class WeatherVariableFileNameMapperImpl(
     private val configurationFile: File
@@ -52,8 +53,8 @@ class WeatherVariableFileNameMapperImpl(
         return matches.keys
     }
 
-    override fun getWeatherVariables(variableName: String, filePath: String): Set<WeatherVariableType> {
-        val matches = map.filterValues { it == Pair(variableName, filePath) }
+    override fun getWeatherVariables(variableName: String, filePath: Path): Set<WeatherVariableType> {
+        val matches = map.filterValues { it == Pair(variableName, filePath.toString()) }
 
         if (matches.isEmpty()) {
             logger.warn("Could not find weather variable in configuration file ${configurationFile.name}: $variableName")
@@ -71,13 +72,13 @@ class WeatherVariableFileNameMapperImpl(
         return map[variable]?.first
     }
 
-    override fun getMatchingFileName(variable: WeatherVariableType, availableFiles: Set<String>): String? {
+    override fun getMatchingFilePath(variable: WeatherVariableType, availableFiles: Set<Path>): Path? {
         val fileRule = getWeatherVariableFileRule(variable)
         requireNotNull(fileRule) { return null }
 
         val fileRuleRegex = Regex(fileRule)
 
-        return availableFiles.firstOrNull { fileRuleRegex.containsMatchIn(it) }
+        return availableFiles.firstOrNull { fileRuleRegex.containsMatchIn(it.toString()) }
     }
 
     override fun containsWeatherVariable(variable: WeatherVariableType): Boolean {
