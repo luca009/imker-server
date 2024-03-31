@@ -15,6 +15,7 @@ import com.luca009.imker.server.management.files.DataFileNameManagerImpl
 import com.luca009.imker.server.management.files.LocalFileManagerServiceImpl
 import com.luca009.imker.server.management.files.model.*
 import com.luca009.imker.server.management.models.WeatherModelManagerServiceImpl
+import com.luca009.imker.server.management.models.WeatherModelUpdateJobEnabled
 import com.luca009.imker.server.management.models.model.WeatherModelManagerService
 import com.luca009.imker.server.parser.DynamicDataParserImpl
 import com.luca009.imker.server.parser.NetCdfParserImpl
@@ -52,35 +53,39 @@ import kotlin.io.path.Path
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @TestMethodOrder(MethodOrderer.OrderAnnotation::class)
 @TestPropertySource(locations = ["/test-application.yaml"])
-class ImkerServerApplicationTests {
-    final val ZAMG_FTP_SERVER = "eaftp.zamg.ac.at"
-    final val ZAMG_FTP_INCA_SUBFOLDER = "nowcast"
-    final val ZAMG_FTP_AROME_SUBFOLDER = "nwp"
-    final val TEST_RESOURCES_PATH = File("src/test/resources").absolutePath
-    final val TEST_NETCDF_FILES_PATH = Path(TEST_RESOURCES_PATH, "inca")
-    final val TEST_NETCDF_FILE_PATH = TEST_NETCDF_FILES_PATH.resolve("nowcast_202309091345.nc")
-    final val TEST_MAPPER_CONFIG_FILE_PATH = Path(TEST_RESOURCES_PATH, "inca", "inca_map.csv").toString()
-    final val TEST_UNIT_MAPPER_CONFIG_FILE_PATH = Path(TEST_RESOURCES_PATH, "unit_map.csv").toString()
-    final val TEST_DATES: Set<Pair<Int, ZonedDateTime>> = setOf(
-        Pair(1, ZonedDateTime.of(2023, 12, 20, 12, 20, 0, 0, ZoneOffset.UTC)),
-        Pair(2, ZonedDateTime.of(2023, 12, 20, 14, 0, 0, 0, ZoneOffset.UTC)),
-        Pair(3, ZonedDateTime.of(2023, 12, 21, 12, 0, 0, 0, ZoneOffset.UTC))
-    )
-    final val MOCK_INCA_FILES = arrayOf(
-        MockFTPFile(true, "nowcast_202309091330.nc"),
-        MockFTPFile(true, "nowcast_202309100915.nc"),
-        MockFTPFile(true, "nowcast_202309181700.nc")
-    )
-    final val MOCK_AROME_FILES = arrayOf(
-        MockFTPFile(true, "nwp_2023091006.nc"),
-        MockFTPFile(true, "nwp_2023093021.nc"),
-        MockFTPFile(true, "nwp_2023100103.nc")
-    )
-    final val COMPOSITE_CACHE_CONFIG = WeatherRasterCompositeCacheConfiguration(
-        setOf(WeatherVariableType.Temperature2m),
-        setOf()
-    )
-    final val QUERY_PROPERTIES = QueryProperties()
+final class ImkerServerApplicationTests {
+    companion object {
+        const val ZAMG_FTP_SERVER = "eaftp.zamg.ac.at"
+        const val ZAMG_FTP_INCA_SUBFOLDER = "nowcast"
+        const val ZAMG_FTP_AROME_SUBFOLDER = "nwp"
+
+        val testResourcesPath: String = File("src/test/resources").absolutePath
+        val testNetcdfFilesPath = Path(testResourcesPath, "inca")
+        val testPrimaryNetcdfFilePath: Path = testNetcdfFilesPath.resolve("nowcast_202309091345.nc")
+        val testMapperConfigFilePath = Path(testResourcesPath, "inca", "inca_map.csv")
+        val testUnitMapperConfigFilePath = Path(testResourcesPath, "unit_map.csv")
+
+        val testDates: Set<Pair<Int, ZonedDateTime>> = setOf(
+            Pair(1, ZonedDateTime.of(2023, 12, 20, 12, 20, 0, 0, ZoneOffset.UTC)),
+            Pair(2, ZonedDateTime.of(2023, 12, 20, 14, 0, 0, 0, ZoneOffset.UTC)),
+            Pair(3, ZonedDateTime.of(2023, 12, 21, 12, 0, 0, 0, ZoneOffset.UTC))
+        )
+        val mockIncaFiles = arrayOf(
+            MockFTPFile(true, "nowcast_202309091330.nc"),
+            MockFTPFile(true, "nowcast_202309100915.nc"),
+            MockFTPFile(true, "nowcast_202309181700.nc")
+        )
+        val mockAromeFiles = arrayOf(
+            MockFTPFile(true, "nwp_2023091006.nc"),
+            MockFTPFile(true, "nwp_2023093021.nc"),
+            MockFTPFile(true, "nwp_2023100103.nc")
+        )
+        val compositeCacheConfig = WeatherRasterCompositeCacheConfiguration(
+            setOf(WeatherVariableType.Temperature2m),
+            setOf()
+        )
+        val queryProperties = QueryProperties()
+    }
 
     val netCdfParserFactory = {
             netCdfFilePath: Path -> NetCdfParserImpl(netCdfFilePath)
@@ -108,9 +113,9 @@ class ImkerServerApplicationTests {
     )
 
     val bestFileSearchService: BestFileSearchService = BestFileSearchServiceImpl()
-    val netCdfParser: NetCdfParser = netCdfParserFactory(TEST_NETCDF_FILE_PATH)
-    val variableMapper: WeatherVariableFileNameMapper = WeatherVariableFileNameMapperImpl(File(TEST_MAPPER_CONFIG_FILE_PATH))
-    val unitMapper: WeatherVariableUnitMapper = WeatherVariableUnitMapperImpl(File(TEST_UNIT_MAPPER_CONFIG_FILE_PATH))
+    val netCdfParser: NetCdfParser = netCdfParserFactory(testPrimaryNetcdfFilePath)
+    val variableMapper: WeatherVariableFileNameMapper = WeatherVariableFileNameMapperImpl(testMapperConfigFilePath.toFile())
+    val unitMapper: WeatherVariableUnitMapper = WeatherVariableUnitMapperImpl(testUnitMapperConfigFilePath.toFile())
     val weatherTimeCache: WeatherTimeCache = WeatherTimeCacheImpl()
     val weatherUnitCache: WeatherVariableUnitCache = WeatherVariableUnitCacheImpl()
     val weatherRasterMemoryCache: WeatherRasterMemoryCache = WeatherRasterMemoryCacheImpl()
@@ -119,7 +124,7 @@ class ImkerServerApplicationTests {
         variableMapper
     )
     val weatherRasterCompositeCache: WeatherRasterCompositeCache = WeatherRasterCompositeCacheImpl(
-        COMPOSITE_CACHE_CONFIG,
+        compositeCacheConfig,
         netCdfParser,
         variableMapper,
         unitMapper,
@@ -130,7 +135,7 @@ class ImkerServerApplicationTests {
     )
     val localFileManagerService: LocalFileManagerService = LocalFileManagerServiceImpl(
         StorageProperties().apply {
-            this.storageLocations = mutableMapOf("default" to TEST_RESOURCES_PATH.toString())
+            this.storageLocations = mutableMapOf("default" to testResourcesPath.toString())
         }
     )
 
@@ -140,10 +145,10 @@ class ImkerServerApplicationTests {
         DataReceiverConfiguration(
             "INCA",
             Duration.ofMinutes(15),
-            TEST_NETCDF_FILES_PATH,
+            testNetcdfFilesPath,
             "default",
             FtpClientConfiguration(
-                ZAMG_FTP_SERVER
+                Companion.ZAMG_FTP_SERVER
             ),
             ZAMG_FTP_INCA_SUBFOLDER,
         ),
@@ -158,10 +163,10 @@ class ImkerServerApplicationTests {
         "GeoSphere Austria under CC BY-SA 4.0",
 
         incaReceiver,
-        DynamicDataParserImpl(netCdfParser, netCdfParserFactory, TEST_NETCDF_FILES_PATH, bestFileSearchService, incaFileNameManager),
-        weatherVariableFileNameMapperFactory(File(TEST_MAPPER_CONFIG_FILE_PATH)),
+        DynamicDataParserImpl(netCdfParser, netCdfParserFactory, testNetcdfFilesPath, bestFileSearchService, incaFileNameManager),
+        weatherVariableFileNameMapperFactory(testMapperConfigFilePath.toFile()),
         incaFileNameManager,
-        weatherVariableUnitMapperFactory(File(TEST_UNIT_MAPPER_CONFIG_FILE_PATH)),
+        weatherVariableUnitMapperFactory(testUnitMapperConfigFilePath.toFile()),
 
         WeatherRasterCompositeCacheConfiguration(
             setOf(
@@ -171,7 +176,7 @@ class ImkerServerApplicationTests {
             setOf() // ignored variables
         ),
         LocalFileManagementConfiguration(
-            TEST_NETCDF_FILES_PATH,
+            testNetcdfFilesPath,
             null,
             null
         )
@@ -180,6 +185,7 @@ class ImkerServerApplicationTests {
     val weatherModels: SortedMap<Int, WeatherModel> = sortedMapOf(
         0 to incaModel
     )
+
     val weatherDataCompositeCacheFactory = {
             configuration: WeatherRasterCompositeCacheConfiguration, dataParser: WeatherDataParser, variableMapper: WeatherVariableFileNameMapper, unitMapper: WeatherVariableUnitMapper -> WeatherRasterCompositeCacheImpl(configuration, dataParser, variableMapper, unitMapper, weatherRasterMemoryCache, weatherRasterDiskCache, WeatherTimeCacheImpl(), WeatherVariableUnitCacheImpl())
     }
@@ -189,12 +195,12 @@ class ImkerServerApplicationTests {
         localFileManagerService
     )
 
-    val weatherDataQueryService: WeatherDataQueryService = WeatherDataQueryServiceImpl(weatherModelManagerService, QUERY_PROPERTIES)
+    val weatherDataQueryService: WeatherDataQueryService = WeatherDataQueryServiceImpl(weatherModelManagerService, queryProperties)
 
     val dynamicNetCdfParser: DynamicDataParser = DynamicDataParserImpl(
         netCdfParser,
         netCdfParserFactory,
-        TEST_NETCDF_FILES_PATH,
+        testNetcdfFilesPath,
         bestFileSearchService,
         incaFileNameManager
     )
@@ -204,8 +210,8 @@ class ImkerServerApplicationTests {
 //        whenever(mockFtpClient.connect(org.mockito.kotlin.any<FtpClientConfiguration>()))
 //        whenever(mockFtpClient.connect(anyString(), anyString(), anyString()))
         whenever(mockFtpClient.isConnected()).thenReturn(true)
-        whenever(mockFtpClient.listFiles(ZAMG_FTP_INCA_SUBFOLDER)).thenReturn(MOCK_INCA_FILES)
-        whenever(mockFtpClient.listFiles(ZAMG_FTP_AROME_SUBFOLDER)).thenReturn(MOCK_AROME_FILES)
+        whenever(mockFtpClient.listFiles(ZAMG_FTP_INCA_SUBFOLDER)).thenReturn(mockIncaFiles)
+        whenever(mockFtpClient.listFiles(ZAMG_FTP_AROME_SUBFOLDER)).thenReturn(mockAromeFiles)
         whenever(mockFtpClient.downloadFile(
             org.mockito.kotlin.any(),
             org.mockito.kotlin.any(),
@@ -228,11 +234,17 @@ class ImkerServerApplicationTests {
 
     @BeforeAll
     fun setupTimeCache() {
-        weatherTimeCache.setTimes(WeatherVariableType.Temperature2m, TEST_DATES)
+        weatherTimeCache.setTimes(WeatherVariableType.Temperature2m, testDates)
     }
+
     @BeforeAll
-    fun setupWeatherModelManager(): Unit = runBlocking {
-        weatherModelManagerService.beginUpdateWeatherModels(updateSources = false, forceUpdateParsers = true)
+    fun setupModelManager() = runBlocking {
+        weatherModelManagerService.beginUpdateWeatherModels(
+            updateSource = WeatherModelUpdateJobEnabled.Disabled,
+            updateParser = WeatherModelUpdateJobEnabled.Disabled,
+            updateCache = WeatherModelUpdateJobEnabled.Forced,
+            cleanupStorage = WeatherModelUpdateJobEnabled.Disabled
+        )
     }
 
     @Test
@@ -242,7 +254,7 @@ class ImkerServerApplicationTests {
     @Test
     @Disabled // This test pings an actual FTP server, not really the best look :(
     fun ftpClientConnects() {
-        ftpClient.connect(ZAMG_FTP_SERVER, "anonymous", "")
+        ftpClient.connect(Companion.ZAMG_FTP_SERVER, "anonymous", "")
         Assert.isTrue(ftpClient.isConnected(), "FtpClient did not connect successfully")
         ftpClient.disconnect()
         Assert.isTrue(!ftpClient.isConnected(), "FtpClient did not disconnect successfully")
@@ -381,7 +393,7 @@ class ImkerServerApplicationTests {
 
     @Test
     @Order(2)
-    fun compositeWeatherDataCacheWorks() {
+    fun compositeWeatherDataCacheWorks(): Unit = runBlocking {
         // Testing composite cache
         val temperatureVariableExistsInCompositeCache = weatherRasterCompositeCache.variableExists(WeatherVariableType.Temperature2m)
         Assert.isTrue(temperatureVariableExistsInCompositeCache, "Temperature variable was not in the composite cache despite being configured to be so")
@@ -436,20 +448,20 @@ class ImkerServerApplicationTests {
         // Testing maximum file count
         val incaWithMaxCountConfig = incaModel.copy(
             fileManagementConfiguration = LocalFileManagementConfiguration(
-                TEST_NETCDF_FILES_PATH,
+                testNetcdfFilesPath,
                 null,
                 1u
             )
         )
         val maxCountFilesForDeletion = localFileManagerService.getFilesForCleanup(incaWithMaxCountConfig)
         Assert.isTrue(maxCountFilesForDeletion?.count() == 1, "Cleanup policy with a maximum file count of 1 returned ${maxCountFilesForDeletion?.count()} files instead")
-        Assert.isTrue(maxCountFilesForDeletion?.firstOrNull()?.first?.toPath() == TEST_NETCDF_FILE_PATH, "Cleanup policy with a maximum file count of 1 returned the wrong file to be deleted")
+        Assert.isTrue(maxCountFilesForDeletion?.firstOrNull()?.first?.toPath() == testPrimaryNetcdfFilePath, "Cleanup policy with a maximum file count of 1 returned the wrong file to be deleted")
 
 
         // Testing maximum age
         val incaWithMaxAgeConfig = incaModel.copy(
             fileManagementConfiguration = LocalFileManagementConfiguration(
-                TEST_NETCDF_FILES_PATH,
+                testNetcdfFilesPath,
                 Duration.ofMinutes(15),
                 null
             )
@@ -459,20 +471,20 @@ class ImkerServerApplicationTests {
         val referenceDateTime = ZonedDateTime.of(2023, 9, 9, 14, 10, 0, 0, ZoneOffset.UTC)
         val maxAgeFilesForDeletion = localFileManagerService.getFilesForCleanup(incaWithMaxAgeConfig, referenceDateTime)
         Assert.isTrue(maxAgeFilesForDeletion?.count() == 1, "Cleanup policy with a maximum age of 15 minutes returned ${maxAgeFilesForDeletion?.count()} files instead of the expected 1")
-        Assert.isTrue(maxAgeFilesForDeletion?.firstOrNull()?.first?.toPath() == TEST_NETCDF_FILE_PATH, "Cleanup policy with a maximum age of 15 minutes returned the wrong file to be deleted")
+        Assert.isTrue(maxAgeFilesForDeletion?.firstOrNull()?.first?.toPath() == testPrimaryNetcdfFilePath, "Cleanup policy with a maximum age of 15 minutes returned the wrong file to be deleted")
 
         // 2023-09-09 at 14:15:00 UTC (15 minutes after the second test file)
         // Explanation: because the maximum age is set to be 15 minutes, files that are exactly 15 minutes old shouldn't be deleted because they are still within the maximum age
         val edgeCaseReferenceDateTime = ZonedDateTime.of(2023, 9, 9, 14, 15, 0, 0, ZoneOffset.UTC)
         val maxAgeEdgeCaseFilesForDeletion = localFileManagerService.getFilesForCleanup(incaWithMaxAgeConfig, edgeCaseReferenceDateTime)
         Assert.isTrue(maxAgeEdgeCaseFilesForDeletion?.count() == 1, "Cleanup policy with a maximum age of 15 minutes returned ${maxAgeEdgeCaseFilesForDeletion?.count()} files instead of the expected 1")
-        Assert.isTrue(maxAgeEdgeCaseFilesForDeletion?.firstOrNull()?.first?.toPath() == TEST_NETCDF_FILE_PATH, "Cleanup policy with a maximum age of 15 minutes returned the wrong file to be deleted")
+        Assert.isTrue(maxAgeEdgeCaseFilesForDeletion?.firstOrNull()?.first?.toPath() == testPrimaryNetcdfFilePath, "Cleanup policy with a maximum age of 15 minutes returned the wrong file to be deleted")
 
         // 2023-09-09 at 14:20:00 UTC (20 minutes after the second test file)
         val allFilesReferenceDateTime = ZonedDateTime.of(2023, 9, 9, 14, 20, 0, 0, ZoneOffset.UTC)
         val maxAgeAllFilesForDeletion = localFileManagerService.getFilesForCleanup(incaWithMaxAgeConfig, allFilesReferenceDateTime)
         Assert.isTrue(maxAgeAllFilesForDeletion?.count() == 2, "Cleanup policy with a maximum age of 15 minutes returned ${maxAgeAllFilesForDeletion?.count()} files instead of the expected 2")
-        Assert.isTrue(maxAgeAllFilesForDeletion?.firstOrNull()?.first?.toPath() == TEST_NETCDF_FILE_PATH, "Cleanup policy with a maximum age of 15 minutes returned the wrong file to be deleted")
+        Assert.isTrue(maxAgeAllFilesForDeletion?.firstOrNull()?.first?.toPath() == testPrimaryNetcdfFilePath, "Cleanup policy with a maximum age of 15 minutes returned the wrong file to be deleted")
     }
 
     @Test
@@ -538,7 +550,7 @@ class ImkerServerApplicationTests {
                 10,
                 PreferredWeatherModelMode.Static
             )
-        } catch(ex: Exception) {
+        } catch (ex: Exception) {
             Assert.isTrue(ex is ResponseStatusException && ex.statusCode == HttpStatusCode.valueOf(400),
                 "Query for an invalid time did not throw a ResponseStatusException with 400 BAD REQUEST")
         }

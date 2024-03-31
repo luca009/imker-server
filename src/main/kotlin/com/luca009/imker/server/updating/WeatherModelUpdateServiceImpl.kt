@@ -1,6 +1,7 @@
 package com.luca009.imker.server.updating
 
 import com.luca009.imker.server.configuration.properties.UpdateProperties
+import com.luca009.imker.server.management.models.WeatherModelUpdateJobEnabled
 import com.luca009.imker.server.management.models.model.WeatherModelManagerService
 import com.luca009.imker.server.updating.model.WeatherModelUpdateService
 import kotlinx.coroutines.runBlocking
@@ -15,11 +16,13 @@ class WeatherModelUpdateServiceImpl(
 ) : WeatherModelUpdateService() {
     @Scheduled(fixedRateString = "\${update.updateCheckInterval}", initialDelayString = "\${update.updateCheckInterval}", timeUnit = TimeUnit.MINUTES)
     fun scheduledUpdateWeatherModels() = runBlocking {
-        weatherModelManagerService.beginUpdateWeatherModels(!updateProperties.lazyUpdate)
+        // TODO: Implement lazy updating
+        weatherModelManagerService.beginUpdateWeatherModels()
     }
 
     override suspend fun startupUpdate() {
         // Initialize all data parsers at startup by updating them, and also update any source data if lazyUpdate is off
-        weatherModelManagerService.beginUpdateWeatherModels(!updateProperties.lazyUpdate, true)
+        // TODO: Implement lazy updating
+        weatherModelManagerService.beginUpdateWeatherModels(updateParser = WeatherModelUpdateJobEnabled.Forced)
     }
 }

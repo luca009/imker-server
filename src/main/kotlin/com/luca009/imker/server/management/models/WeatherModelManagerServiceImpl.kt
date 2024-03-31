@@ -46,12 +46,14 @@ class WeatherModelManagerServiceImpl(
     override fun getWeatherModels() = availableWeatherModels
 
     override suspend fun beginUpdateWeatherModels(
-        updateSources: Boolean,
-        forceUpdateParsers: Boolean
+        updateSource: WeatherModelUpdateJobEnabled,
+        updateParser: WeatherModelUpdateJobEnabled,
+        updateCache: WeatherModelUpdateJobEnabled,
+        cleanupStorage: WeatherModelUpdateJobEnabled
     ) = coroutineScope {
         // Queue all weather models for updating
         availableWeatherModels.values.forEach {
-            queueUpdateWeatherModel(it, updateSources, forceUpdateParsers)
+            queueUpdateWeatherModel(it, updateSource, updateParser, updateCache, cleanupStorage)
         }
 
         // Start updating all queues
@@ -62,31 +64,26 @@ class WeatherModelManagerServiceImpl(
 
     override fun queueUpdateWeatherModel(
         weatherModel: WeatherModel,
-        updateSource: Boolean,
-        forceUpdateParser: Boolean
+        updateSource: WeatherModelUpdateJobEnabled,
+        updateParser: WeatherModelUpdateJobEnabled,
+        updateCache: WeatherModelUpdateJobEnabled,
+        cleanupStorage: WeatherModelUpdateJobEnabled
     ) {
         val updateGroup = updateGroups[weatherModel.receiver.receiverGroup]!! // This returning null means that an illegal argument was passed
         val modelCache = weatherModelCaches[weatherModel]!! // Same as above
 
-        updateGroup.queueUpdateJob(weatherModel, modelCache, updateSource, forceUpdateParser)
+        updateGroup.queueUpdateJob(weatherModel, modelCache, updateSource, updateParser, updateCache, cleanupStorage)
     }
 
-    override fun cleanupDataStorageLocations() = cleanupDataStorageLocationsFromCollection(availableWeatherModels.values)
-    override fun cleanupDataStorageLocations(weatherModels: Set<WeatherModel>) = cleanupDataStorageLocationsFromCollection(weatherModels)
+    override fun queueCleanupDataStorageLocations() = availableWeatherModels.values.forEach { queueCleanupDataStorageLocation(it) }
+    override fun queueCleanupDataStorageLocations(weatherModels: Set<WeatherModel>) = weatherModels.forEach { queueCleanupDataStorageLocation(it) }
 
-    private fun cleanupDataStorageLocationsFromCollection(weatherModels: Collection<WeatherModel>) {
-        weatherModels.forEach {
-            val success = cleanupDataStorageLocation(it)
+    private fun queueCleanupDataStorageLocation(weatherModel: WeatherModel, dateTime: ZonedDateTime = ZonedDateTime.now()) {
+        val updateGroup = updateGroups[weatherModel.receiver.receiverGroup]!! // This returning null means that an illegal argument was passed
+        val modelCache = weatherModelCaches[weatherModel]!! // Same as above
 
-            if (success) {
-                logger.info("Purged weather model files for ${it.name}")
-            } else {
-                logger.error("Failed to purge weather model files for ${it.name}")
-            }
-        }
+        updateGroup.queueJob(weatherModel, modelCache, WeatherModelUpdateJobType.Cleanup)
     }
-
-    private fun cleanupDataStorageLocation(weatherModel: WeatherModel, dateTime: ZonedDateTime = ZonedDateTime.now()): Nothing = TODO()
 
     override fun getAvailableWeatherModelsForLatLon(
         variable: WeatherVariableType,
@@ -122,13 +119,13 @@ class WeatherModelManagerServiceImpl(
                 val coordinates = cache.latLonToCoordinates(variable, latitude, longitude)
                 requireNotNull(coordinates) {
                     // Coordinates could not be determined
-                    false
+                    return@filter false
                 }
 
                 val timeIndex = cache.getEarliestTimeIndex(variable, time)
                 requireNotNull(timeIndex) {
                     // Time index could not be determined
-                    false
+                    return@filter false
                 }
 
                 cache.variableExistsAtTimeAndPosition(variable, timeIndex, coordinates)
@@ -160,7 +157,6 @@ class WeatherModelManagerServiceImpl(
 
     override fun getCompositeCacheForWeatherModel(weatherModel: WeatherModel): WeatherRasterCompositeCache? = weatherModelCaches[weatherModel]
 }
-
 class WeatherModelUpdateGroup(
     private val fileManagerService: LocalFileManagerService
 ) {
@@ -170,17 +166,65 @@ class WeatherModelUpdateGroup(
 
     fun getJobs(): Iterable<WeatherModelUpdateJob> = jobs.asIterable()
 
-    fun queueUpdateJob(weatherModel: WeatherModel, weatherModelCache: WeatherRasterCompositeCache, updateSource: Boolean, forceUpdateParser: Boolean): WeatherModelUpdateJob {
+    fun queueJob(weatherModel: WeatherModel, weatherModelCache: WeatherRasterCompositeCache, updateJobType: WeatherModelUpdateJobType, dependsOn: WeatherModelUpdateJob? = null): WeatherModelUpdateJob {
         val updateJob = WeatherModelUpdateJob(
+            updateJobType,
             weatherModel,
             weatherModelCache,
-            updateSource,
-            forceUpdateParser,
-            ZonedDateTime.now()
+            ZonedDateTime.now(),
+            dependsOn
         )
 
         jobs.add(updateJob)
         return updateJob
+    }
+
+    fun queueUpdateJob(
+        weatherModel: WeatherModel,
+        weatherModelCache: WeatherRasterCompositeCache,
+        updateSource: WeatherModelUpdateJobEnabled = WeatherModelUpdateJobEnabled.Enabled,
+        updateParser: WeatherModelUpdateJobEnabled = WeatherModelUpdateJobEnabled.Enabled,
+        updateCache: WeatherModelUpdateJobEnabled = WeatherModelUpdateJobEnabled.Enabled,
+        cleanupStorage: WeatherModelUpdateJobEnabled = WeatherModelUpdateJobEnabled.Forced
+    ) {
+        val dateTime = ZonedDateTime.now()
+
+        val sourceJob = createJob(updateSource, WeatherModelUpdateJobType.Source, weatherModel, weatherModelCache, dateTime)
+        val parserJob = createJob(updateParser, WeatherModelUpdateJobType.Parser, weatherModel, weatherModelCache, dateTime, sourceJob)
+        val cacheJob = createJob(updateCache, WeatherModelUpdateJobType.Cache, weatherModel, weatherModelCache, dateTime, parserJob)
+        val cleanupJob = createJob(cleanupStorage, WeatherModelUpdateJobType.Cleanup, weatherModel, weatherModelCache, dateTime, cacheJob)
+
+        jobs.addAll(listOfNotNull(sourceJob, parserJob, cacheJob, cleanupJob))
+    }
+
+    private fun createJob(
+        enabled: WeatherModelUpdateJobEnabled,
+        type: WeatherModelUpdateJobType,
+        weatherModel: WeatherModel,
+        weatherModelCache: WeatherRasterCompositeCache,
+        dateTime: ZonedDateTime,
+        potentialDependency: WeatherModelUpdateJob? = null
+    ): WeatherModelUpdateJob? {
+        return when (enabled) {
+            WeatherModelUpdateJobEnabled.Disabled -> null
+
+            WeatherModelUpdateJobEnabled.Enabled ->
+                WeatherModelUpdateJob(
+                    type,
+                    weatherModel,
+                    weatherModelCache,
+                    dateTime,
+                    potentialDependency
+                )
+
+            WeatherModelUpdateJobEnabled.Forced ->
+                WeatherModelUpdateJob(
+                    type,
+                    weatherModel,
+                    weatherModelCache,
+                    dateTime
+                )
+        }
     }
 
     suspend fun startQueue(): Flow<WeatherModelUpdateJob> = flow {
@@ -191,10 +235,15 @@ class WeatherModelUpdateGroup(
 
         var job = jobs.removeFirstOrNull()
         while (job != null) {
-            val success = updateWeatherModel(job)
+            val success = doJob(job)
 
             if (success) {
                 emit(job)
+            } else {
+                // If the job wasn't successful, remove all the other jobs that depend on it
+                jobs.removeAll {
+                    it.dependsOn == job
+                }
             }
 
             job = jobs.removeFirstOrNull()
@@ -203,42 +252,26 @@ class WeatherModelUpdateGroup(
         queueRunning = false
     }
 
-    private suspend fun updateWeatherModel(updateJob: WeatherModelUpdateJob): Boolean {
-        // Check if we're even supposed to update the weather model files (updateSource = true), or just use the last ones we downloaded (updateSource = false)
-        if (updateJob.updateSource) {
-            logger.info("Updating source for ${updateJob.weatherModel.name}...")
-
-            try {
-                // Try downloading the weather model
-                updateOnlineWeatherModel(updateJob)
-
-                // If we succeed, print this info message and carry on
-                logger.info("Updated source for ${updateJob.weatherModel.name}")
-            } catch (e: Exception) {
-                // Error!
-                if (!updateJob.forceUpdateParser) {
-                    logger.error("Weather model for ${updateJob.weatherModel.name} could not be updated: ${e.message} Skipping in update process.")
-                    return false
-                }
-
-                // Force update is enabled, don't return
-                logger.warn("Weather model for ${updateJob.weatherModel.name} could not be updated: ${e.message} Force-updating parser and cache.")
-            }
-        } else {
-            logger.info("Skipped updating source for ${updateJob.weatherModel.name}")
+    private suspend fun doJob(updateJob: WeatherModelUpdateJob): Boolean {
+        return when (updateJob.jobType) {
+            WeatherModelUpdateJobType.Source -> updateWeatherModelSource(updateJob)
+            WeatherModelUpdateJobType.Parser -> updateDataParser(updateJob)
+            WeatherModelUpdateJobType.Cache -> updateWeatherModelCache(updateJob)
+            WeatherModelUpdateJobType.Cleanup -> cleanupDataStorageLocation(updateJob)
         }
+    }
 
-        val parserSuccess = updateDataParser(updateJob, updateJob.dateTime)
-        if (!parserSuccess) {
-            logger.error("Parser for ${updateJob.weatherModel.name} could not be updated. Skipping in update process.")
-            return false
-        }
+    private suspend fun updateWeatherModelSource(updateJob: WeatherModelUpdateJob): Boolean {
+        logger.info("Updating source for ${updateJob.weatherModel.name}...")
 
-        updateWeatherModelCache(updateJob)
+        try {
+            // Try downloading the weather model
+            updateOnlineWeatherModel(updateJob)
 
-        val cleanupSuccess = cleanupDataStorageLocation(updateJob, updateJob.dateTime)
-        if (!cleanupSuccess) {
-            logger.error("Storage location for ${updateJob.weatherModel.name} could not be cleaned")
+            // If we succeed, print this info message and carry on
+            logger.info("Updated source for ${updateJob.weatherModel.name}")
+        } catch (e: Exception) {
+            logger.error("Weather model for ${updateJob.weatherModel.name} could not be updated: ${e.message}")
             return false
         }
 
@@ -260,28 +293,73 @@ class WeatherModelUpdateGroup(
         }
     }
 
-    private fun updateDataParser(updateJob: WeatherModelUpdateJob, dateTime: ZonedDateTime = ZonedDateTime.now()): Boolean {
+    private fun updateDataParser(updateJob: WeatherModelUpdateJob): Boolean {
         if (updateJob.weatherModel.parser !is DynamicDataParser) {
             return false
         }
 
-        return updateJob.weatherModel.parser.updateParser(dateTime)
+        val success = updateJob.weatherModel.parser.updateParser(updateJob.dateTime)
+
+        if (success) {
+            logger.info("Updated parser for ${updateJob.weatherModel.name}")
+        } else {
+            logger.error("Parser for ${updateJob.weatherModel.name} could not be updated. Skipping in update process.")
+        }
+
+        return success
     }
 
-    private fun updateWeatherModelCache(updateJob: WeatherModelUpdateJob) {
+    private fun updateWeatherModelCache(updateJob: WeatherModelUpdateJob): Boolean {
         updateJob.weatherModelCache.updateCaches()
         logger.info("Updated cache for ${updateJob.weatherModel.name}")
+        return true
     }
 
-    private fun cleanupDataStorageLocation(updateJob: WeatherModelUpdateJob, dateTime: ZonedDateTime = ZonedDateTime.now()) = fileManagerService.cleanupWeatherDataLocation(updateJob.weatherModel, dateTime)
+    private fun cleanupDataStorageLocation(updateJob: WeatherModelUpdateJob): Boolean {
+        val success = fileManagerService.cleanupWeatherDataLocation(updateJob.weatherModel, updateJob.dateTime)
+
+        if (success) {
+            logger.info("Purged weather model files for ${updateJob.weatherModel.name}")
+        } else {
+            logger.error("Failed to purge weather model files for ${updateJob.weatherModel.name}")
+        }
+
+        return success
+    }
+}
+
+enum class WeatherModelUpdateJobEnabled {
+    Disabled, Enabled, Forced
+}
+
+enum class WeatherModelUpdateJobType {
+    /**
+     * Update the source of the weather model data
+     */
+    Source,
+
+    /**
+     * Update the parser for the weather model data
+     */
+    Parser,
+
+    /**
+     * Update the cache for the weather model data
+     */
+    Cache,
+
+    /**
+     * Cleanup any redundant files
+     */
+    Cleanup
 }
 
 data class WeatherModelUpdateJob(
+    val jobType: WeatherModelUpdateJobType,
     val weatherModel: WeatherModel,
     val weatherModelCache: WeatherRasterCompositeCache,
-    val updateSource: Boolean,
-    val forceUpdateParser: Boolean,
-    val dateTime: ZonedDateTime
+    val dateTime: ZonedDateTime,
+    val dependsOn: WeatherModelUpdateJob? = null
 ) {
     val receiver
         get() = weatherModel.receiver
