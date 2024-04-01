@@ -16,34 +16,14 @@ interface WeatherRasterCompositeCache : WeatherRasterCache {
     fun updateCaches(weatherVariables: Set<WeatherVariableType>)
 
     /**
-     * Get the nearest time index that is smaller than the specified [time]
+     * Get the nearest time index to the specified [time] based on the [timeSnappingType]
      */
-    fun getEarliestTimeIndex(weatherVariable: WeatherVariableType, time: ZonedDateTime): Int?
+    fun getTimeIndex(weatherVariable: WeatherVariableType, time: ZonedDateTime, timeSnappingType: WeatherRasterTimeSnappingType): Int?
 
     /**
-     * Get the nearest time index to the specified [time]
+     * Get the nearest time to the specified [time] based on the [timeSnappingType]
      */
-    fun getClosestTimeIndex(weatherVariable: WeatherVariableType, time: ZonedDateTime): Int?
-
-    /**
-     * Get the nearest time index that is larger than the specified [time]
-     */
-    fun getLatestTimeIndex(weatherVariable: WeatherVariableType, time: ZonedDateTime): Int?
-
-    /**
-     * Get the nearest time that is smaller than the specified [time]
-     */
-    fun getEarliestTime(weatherVariable: WeatherVariableType, time: ZonedDateTime): ZonedDateTime?
-
-    /**
-     * Get the nearest time to the specified [time]
-     */
-    fun getClosestTime(weatherVariable: WeatherVariableType, time: ZonedDateTime): ZonedDateTime?
-
-    /**
-     * Get the nearest time that is larger than the specified [time]
-     */
-    fun getLatestTime(weatherVariable: WeatherVariableType, time: ZonedDateTime): ZonedDateTime?
+    fun getSnappedTime(weatherVariable: WeatherVariableType, time: ZonedDateTime, timeSnappingType: WeatherRasterTimeSnappingType): ZonedDateTime?
 
     /**
      * Get the ZonedDateTime associated with the [index]
@@ -54,6 +34,23 @@ interface WeatherRasterCompositeCache : WeatherRasterCache {
 
     fun containsTime(weatherVariable: WeatherVariableType, time: ZonedDateTime): Boolean
     fun containsTimeIndex(weatherVariable: WeatherVariableType, index: Int): Boolean
+}
+
+enum class WeatherRasterTimeSnappingType {
+    /**
+     * The nearest time index that is smaller than the specified time
+     */
+    Earliest,
+
+    /**
+     * The nearest time index to the specified time
+     */
+    Closest,
+
+    /**
+     * The nearest time index that is larger than the specified time
+     */
+    Latest
 }
 
 /**

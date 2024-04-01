@@ -38,8 +38,8 @@ class WeatherRasterMemoryCacheImpl : WeatherRasterMemoryCache {
         val raster = store[weatherVariableType]?.variableSlices?.getOrNull(timeIndex)
         requireNotNull(raster) { return false }
 
-        val xMax = raster.dimensions[WeatherVariableRasterDimensionType.x]?.size ?: return false
-        val yMax = raster.dimensions[WeatherVariableRasterDimensionType.y]?.size ?: return false
+        val xMax = raster.dimensions[WeatherVariableRasterDimensionType.X]?.size ?: return false
+        val yMax = raster.dimensions[WeatherVariableRasterDimensionType.Y]?.size ?: return false
 
         return coordinate.isInRange(xMax, yMax)
     }

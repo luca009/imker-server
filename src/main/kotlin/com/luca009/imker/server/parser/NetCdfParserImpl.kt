@@ -120,7 +120,8 @@ class NetCdfParserImpl(
         return NetCdfWeatherVariableRasterSlice(
             javaDataType,
             castArray,
-            grid.dimensions
+            grid.dimensions,
+            grid.coordinateSystem.isLatLon
         )
     }
 

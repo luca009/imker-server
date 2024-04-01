@@ -51,5 +51,5 @@ data class WeatherVariableRasterDimension(
 )
 
 enum class WeatherVariableRasterDimensionType {
-    x, y, z
+    X, Y, Z
 }

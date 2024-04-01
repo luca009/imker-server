@@ -9,7 +9,8 @@ import kotlin.reflect.KClass
 class NetCdfWeatherVariableRasterSlice(
     dataType: KClass<Any>,
     private val data: Array<*>,
-    ucarDimensions: List<Dimension>
+    ucarDimensions: List<Dimension>,
+    isLatLon: Boolean
 ) : WeatherVariableRasterSlice(dataType) {
     override val size: Int
         get() = data.size
@@ -19,7 +20,17 @@ class NetCdfWeatherVariableRasterSlice(
 
     init {
         dimensions = ucarDimensions.mapNotNull {
-            val enum = WeatherVariableRasterDimensionType.values().firstOrNull { enum -> it.name.lowercase() == enum.name }
+            val enum = if (isLatLon) {
+                // If the coordinate system is latlon, then map the latitude and longitude variables to X and Y respectively
+                when (it.name.lowercase()) {
+                    "latitude" -> WeatherVariableRasterDimensionType.X
+                    "longitude" -> WeatherVariableRasterDimensionType.Y
+                    else -> getDimensionTypeFromName(it.name)
+                }
+            } else {
+                getDimensionTypeFromName(it.name)
+            }
+
             requireNotNull(enum) {
                 return@mapNotNull null
             }
@@ -34,6 +45,8 @@ class NetCdfWeatherVariableRasterSlice(
 
         splitFrequencies = dimensions.values.reversed().toList().dropLast(1).map { it.size }
     }
+
+    private fun getDimensionTypeFromName(name: String): WeatherVariableRasterDimensionType? = WeatherVariableRasterDimensionType.values().firstOrNull { it.name.equals(name, true) }
 
     private fun getIndex(indices: IntArray): Int {
         return indices.mapIndexed { index, value ->

@@ -2,6 +2,7 @@ package com.luca009.imker.server.management.models
 
 import com.luca009.imker.server.caching.model.WeatherRasterCompositeCache
 import com.luca009.imker.server.caching.model.WeatherRasterCompositeCacheConfiguration
+import com.luca009.imker.server.caching.model.WeatherRasterTimeSnappingType
 import com.luca009.imker.server.configuration.model.WeatherModel
 import com.luca009.imker.server.configuration.model.WeatherVariableFileNameMapper
 import com.luca009.imker.server.configuration.model.WeatherVariableUnitMapper
@@ -122,7 +123,7 @@ class WeatherModelManagerServiceImpl(
                     return@filter false
                 }
 
-                val timeIndex = cache.getEarliestTimeIndex(variable, time)
+                val timeIndex = cache.getTimeIndex(variable, time, WeatherRasterTimeSnappingType.Earliest)
                 requireNotNull(timeIndex) {
                     // Time index could not be determined
                     return@filter false

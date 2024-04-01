@@ -58,12 +58,26 @@ class WeatherRasterCompositeCacheImpl(
         }
     }
 
-    override fun getEarliestTimeIndex(weatherVariable: WeatherVariableType, time: ZonedDateTime): Int? = timeCache.getEarliestIndex(weatherVariable, time)
-    override fun getClosestTimeIndex(weatherVariable: WeatherVariableType, time: ZonedDateTime): Int? = timeCache.getClosestIndex(weatherVariable, time)
-    override fun getLatestTimeIndex(weatherVariable: WeatherVariableType, time: ZonedDateTime): Int? = timeCache.getLatestIndex(weatherVariable, time)
-    override fun getEarliestTime(weatherVariable: WeatherVariableType, time: ZonedDateTime): ZonedDateTime? = timeCache.getEarliestTime(weatherVariable, time)
-    override fun getClosestTime(weatherVariable: WeatherVariableType, time: ZonedDateTime): ZonedDateTime? = timeCache.getClosestTime(weatherVariable, time)
-    override fun getLatestTime(weatherVariable: WeatherVariableType, time: ZonedDateTime): ZonedDateTime? = timeCache.getLatestTime(weatherVariable, time)
+    override fun getTimeIndex(
+        weatherVariable: WeatherVariableType,
+        time: ZonedDateTime,
+        timeSnappingType: WeatherRasterTimeSnappingType
+    ) = when (timeSnappingType) {
+        WeatherRasterTimeSnappingType.Earliest -> timeCache.getEarliestIndex(weatherVariable, time)
+        WeatherRasterTimeSnappingType.Closest -> timeCache.getClosestIndex(weatherVariable, time)
+        WeatherRasterTimeSnappingType.Latest -> timeCache.getLatestIndex(weatherVariable, time)
+    }
+
+    override fun getSnappedTime(
+        weatherVariable: WeatherVariableType,
+        time: ZonedDateTime,
+        timeSnappingType: WeatherRasterTimeSnappingType
+    ) = when (timeSnappingType) {
+        WeatherRasterTimeSnappingType.Earliest -> timeCache.getEarliestTime(weatherVariable, time)
+        WeatherRasterTimeSnappingType.Closest -> timeCache.getClosestTime(weatherVariable, time)
+        WeatherRasterTimeSnappingType.Latest -> timeCache.getLatestTime(weatherVariable, time)
+    }
+
     override fun getTime(weatherVariable: WeatherVariableType, index: Int): ZonedDateTime? = timeCache.getTime(weatherVariable, index)
     override fun containsTime(weatherVariable: WeatherVariableType, time: ZonedDateTime): Boolean = timeCache.containsTime(weatherVariable, time)
     override fun containsTimeIndex(weatherVariable: WeatherVariableType, index: Int): Boolean = timeCache.containsTimeIndex(weatherVariable, index)
