@@ -19,7 +19,7 @@ import kotlin.collections.ArrayDeque
 
 class WeatherModelManagerServiceImpl(
     private val availableWeatherModels: SortedMap<Int, WeatherModel>,
-    private val weatherRasterCompositeCacheFactory: (WeatherRasterCompositeCacheConfiguration, WeatherDataParser, WeatherVariableFileNameMapper, WeatherVariableUnitMapper) -> WeatherRasterCompositeCache,
+    private val weatherRasterCompositeCacheFactory: (WeatherRasterCompositeCacheConfiguration, WeatherDataParser) -> WeatherRasterCompositeCache,
     fileManagerService: LocalFileManagerService
 ) : WeatherModelManagerService {
     private val logger: Logger = LoggerFactory.getLogger(this::class.java)
@@ -28,9 +28,7 @@ class WeatherModelManagerServiceImpl(
             it.value,
             weatherRasterCompositeCacheFactory(
                 it.value.cacheConfiguration,
-                it.value.parser,
-                it.value.mapper,
-                it.value.unitMapper
+                it.value.parser
             )
         )
     }.toMap()
@@ -92,14 +90,7 @@ class WeatherModelManagerServiceImpl(
         longitude: Double
     ): SortedMap<Int, WeatherModel> {
         return availableWeatherModels
-            .filter {
-                val weatherVariableName = it.value.mapper.getWeatherVariableName(variable)
-                requireNotNull(weatherVariableName) {
-                    false
-                }
-
-                it.value.parser.containsLatLon(weatherVariableName, latitude, longitude)
-            }
+            .filter { it.value.parser.containsLatLon(variable, latitude, longitude) }
             .toSortedMap()
     }
 

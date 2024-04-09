@@ -88,7 +88,7 @@ final class ImkerServerApplicationTests {
     }
 
     val netCdfParserFactory = {
-            netCdfFilePath: Path -> NetCdfParserImpl(netCdfFilePath)
+            netCdfFilePath: Path, variableMapper: WeatherVariableFileNameMapper, unitMapper: WeatherVariableUnitMapper -> NetCdfParserImpl(netCdfFilePath, variableMapper, unitMapper)
     }
     val weatherVariableFileNameMapperFactory = {
         weatherVariableMapFile: File -> WeatherVariableFileNameMapperImpl(weatherVariableMapFile)
@@ -113,25 +113,18 @@ final class ImkerServerApplicationTests {
     )
 
     val bestFileSearchService: BestFileSearchService = BestFileSearchServiceImpl()
-    val netCdfParser: NetCdfParser = netCdfParserFactory(testPrimaryNetcdfFilePath)
     val variableMapper: WeatherVariableFileNameMapper = WeatherVariableFileNameMapperImpl(testMapperConfigFilePath.toFile())
     val unitMapper: WeatherVariableUnitMapper = WeatherVariableUnitMapperImpl(testUnitMapperConfigFilePath.toFile())
+    val netCdfParser: NetCdfParser = netCdfParserFactory(testPrimaryNetcdfFilePath, variableMapper, unitMapper)
     val weatherTimeCache: WeatherTimeCache = WeatherTimeCacheImpl()
-    val weatherUnitCache: WeatherVariableUnitCache = WeatherVariableUnitCacheImpl()
     val weatherRasterMemoryCache: WeatherRasterMemoryCache = WeatherRasterMemoryCacheImpl()
-    val weatherRasterDiskCache: WeatherRasterDiskCache = WeatherRasterDiskCacheImpl(
-        netCdfParser,
-        variableMapper
-    )
+    val weatherRasterDiskCache: WeatherRasterDiskCache = WeatherRasterDiskCacheImpl(netCdfParser)
     val weatherRasterCompositeCache: WeatherRasterCompositeCache = WeatherRasterCompositeCacheImpl(
         compositeCacheConfig,
         netCdfParser,
-        variableMapper,
-        unitMapper,
         weatherRasterMemoryCache,
         weatherRasterDiskCache,
         weatherTimeCache,
-        weatherUnitCache
     )
     val localFileManagerService: LocalFileManagerService = LocalFileManagerServiceImpl(
         StorageProperties().apply {
@@ -163,7 +156,7 @@ final class ImkerServerApplicationTests {
         "GeoSphere Austria under CC BY-SA 4.0",
 
         incaReceiver,
-        DynamicDataParserImpl(netCdfParser, netCdfParserFactory, testNetcdfFilesPath, bestFileSearchService, incaFileNameManager),
+        DynamicDataParserImpl(netCdfParser, netCdfParserFactory, testNetcdfFilesPath, bestFileSearchService, incaFileNameManager, variableMapper, unitMapper),
         weatherVariableFileNameMapperFactory(testMapperConfigFilePath.toFile()),
         incaFileNameManager,
         weatherVariableUnitMapperFactory(testUnitMapperConfigFilePath.toFile()),
@@ -187,7 +180,7 @@ final class ImkerServerApplicationTests {
     )
 
     val weatherDataCompositeCacheFactory = {
-            configuration: WeatherRasterCompositeCacheConfiguration, dataParser: WeatherDataParser, variableMapper: WeatherVariableFileNameMapper, unitMapper: WeatherVariableUnitMapper -> WeatherRasterCompositeCacheImpl(configuration, dataParser, variableMapper, unitMapper, weatherRasterMemoryCache, weatherRasterDiskCache, WeatherTimeCacheImpl(), WeatherVariableUnitCacheImpl())
+            configuration: WeatherRasterCompositeCacheConfiguration, dataParser: WeatherDataParser -> WeatherRasterCompositeCacheImpl(configuration, dataParser, weatherRasterMemoryCache, weatherRasterDiskCache, WeatherTimeCacheImpl())
     }
     val weatherModelManagerService: WeatherModelManagerService = WeatherModelManagerServiceImpl(
         weatherModels,
@@ -202,7 +195,9 @@ final class ImkerServerApplicationTests {
         netCdfParserFactory,
         testNetcdfFilesPath,
         bestFileSearchService,
-        incaFileNameManager
+        incaFileNameManager,
+        variableMapper,
+        unitMapper
     )
 
     @BeforeAll
@@ -359,34 +354,38 @@ final class ImkerServerApplicationTests {
     @Test
     @Order(2)
     fun netCdfParserWorks() {
-        // Variable count
+        // Raw variable count
         val rawVariables = netCdfParser.getAvailableRawVariables()
-        Assert.isTrue(rawVariables.count() == 14, "Variable count in NetCDF file was not correct")
+        Assert.isTrue(rawVariables.count() == 14, "Raw variable count in NetCDF file was not correct")
+
+        // Parsed variable count
+        val variables = netCdfParser.getAvailableVariables()
+        Assert.isTrue(variables.count() == 7, "Raw variable count in NetCDF file was not correct")
 
         // Get variable info
-        val temperatureVariable = netCdfParser.getRawVariable("TT")
+        val temperatureVariable = netCdfParser.getVariable(WeatherVariableType.Temperature2m)
         Assert.notNull(temperatureVariable, "Temperature variable was null")
 
         // Get variable 2d slice
-        val temperatureSlice = netCdfParser.getGridTimeSlice("TT", 0)
+        val temperatureSlice = netCdfParser.getGridTimeSlice(WeatherVariableType.Temperature2m, 0)
         val indirectTemperaturePoint = temperatureSlice?.getDoubleOrNull(50, 100) // coordinates insignificant
         Assert.isTrue(indirectTemperaturePoint is Double, "Temperature point was not a double")
 
         // Get variable slice at point
-        val temperaturePoint = netCdfParser.getGridTimeAnd2dPositionSlice("TT", 0, WeatherVariable2dCoordinate(50, 100)) // same coordinates as above
+        val temperaturePoint = netCdfParser.getGridTimeAnd2dPositionSlice(WeatherVariableType.Temperature2m, 0, WeatherVariable2dCoordinate(50, 100)) // same coordinates as above
         Assert.isTrue(temperaturePoint is Double, "Temperature point was not a double")
 
         // Compare getting value directly at point and via the 2d slice
         Assert.isTrue(indirectTemperaturePoint == temperaturePoint, "Getting temperature value via 2d slice did not yield the same result as getting it directly")
 
         // Get if coordinates are in the dataset
-        val correctCoordinatesInDataset = netCdfParser.containsLatLon("TT", 48.20847274949422, 16.373155534546584) // Vienna
+        val correctCoordinatesInDataset = netCdfParser.containsLatLon(WeatherVariableType.Temperature2m, 48.20847274949422, 16.373155534546584) // Vienna
         Assert.isTrue(correctCoordinatesInDataset, "Correct coordinates were not contained in dataset")
-        val incorrectCoordinatesInDataset = netCdfParser.containsLatLon("TT", 47.500810753017205, 19.05394481893561) // Budapest
+        val incorrectCoordinatesInDataset = netCdfParser.containsLatLon(WeatherVariableType.Temperature2m, 47.500810753017205, 19.05394481893561) // Budapest
         Assert.isTrue(!incorrectCoordinatesInDataset, "Incorrect coordinates were contained in dataset")
 
         // Get coordinates from latlon
-        val coordinates = netCdfParser.latLonToCoordinates("TT", 48.20847274949422, 16.373155534546584) // Vienna
+        val coordinates = netCdfParser.latLonToCoordinates(WeatherVariableType.Temperature2m, 48.20847274949422, 16.373155534546584) // Vienna
         requireNotNull(coordinates) { "Coordinates were null" }
         Assert.isTrue(coordinates.xIndex == 605 && coordinates.yIndex == 293, "Coordinates were incorrect")
     }

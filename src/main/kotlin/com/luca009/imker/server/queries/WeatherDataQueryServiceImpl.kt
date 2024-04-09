@@ -42,17 +42,12 @@ class WeatherDataQueryServiceImpl(
             throw ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Weather model ${weatherModel.name} had no mapping for variable $weatherVariable")
         }
 
-        val rawWeatherVariable = weatherModel.parser.getRawVariable(variableName)
-        requireNotNull(rawWeatherVariable) {
-            throw ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Weather model ${weatherModel.name} did not contain variable $weatherVariable, despite the mapping suggesting it")
-        }
-
         val weatherModelCache = weatherModelManagerService.getCompositeCacheForWeatherModel(weatherModel)
         requireNotNull(weatherModelCache) {
             throw ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Weather model ${weatherModel.name} had no cache associated with it")
         }
 
-        val coordinates = weatherModel.parser.latLonToCoordinates(variableName, lat, lon)
+        val coordinates = weatherModel.parser.latLonToCoordinates(weatherVariable, lat, lon)
         requireNotNull(coordinates) {
             throw ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to convert $lat $lon (lat, lon) into valid coordinates for weather model ${weatherModel.name}")
         }
@@ -65,7 +60,6 @@ class WeatherDataQueryServiceImpl(
         val units = weatherModelCache.getUnits(weatherVariable)
 
         return WeatherVariableProperties(
-            rawWeatherVariable,
             weatherModelCache,
             coordinates,
             timeIndex,

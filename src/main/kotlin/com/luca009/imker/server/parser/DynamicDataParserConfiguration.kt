@@ -1,5 +1,7 @@
 package com.luca009.imker.server.parser
 
+import com.luca009.imker.server.configuration.model.WeatherVariableFileNameMapper
+import com.luca009.imker.server.configuration.model.WeatherVariableUnitMapper
 import com.luca009.imker.server.management.files.model.BestFileSearchService
 import com.luca009.imker.server.management.files.model.DataFileNameManager
 import com.luca009.imker.server.parser.model.DynamicDataParser
@@ -14,19 +16,21 @@ import kotlin.io.path.isDirectory
 class DynamicDataParserConfiguration {
     @Bean
     fun dynamicDataParserFactory(bestFileSearchService: BestFileSearchService) = {
-        parserFactory: (Path) -> WeatherDataParser, initFilePath: Path, fileNameManager: DataFileNameManager -> dynamicDataParser(parserFactory, initFilePath, bestFileSearchService, fileNameManager)
+        parserFactory: (Path, WeatherVariableFileNameMapper, WeatherVariableUnitMapper) -> WeatherDataParser, initFilePath: Path, fileNameManager: DataFileNameManager, variableMapper: WeatherVariableFileNameMapper, unitMapper: WeatherVariableUnitMapper -> dynamicDataParser(parserFactory, initFilePath, bestFileSearchService, fileNameManager, variableMapper, unitMapper)
     }
 
      fun dynamicDataParser(
-         parserFactory: (Path) -> WeatherDataParser,
+         parserFactory: (Path, WeatherVariableFileNameMapper, WeatherVariableUnitMapper) -> WeatherDataParser,
          initFilePath: Path,
          bestFileSearchService: BestFileSearchService,
-         fileNameManager: DataFileNameManager
+         fileNameManager: DataFileNameManager,
+         variableMapper: WeatherVariableFileNameMapper,
+         unitMapper: WeatherVariableUnitMapper
     ): DynamicDataParser {
         val initParser = if (initFilePath.isDirectory()) {
             null
         } else {
-            parserFactory(initFilePath)
+            parserFactory(initFilePath, variableMapper, unitMapper)
         }
 
         return DynamicDataParserImpl(
@@ -34,7 +38,9 @@ class DynamicDataParserConfiguration {
             parserFactory,
             initFilePath,
             bestFileSearchService,
-            fileNameManager
+            fileNameManager,
+            variableMapper,
+            unitMapper
         )
     }
 }

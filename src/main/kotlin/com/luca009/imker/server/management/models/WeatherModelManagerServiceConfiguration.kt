@@ -15,7 +15,7 @@ import org.springframework.context.annotation.Configuration
 
 @Configuration
 class WeatherModelManagerServiceConfiguration(
-    private val weatherRasterCompositeCacheFactory: (WeatherRasterCompositeCacheConfiguration, WeatherDataParser, WeatherVariableFileNameMapper, WeatherVariableUnitMapper) -> WeatherRasterCompositeCache,
+    private val weatherRasterCompositeCacheFactory: (WeatherRasterCompositeCacheConfiguration, WeatherDataParser) -> WeatherRasterCompositeCache,
     private val weatherModelPropertyMapperService: WeatherModelPropertyMapperService,
     private val fileManagerService: LocalFileManagerService
 ) {

@@ -2,7 +2,6 @@ package com.luca009.imker.server.caching
 
 import com.luca009.imker.server.caching.model.*
 import com.luca009.imker.server.configuration.model.WeatherVariableFileNameMapper
-import com.luca009.imker.server.configuration.model.WeatherVariableUnitMapper
 import com.luca009.imker.server.parser.model.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -11,30 +10,19 @@ import java.time.ZonedDateTime
 class WeatherRasterCompositeCacheImpl(
     val configuration: WeatherRasterCompositeCacheConfiguration,
     private val dataParser: WeatherDataParser,
-    private val variableMapper: WeatherVariableFileNameMapper,
-    private val unitMapper: WeatherVariableUnitMapper,
     private val memoryCache: WeatherRasterMemoryCache,
     private val diskCache: WeatherRasterDiskCache,
-    private val timeCache: WeatherTimeCache,
-    private val unitCache: WeatherVariableUnitCache
+    private val timeCache: WeatherTimeCache
 ) : WeatherRasterCompositeCache {
     private val logger: Logger = LoggerFactory.getLogger(this::class.java)
 
     private fun updateCache(weatherVariable: WeatherVariableType) {
-        if (variableMapper.getMatchingFilePath(weatherVariable, dataParser.getDataSources()) == null)
-            return
-
-        val variableName = variableMapper.getWeatherVariableName(weatherVariable) ?: return
-        if (dataParser.getRawVariable(variableName)?.type != "DOUBLE")
-            return // Make sure the variable is actually a double, since that is the only type that can be stored at the moment
-
-        val variableData = dataParser.getGridEntireSlice(variableName) ?: return
-
+        val variableData = dataParser.getGridEntireSlice(weatherVariable) ?: return
         memoryCache.setVariable(weatherVariable, variableData)
     }
 
     override fun updateCaches() {
-        updateCaches(variableMapper.getWeatherVariables())
+        updateCaches(dataParser.getAvailableVariableTypes())
     }
 
     override fun updateCaches(weatherVariables: Set<WeatherVariableType>) {
@@ -45,16 +33,10 @@ class WeatherRasterCompositeCacheImpl(
             }
 
         weatherVariables.forEach {
-            val variableName = variableMapper.getWeatherVariableName(it) ?: return@forEach
-
-            val times = dataParser.getTimes(variableName)
+            val times = dataParser.getTimes(it)
             if (times != null) {
                 timeCache.setTimes(it, times)
             }
-
-            val rawVariable = dataParser.getRawVariable(variableName) ?: return@forEach
-            val unitEnum = unitMapper.getUnits(rawVariable.unitType) ?: return@forEach
-            unitCache.setUnits(it, unitEnum)
         }
     }
 
@@ -82,7 +64,7 @@ class WeatherRasterCompositeCacheImpl(
     override fun containsTime(weatherVariable: WeatherVariableType, time: ZonedDateTime): Boolean = timeCache.containsTime(weatherVariable, time)
     override fun containsTimeIndex(weatherVariable: WeatherVariableType, index: Int): Boolean = timeCache.containsTimeIndex(weatherVariable, index)
 
-    override fun getUnits(weatherVariable: WeatherVariableType): WeatherVariableUnit? = unitCache.getUnits(weatherVariable)
+    override fun getUnits(weatherVariable: WeatherVariableType): WeatherVariableUnit? = dataParser.getVariable(weatherVariable)?.unitType
 
     override fun variableExists(weatherVariableType: WeatherVariableType): Boolean {
         if (configuration.ignoredVariables.contains(weatherVariableType)) {

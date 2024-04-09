@@ -6,7 +6,6 @@ import com.luca009.imker.server.parser.model.WeatherVariable2dCoordinate
 import com.luca009.imker.server.parser.model.WeatherVariableUnit
 
 data class WeatherVariableProperties(
-    val rawWeatherVariable: RawWeatherVariable,
     val weatherModelCache: WeatherRasterCompositeCache,
     val coordinates: WeatherVariable2dCoordinate,
     val timeIndex: Int,

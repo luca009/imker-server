@@ -1,5 +1,7 @@
 package com.luca009.imker.server.parser.model
 
+import kotlin.reflect.KClass
+
 data class RawWeatherVariable(
     val unitType: String,
     val name: String,
@@ -9,8 +11,8 @@ data class RawWeatherVariable(
 )
 
 data class WeatherVariable(
-    val variableType: WeatherVariableType,
-    val unitType: WeatherVariableUnit,
+    val variableTypes: Set<WeatherVariableType>,
+    val unitType: WeatherVariableUnit?,
     val name: String,
     val longName: String?,
     val dimensions: Int

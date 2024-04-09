@@ -7,33 +7,16 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
 class WeatherRasterDiskCacheImpl(
-    val dataParser: WeatherDataParser,
-    val fileNameMapper: WeatherVariableFileNameMapper
+    val dataParser: WeatherDataParser
 ) : WeatherRasterDiskCache {
     private val logger: Logger = LoggerFactory.getLogger(this::class.java)
 
-    private fun getSafeVariableName(weatherVariableType: WeatherVariableType): String? {
-        val variableName = fileNameMapper.getWeatherVariableName(weatherVariableType)
-        val variableFile = fileNameMapper.getMatchingFilePath(weatherVariableType, dataParser.getDataSources())
-
-        requireNotNull(variableName) { return null }
-        requireNotNull(variableFile) { return null }
-
-        return variableName
-    }
-
     override fun variableExists(weatherVariableType: WeatherVariableType): Boolean {
-        val variableName = getSafeVariableName(weatherVariableType)
-        requireNotNull(variableName) { return false }
-
-        return dataParser.getRawVariable(variableName) != null
+        return dataParser.getVariable(weatherVariableType) != null
     }
 
     override fun variableExistsAtTime(weatherVariableType: WeatherVariableType, timeIndex: Int): Boolean {
-        val variableName = getSafeVariableName(weatherVariableType)
-        requireNotNull(variableName) { return false }
-
-        return dataParser.gridTimeSliceExists(variableName, timeIndex)
+        return dataParser.gridTimeSliceExists(weatherVariableType, timeIndex)
     }
 
     override fun variableExistsAtTimeAndPosition(
@@ -41,17 +24,11 @@ class WeatherRasterDiskCacheImpl(
         timeIndex: Int,
         coordinate: WeatherVariable2dCoordinate
     ): Boolean {
-        val variableName = getSafeVariableName(weatherVariableType)
-        requireNotNull(variableName) { return false }
-
-        return dataParser.gridTimeAnd2dPositionSliceExists(variableName, timeIndex, coordinate)
+        return dataParser.gridTimeAnd2dPositionSliceExists(weatherVariableType, timeIndex, coordinate)
     }
 
     override fun getVariable(weatherVariableType: WeatherVariableType): WeatherVariableSlice? {
-        val variableName = getSafeVariableName(weatherVariableType)
-        requireNotNull(variableName) { return null }
-
-        val raster = dataParser.getGridEntireSlice(variableName)
+        val raster = dataParser.getGridEntireSlice(weatherVariableType)
         require(raster?.isDouble() == true) {
             logger.warn("Data type of $weatherVariableType was not double. This is currently not supported. Returning null.")
             return null
@@ -61,10 +38,7 @@ class WeatherRasterDiskCacheImpl(
     }
 
     override fun getVariableAtTime(weatherVariableType: WeatherVariableType, timeIndex: Int): WeatherVariableRasterSlice? {
-        val variableName = getSafeVariableName(weatherVariableType)
-        requireNotNull(variableName) { return null }
-
-        val raster = dataParser.getGridTimeSlice(variableName, timeIndex)
+        val raster = dataParser.getGridTimeSlice(weatherVariableType, timeIndex)
         require(raster?.isDouble() == true) {
             logger.warn("Data type of $weatherVariableType was not double. This is currently not supported. Returning null.")
             return null
@@ -78,10 +52,7 @@ class WeatherRasterDiskCacheImpl(
         timeIndex: Int,
         coordinate: WeatherVariable2dCoordinate
     ): Double? {
-        val variableName = getSafeVariableName(weatherVariableType)
-        requireNotNull(variableName) { return null }
-
-        val value = dataParser.getGridTimeAnd2dPositionSlice(variableName, timeIndex, coordinate)
+        val value = dataParser.getGridTimeAnd2dPositionSlice(weatherVariableType, timeIndex, coordinate)
         requireNotNull(value) { return null }
 
         require(value is Double) {
@@ -93,10 +64,7 @@ class WeatherRasterDiskCacheImpl(
     }
 
     override fun latLonToCoordinates(weatherVariableType: WeatherVariableType, latitude: Double, longitude: Double): WeatherVariable2dCoordinate? {
-        val variableName = getSafeVariableName(weatherVariableType)
-        requireNotNull(variableName) { return null }
-
-        val coordinate = dataParser.latLonToCoordinates(variableName, latitude, longitude)
+        val coordinate = dataParser.latLonToCoordinates(weatherVariableType, latitude, longitude)
         requireNotNull(coordinate) { return null }
 
         return coordinate

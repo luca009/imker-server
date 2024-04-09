@@ -22,14 +22,16 @@ import java.io.File
 import java.nio.file.Path
 import java.time.Duration
 import java.util.*
+import kotlin.io.path.exists
+import kotlin.io.path.pathString
 
 @Component
 class WeatherModelPropertyMapperServiceImpl(
     private val dataReceiverFactory: (String, DataReceiverConfiguration, DataFileNameManager) -> DataReceiver?,
     private val weatherVariableFileNameMapperFactory: (File) -> WeatherVariableFileNameMapper,
     private val weatherVariableUnitMapperFactory: (File) -> WeatherVariableUnitMapper,
-    private val weatherDataParserFactoryFactory: (String) -> ((Path) -> WeatherDataParser)?,
-    private val dynamicDataParserFactory: ((Path) -> WeatherDataParser, Path, DataFileNameManager) -> DynamicDataParser,
+    private val weatherDataParserFactoryFactory: (String) -> ((Path, WeatherVariableFileNameMapper, WeatherVariableUnitMapper) -> WeatherDataParser)?,
+    private val dynamicDataParserFactory: ((Path, WeatherVariableFileNameMapper, WeatherVariableUnitMapper) -> WeatherDataParser, Path, DataFileNameManager, WeatherVariableFileNameMapper, WeatherVariableUnitMapper) -> DynamicDataParser,
     private val dataFileNameManagerFactory: (String, String, String, Duration) -> DataFileNameManager,
     private val fileManagerService: LocalFileManagerService,
     weatherModelProperties: ModelProperties
@@ -55,10 +57,29 @@ class WeatherModelPropertyMapperServiceImpl(
             return null
         }
 
+        val variableMapperFile = File(rawWeatherModel.mapping.variableMapperFile)
+        require(variableMapperFile.exists()) {
+            logger.error("Assembling ${rawWeatherModel.meta.name}: Variable mapping file \"${rawWeatherModel.mapping.variableMapperFile}\" does not exist. Check if your weather models are configured correctly.")
+            return null
+        }
+        val variableMapper = weatherVariableFileNameMapperFactory(variableMapperFile)
+
+        val unitMapperFile = File(rawWeatherModel.mapping.unitMapperFile)
+        require(unitMapperFile.exists()) {
+            logger.error("Assembling ${rawWeatherModel.meta.name}: Unit mapping file \"${rawWeatherModel.mapping.unitMapperFile}\" does not exist. Check if your weather models are configured correctly.")
+            return null
+        }
+        val unitMapper = weatherVariableUnitMapperFactory(unitMapperFile)
+
         // Instantiate a DynamicDataParser with the factory from before
         val fileNameManager = dataFileNameManagerFactory(rawWeatherModel.source.prefix, rawWeatherModel.source.postfix, rawWeatherModel.source.dateFormat, rawWeatherModel.source.updateFrequency)
         val storagePath = fileManagerService.getWeatherDataLocation(rawWeatherModel.storage.storageLocationName, rawWeatherModel.storage.subFolderName).toAbsolutePath()
-        val dataParser = dynamicDataParserFactory(dataParserFactory, storagePath, fileNameManager)
+        require(storagePath.exists()) {
+            logger.error("Assembling ${rawWeatherModel.meta.name}: Path \"${storagePath.pathString}\", defined with storage location \"${rawWeatherModel.storage.storageLocationName}\" does not exist. Check if your weather models are configured correctly.")
+            return null
+        }
+
+        val dataParser = dynamicDataParserFactory(dataParserFactory, storagePath, fileNameManager, variableMapper, unitMapper)
 
         val dataReceiver = dataReceiverFactory(
             rawWeatherModel.receiver.receiverName,
@@ -80,20 +101,6 @@ class WeatherModelPropertyMapperServiceImpl(
             logger.error("Assembling ${rawWeatherModel.meta.name}: Could not resolve data receiver \"${rawWeatherModel.receiver.receiverName}\". Check if your weather models are configured correctly.")
             return null
         }
-
-        val variableMapperFile = File(rawWeatherModel.mapping.variableMapperFile)
-        require(variableMapperFile.exists()) {
-            logger.error("Assembling ${rawWeatherModel.meta.name}: Variable mapping file \"${rawWeatherModel.mapping.variableMapperFile}\" does not exist. Check if your weather models are configured correctly.")
-            return null
-        }
-        val variableMapper = weatherVariableFileNameMapperFactory(variableMapperFile)
-
-        val unitMapperFile = File(rawWeatherModel.mapping.unitMapperFile)
-        require(unitMapperFile.exists()) {
-            logger.error("Assembling ${rawWeatherModel.meta.name}: Unit mapping file \"${rawWeatherModel.mapping.unitMapperFile}\" does not exist. Check if your weather models are configured correctly.")
-            return null
-        }
-        val unitMapper = weatherVariableUnitMapperFactory(unitMapperFile)
 
         val cacheConfig = WeatherRasterCompositeCacheConfiguration(
             rawWeatherModel.cache.variablesInMemory,
