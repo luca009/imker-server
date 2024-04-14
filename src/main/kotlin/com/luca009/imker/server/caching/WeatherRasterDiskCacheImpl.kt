@@ -26,7 +26,7 @@ class WeatherRasterDiskCacheImpl(
         return dataParser.gridTimeAnd2dPositionSliceExists(weatherVariableType, timeIndex, coordinate)
     }
 
-    override fun getVariable(weatherVariableType: WeatherVariableType): WeatherVariableSlice? {
+    override fun getVariable(weatherVariableType: WeatherVariableType): WeatherVariableTimeRasterSlice? {
         val raster = dataParser.getGridEntireSlice(weatherVariableType)
         require(raster?.isDouble() == true) {
             logger.warn("Data type of $weatherVariableType was not double. This is currently not supported. Returning null.")

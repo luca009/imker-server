@@ -3,15 +3,17 @@ package com.luca009.imker.server.parser
 import com.luca009.imker.server.parser.model.WeatherVariableRasterDimension
 import com.luca009.imker.server.parser.model.WeatherVariableRasterDimensionType
 import com.luca009.imker.server.parser.model.WeatherVariableRasterSlice
+import com.luca009.imker.server.parser.model.WeatherVariableUnit
 import ucar.nc2.Dimension
 import kotlin.reflect.KClass
 
 class NetCdfWeatherVariableRasterSlice(
+    unit: WeatherVariableUnit?,
     dataType: KClass<Any>,
     private val data: Array<*>,
     ucarDimensions: List<Dimension>,
     isLatLon: Boolean
-) : WeatherVariableRasterSlice(dataType) {
+) : WeatherVariableRasterSlice(unit, dataType) {
     override val size: Int
         get() = data.size
 

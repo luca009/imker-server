@@ -8,7 +8,7 @@ interface WeatherDataParser {
     fun getAvailableVariableTypes(): Set<WeatherVariableType>
     fun getAvailableVariables(): Set<WeatherVariable>
     fun getVariable(variableType: WeatherVariableType): WeatherVariable?
-    fun getGridEntireSlice(variable: WeatherVariableType): WeatherVariableSlice?
+    fun getGridEntireSlice(variable: WeatherVariableType): WeatherVariableTimeRasterSlice?
     fun getGridTimeSlice(variable: WeatherVariableType, timeIndex: Int = 0): WeatherVariableRasterSlice?
     fun getGridTimeAnd2dPositionSlice(variable: WeatherVariableType, timeIndex: Int = 0, coordinate: WeatherVariable2dCoordinate): Any?
     fun getGridTimeAnd3dPositionSlice(variable: WeatherVariableType, timeIndex: Int = 0, coordinate: WeatherVariable3dCoordinate): Any?

@@ -105,7 +105,7 @@ class WeatherRasterCompositeCacheImpl(
         }
     }
 
-    override fun getVariable(weatherVariableType: WeatherVariableType): WeatherVariableSlice? {
+    override fun getVariable(weatherVariableType: WeatherVariableType): WeatherVariableTimeRasterSlice? {
         if (configuration.ignoredVariables.contains(weatherVariableType)) {
             return null
         }

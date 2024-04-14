@@ -2,7 +2,7 @@
 
  import com.luca009.imker.server.parser.model.WeatherVariable2dCoordinate
  import com.luca009.imker.server.parser.model.WeatherVariableRasterSlice
- import com.luca009.imker.server.parser.model.WeatherVariableSlice
+ import com.luca009.imker.server.parser.model.WeatherVariableTimeRasterSlice
  import com.luca009.imker.server.parser.model.WeatherVariableType
 
  /**
@@ -13,7 +13,7 @@ interface WeatherRasterCache {
     fun variableExistsAtTime(weatherVariableType: WeatherVariableType, timeIndex: Int): Boolean
     fun variableExistsAtTimeAndPosition(weatherVariableType: WeatherVariableType, timeIndex: Int, coordinate: WeatherVariable2dCoordinate): Boolean
 
-    fun getVariable(weatherVariableType: WeatherVariableType): WeatherVariableSlice?
+    fun getVariable(weatherVariableType: WeatherVariableType): WeatherVariableTimeRasterSlice?
     fun getVariableAtTime(weatherVariableType: WeatherVariableType, timeIndex: Int): WeatherVariableRasterSlice?
     fun getVariableAtTimeAndPosition(weatherVariableType: WeatherVariableType, timeIndex: Int, coordinate: WeatherVariable2dCoordinate): Double?
 
@@ -24,7 +24,7 @@ interface WeatherRasterCache {
  * A cache for weather raster data in memory. Supports getting and setting weather variables.
  */
 interface WeatherRasterMemoryCache : WeatherRasterCache {
-    fun setVariable(weatherVariableType: WeatherVariableType, variableData: WeatherVariableSlice)
+    fun setVariable(weatherVariableType: WeatherVariableType, variableData: WeatherVariableTimeRasterSlice)
     fun setVariableAtTime(weatherVariableType: WeatherVariableType, variableData: WeatherVariableRasterSlice, timeIndex: Int)
 }
 

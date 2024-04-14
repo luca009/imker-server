@@ -147,7 +147,7 @@ class NetCdfParserImpl(
         return wrappedGridDataset?.grids?.find { it.name == variableName }
     }
 
-    private fun getTimeSliceFromGrid(grid: GridDatatype, timeIndex: Int): WeatherVariableRasterSlice? {
+    private fun getTimeSliceFromGrid(grid: GridDatatype, timeIndex: Int, unit: WeatherVariableUnit?): WeatherVariableRasterSlice? {
         val volumeArray = grid.readVolumeData(timeIndex)
 
         val dataType = volumeArray.dataType
@@ -160,6 +160,7 @@ class NetCdfParserImpl(
         }
 
         return NetCdfWeatherVariableRasterSlice(
+            unit,
             javaDataType,
             castArray,
             grid.dimensions,
@@ -187,12 +188,13 @@ class NetCdfParserImpl(
         return availableVariables[variableType]
     }
 
-    override fun getGridEntireSlice(variable: WeatherVariableType): WeatherVariableSlice? {
-        val weatherVariable = getGrid(variable) ?: return null
+    override fun getGridEntireSlice(variable: WeatherVariableType): WeatherVariableTimeRasterSlice? {
+        val weatherVariable = availableVariables[variable] ?: return null
+        val variableGrid = getGrid(variable) ?: return null
         val allSlices: MutableList<WeatherVariableRasterSlice> = mutableListOf()
 
-        for (x in 0 until weatherVariable.timeDimension.length) {
-            val slice = getTimeSliceFromGrid(weatherVariable, x)
+        for (x in 0 until variableGrid.timeDimension.length) {
+            val slice = getTimeSliceFromGrid(variableGrid, x, weatherVariable.unitType)
             requireNotNull(slice) {
                 return null
             }
@@ -200,36 +202,37 @@ class NetCdfParserImpl(
             allSlices.add(slice)
         }
 
-        return WeatherVariableSlice(
+        return WeatherVariableTimeRasterSlice(
             allSlices
         )
     }
 
     override fun getGridTimeSlice(variable: WeatherVariableType, timeIndex: Int): WeatherVariableRasterSlice? {
-        val weatherVariable = getGrid(variable) ?: return null
+        val weatherVariable = availableVariables[variable] ?: return null
+        val variableGrid = getGrid(variable) ?: return null
 
-        return if (isInRange(weatherVariable.timeDimension, timeIndex)) {
-            getTimeSliceFromGrid(weatherVariable, timeIndex)
+        return if (isInRange(variableGrid.timeDimension, timeIndex)) {
+            getTimeSliceFromGrid(variableGrid, timeIndex, weatherVariable.unitType)
         } else {
             null
         }
     }
 
     override fun getGridTimeAnd2dPositionSlice(variable: WeatherVariableType, timeIndex: Int, coordinate: WeatherVariable2dCoordinate): Any? {
-        val weatherVariable = getGrid(variable) ?: return null
+        val variableGrid = getGrid(variable) ?: return null
 
-        return if (isIn2dRange(weatherVariable, timeIndex, coordinate.xIndex, coordinate.yIndex)) {
-            weatherVariable.readDataSlice(timeIndex, 0, coordinate.yIndex, coordinate.xIndex).getObject(0)
+        return if (isIn2dRange(variableGrid, timeIndex, coordinate.xIndex, coordinate.yIndex)) {
+            variableGrid.readDataSlice(timeIndex, 0, coordinate.yIndex, coordinate.xIndex).getObject(0)
         } else {
             null
         }
     }
 
     override fun getGridTimeAnd3dPositionSlice(variable: WeatherVariableType, timeIndex: Int, coordinate: WeatherVariable3dCoordinate): Any? {
-        val weatherVariable = getGrid(variable) ?: return null
+        val variableGrid = getGrid(variable) ?: return null
 
-        return if (isIn3dRange(weatherVariable, timeIndex, coordinate.xIndex, coordinate.yIndex, coordinate.zIndex)) {
-            weatherVariable.readDataSlice(timeIndex, coordinate.zIndex, coordinate.yIndex, coordinate.xIndex).getObject(0)
+        return if (isIn3dRange(variableGrid, timeIndex, coordinate.xIndex, coordinate.yIndex, coordinate.zIndex)) {
+            variableGrid.readDataSlice(timeIndex, coordinate.zIndex, coordinate.yIndex, coordinate.xIndex).getObject(0)
         } else {
             null
         }
@@ -245,8 +248,8 @@ class NetCdfParserImpl(
     }
 
     override fun gridTimeSliceExists(variable: WeatherVariableType, timeIndex: Int): Boolean {
-        val weatherVariable = getGrid(variable) ?: return false
-        return isInRange(weatherVariable.timeDimension, timeIndex)
+        val variableGrid = getGrid(variable) ?: return false
+        return isInRange(variableGrid.timeDimension, timeIndex)
     }
 
     override fun gridTimeAnd2dPositionSliceExists(
@@ -254,8 +257,8 @@ class NetCdfParserImpl(
         timeIndex: Int,
         coordinate: WeatherVariable2dCoordinate
     ): Boolean {
-        val weatherVariable = getGrid(variable) ?: return false
-        return isIn2dRange(weatherVariable, timeIndex, coordinate.xIndex, coordinate.yIndex)
+        val variableGrid = getGrid(variable) ?: return false
+        return isIn2dRange(variableGrid, timeIndex, coordinate.xIndex, coordinate.yIndex)
     }
 
     override fun gridTimeAnd3dPositionSliceExists(
@@ -263,8 +266,8 @@ class NetCdfParserImpl(
         timeIndex: Int,
         coordinate: WeatherVariable3dCoordinate
     ): Boolean {
-        val weatherVariable = getGrid(variable) ?: return false
-        return isIn3dRange(weatherVariable, timeIndex, coordinate.xIndex, coordinate.yIndex, coordinate.zIndex)
+        val variableGrid = getGrid(variable) ?: return false
+        return isIn3dRange(variableGrid, timeIndex, coordinate.xIndex, coordinate.yIndex, coordinate.zIndex)
     }
 
     override fun containsTime(variable: WeatherVariableType, time: ZonedDateTime): Boolean {

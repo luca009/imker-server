@@ -7,9 +7,9 @@ import java.util.EnumMap
 class WeatherRasterMemoryCacheImpl : WeatherRasterMemoryCache {
     // This is just a basic map of all weather variables that are loaded into memory, storing their data as well
     // The other functions in this class aren't really important, since they essentially just wrap this map
-    private val store: EnumMap<WeatherVariableType, WeatherVariableSlice> = EnumMap(WeatherVariableType::class.java)
+    private val store: EnumMap<WeatherVariableType, WeatherVariableTimeRasterSlice> = EnumMap(WeatherVariableType::class.java)
 
-    override fun setVariable(weatherVariableType: WeatherVariableType, variableData: WeatherVariableSlice) {
+    override fun setVariable(weatherVariableType: WeatherVariableType, variableData: WeatherVariableTimeRasterSlice) {
         store[weatherVariableType] = variableData
     }
 
@@ -44,7 +44,7 @@ class WeatherRasterMemoryCacheImpl : WeatherRasterMemoryCache {
         return coordinate.isInRange(xMax, yMax)
     }
 
-    override fun getVariable(weatherVariableType: WeatherVariableType): WeatherVariableSlice? {
+    override fun getVariable(weatherVariableType: WeatherVariableType): WeatherVariableTimeRasterSlice? {
         return store[weatherVariableType]
     }
 
