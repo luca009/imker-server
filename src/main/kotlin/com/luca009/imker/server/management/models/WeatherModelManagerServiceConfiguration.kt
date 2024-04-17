@@ -27,45 +27,6 @@ class WeatherModelManagerServiceConfiguration(
             logger.error("No weather models were assembled/defined. Every request will be considered a bad request. Please check your configuration.")
         }
 
-//        val weatherModels: SortedMap<Int, WeatherModel> = sortedMapOf(
-//            0 to WeatherModel(
-//                "INCA",
-//                "INCA",
-//                "GeoSphere Austria under CC BY-SA 4.0",
-//
-//                incaReceiver,
-//                dynamicParserFactory(netCdfParserFactory, fileManagerService.getWeatherDataLocation("default", "inca").toAbsolutePath().toString(), incaFileNameManagerService), // TODO: replace this with the actual files we have downloaded
-//                weatherVariableFileNameMapperFactory(File("src/test/resources/inca/inca_map.csv")),
-//                weatherVariableUnitMapperFactory(File("src/test/resources/unit_map.csv")),
-//
-//                WeatherRasterCompositeCacheConfiguration(
-//                    setOf(
-//                        // variables in memory
-//                        WeatherVariableType.Temperature2m
-//                    ),
-//                    setOf() // ignored variables
-//                )
-//            ),
-//            1 to WeatherModel(
-//                "AROME",
-//                "AROME",
-//                "GeoSphere Austria under CC BY-SA 4.0",
-//
-//                aromeReceiver,
-//                dynamicParserFactory(netCdfParserFactory, fileManagerService.getWeatherDataLocation("default", "arome").toAbsolutePath().toString(), aromeFileNameManager), // TODO: replace this with the actual files we have downloaded
-//                weatherVariableFileNameMapperFactory(File("src/test/resources/arome/arome_map.csv")),
-//                weatherVariableUnitMapperFactory(File("src/test/resources/unit_map.csv")),
-//
-//                WeatherRasterCompositeCacheConfiguration(
-//                    setOf(
-//                        // variables in memory
-//                        WeatherVariableType.Temperature2m
-//                    ),
-//                    setOf() // ignored variables
-//                )
-//            )
-//        )
-
         return WeatherModelManagerServiceImpl(
             weatherModels,
             weatherRasterCompositeCacheFactory,
