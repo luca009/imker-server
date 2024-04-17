@@ -1,5 +1,6 @@
 package com.luca009.imker.server.parser.model
 
+import java.time.ZonedDateTime
 import kotlin.reflect.KClass
 
 interface WeatherVariableSlice {
@@ -13,27 +14,26 @@ interface WeatherVariableSlice {
  * A slice of a weather variable, containing multiple [variableSlices] at different time points.
  */
 class WeatherVariableTimeRasterSlice(
-    slices: List<WeatherVariableRasterSlice>,
-
+    slices: Map<ZonedDateTime, WeatherVariableRasterSlice>
 ) : WeatherVariableSlice {
-    private val slices = slices.toMutableList()
+    private val slices = slices.toSortedMap()
 
-    val variableSlices: List<WeatherVariableRasterSlice>
+    val variableSlices: Map<ZonedDateTime, WeatherVariableRasterSlice>
         get() = slices
 
     override val dataType: KClass<Any>?
     override val unit: WeatherVariableUnit?
 
     init {
-        val firstDataType = slices.firstOrNull()?.dataType
-        dataType = if (slices.all { it.dataType == firstDataType }) {
+        val firstDataType = slices.values.firstOrNull()?.dataType
+        dataType = if (slices.all { it.value.dataType == firstDataType }) {
             firstDataType
         } else {
             null
         }
 
-        val firstUnit = slices.firstOrNull()?.unit
-        unit = if (slices.all { it.unit == firstUnit }) {
+        val firstUnit = slices.values.firstOrNull()?.unit
+        unit = if (slices.all { it.value.unit == firstUnit }) {
             firstUnit
         } else {
             null
@@ -42,21 +42,59 @@ class WeatherVariableTimeRasterSlice(
 
     override fun isDouble(): Boolean = dataType == Double::class
 
-    fun setSlice(timeIndex: Int, variableData: WeatherVariableRasterSlice) {
-        if (timeIndex > slices.count())
-            return
+    fun subMap(startIndex: Int, limit: Int): Map<ZonedDateTime, WeatherVariableRasterSlice>? {
+        val firstKey = slices.keys.elementAtOrNull(startIndex) ?: return null
 
-        slices[timeIndex] = variableData
+        return if (startIndex + limit in slices.keys.indices) {
+            // startIndex and limit are within the entire range of the map, so only slice out a specific section
+            val lastKey = slices.keys.elementAtOrNull(startIndex + limit + 1) ?: return null
+            slices.subMap(firstKey, lastKey)
+        } else {
+            // startIndex + limit is outside the range of the map, so disregard the limit and instead use tailMap()
+            slices.tailMap(firstKey)
+        }
+
+    }
+
+    fun subMapAt2dPosition(startIndex: Int, limit: Int, coordinate: WeatherVariable2dCoordinate): Map<ZonedDateTime, Any?>? {
+        val fullSubMap = subMap(startIndex, limit)
+
+        return fullSubMap?.mapValues {
+            it.value.getOrNull(coordinate.xIndex, coordinate.yIndex)
+        }
+    }
+
+    fun subMapAt3dPosition(startIndex: Int, limit: Int, coordinate: WeatherVariable3dCoordinate): Map<ZonedDateTime, Any?>? {
+        val fullSubMap = subMap(startIndex, limit)
+
+        return fullSubMap?.mapValues {
+            it.value.getOrNull(coordinate.xIndex, coordinate.yIndex, coordinate.zIndex)
+        }
+    }
+
+    fun setSlice(time: ZonedDateTime, variableData: WeatherVariableRasterSlice) {
+        slices[time] = variableData
     }
 }
 
 class WeatherVariableTimeSlice(
-    private val values: List<Any>,
+    private val internalValues: Map<ZonedDateTime, Any?>,
     override val dataType: KClass<Any>?,
     override val unit: WeatherVariableUnit?
-) : WeatherVariableSlice {
-    fun get(timeIndex: Int) = values[timeIndex]
-    fun getOrNull(timeIndex: Int) = values.getOrNull(timeIndex)
+) : WeatherVariableSlice, Map<ZonedDateTime, Any?> {
+    override val entries: Set<Map.Entry<ZonedDateTime, Any?>>
+        get() = internalValues.entries
+    override val keys: Set<ZonedDateTime>
+        get() = internalValues.keys
+    override val size: Int
+        get() = internalValues.size
+    override val values: Collection<Any?>
+        get() = internalValues.values
+
+    override fun isEmpty() = internalValues.isEmpty()
+    override fun get(key: ZonedDateTime) = internalValues[key]
+    override fun containsValue(value: Any?) = internalValues.containsValue(value)
+    override fun containsKey(key: ZonedDateTime) = internalValues.containsKey(key)
 
     override fun isDouble(): Boolean = dataType == Double::class
 }

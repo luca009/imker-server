@@ -67,33 +67,62 @@ class DynamicDataParserImpl(
     override fun getAvailableVariables() = weatherDataParser?.getAvailableVariables() ?: setOf()
     override fun getVariable(variableType: WeatherVariableType) = weatherDataParser?.getVariable(variableType)
     override fun getGridEntireSlice(variable: WeatherVariableType) = weatherDataParser?.getGridEntireSlice(variable)
-    override fun getGridTimeSlice(variable: WeatherVariableType, timeIndex: Int) = weatherDataParser?.getGridTimeSlice(variable, timeIndex)
+    override fun getGridRasterSlice(variable: WeatherVariableType, time: ZonedDateTime) = weatherDataParser?.getGridRasterSlice(variable, time)
+
+    override fun getGridTimeSeriesAt2dPosition(
+        variable: WeatherVariableType,
+        coordinate: WeatherVariable2dCoordinate,
+        timeLimit: Int
+    ) = weatherDataParser?.getGridTimeSeriesAt2dPosition(variable, coordinate, timeLimit)
+
+    override fun getGridTimeSeriesAt3dPosition(
+        variable: WeatherVariableType,
+        coordinate: WeatherVariable3dCoordinate,
+        timeLimit: Int
+    ) = weatherDataParser?.getGridTimeSeriesAt3dPosition(variable, coordinate, timeLimit)
+
     override fun getGridTimeAnd2dPositionSlice(
         variable: WeatherVariableType,
-        timeIndex: Int,
+        time: ZonedDateTime,
         coordinate: WeatherVariable2dCoordinate
-    ) = weatherDataParser?.getGridTimeAnd2dPositionSlice(variable, timeIndex, coordinate)
+    ) = weatherDataParser?.getGridTimeAnd2dPositionSlice(
+        variable,
+        time,
+        coordinate
+    )
+
     override fun getGridTimeAnd3dPositionSlice(
         variable: WeatherVariableType,
-        timeIndex: Int,
+        time: ZonedDateTime,
         coordinate: WeatherVariable3dCoordinate
-    ) = weatherDataParser?.getGridTimeAnd3dPositionSlice(variable, timeIndex, coordinate)
+    ) = weatherDataParser?.getGridTimeAnd3dPositionSlice(
+        variable,
+        time,
+        coordinate
+    )
 
-    override fun getTimes(variable: WeatherVariableType) = weatherDataParser?.getTimes(variable)
+    override fun getTimes(variable: WeatherVariableType): List<ZonedDateTime>? = weatherDataParser?.getTimes(variable)
+    override fun gridTimeSliceExists(variable: WeatherVariableType, time: ZonedDateTime) = weatherDataParser?.gridTimeSliceExists(variable, time) ?: false
 
-    override fun gridTimeSliceExists(variable: WeatherVariableType, timeIndex: Int) = weatherDataParser?.gridTimeSliceExists(variable, timeIndex) ?: false
     override fun gridTimeAnd2dPositionSliceExists(
         variable: WeatherVariableType,
-        timeIndex: Int,
+        time: ZonedDateTime,
         coordinate: WeatherVariable2dCoordinate
-    ) = weatherDataParser?.gridTimeAnd2dPositionSliceExists(variable, timeIndex, coordinate) ?: false
+    ) = weatherDataParser?.gridTimeAnd2dPositionSliceExists(
+        variable,
+        time,
+        coordinate
+    ) ?: false
+
     override fun gridTimeAnd3dPositionSliceExists(
         variable: WeatherVariableType,
-        timeIndex: Int,
+        time: ZonedDateTime,
         coordinate: WeatherVariable3dCoordinate
-    ) = weatherDataParser?.gridTimeAnd3dPositionSliceExists(variable, timeIndex, coordinate) ?: false
-
-    override fun containsTime(variable: WeatherVariableType, time: ZonedDateTime) = weatherDataParser?.containsTime(variable, time) ?: false
+    ) = weatherDataParser?.gridTimeAnd3dPositionSliceExists(
+        variable,
+        time,
+        coordinate
+    ) ?: false
 
     override fun containsLatLon(variable: WeatherVariableType, latitude: Double, longitude: Double) = weatherDataParser?.containsLatLon(variable, latitude, longitude) ?: false
     override fun latLonToCoordinates(variable: WeatherVariableType, latitude: Double, longitude: Double) = weatherDataParser?.latLonToCoordinates(variable, latitude, longitude)

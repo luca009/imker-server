@@ -112,13 +112,13 @@ class WeatherModelManagerServiceImpl(
                     return@filter false
                 }
 
-                val timeIndex = cache.getTimeIndex(variable, time, WeatherRasterTimeSnappingType.Earliest)
-                requireNotNull(timeIndex) {
+                val snappedTime = cache.getSnappedTime(variable, time, WeatherRasterTimeSnappingType.Earliest)
+                requireNotNull(snappedTime) {
                     // Time index could not be determined
                     return@filter false
                 }
 
-                cache.variableExistsAtTimeAndPosition(variable, timeIndex, coordinates)
+                cache.variableExistsAtTimeAndPosition(variable, snappedTime, coordinates)
             }
             .toSortedMap()
     }

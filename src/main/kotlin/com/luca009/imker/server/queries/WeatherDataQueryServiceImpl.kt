@@ -5,9 +5,9 @@ import com.luca009.imker.server.configuration.model.WeatherModel
 import com.luca009.imker.server.configuration.properties.QueryProperties
 import com.luca009.imker.server.controllers.model.WeatherForecastResponse
 import com.luca009.imker.server.controllers.model.WeatherVariableForecastResponse
-import com.luca009.imker.server.controllers.model.WeatherVariableForecastResponseHelper
 import com.luca009.imker.server.controllers.model.WeatherVariableForecastValueResponse
 import com.luca009.imker.server.management.models.model.WeatherModelManagerService
+import com.luca009.imker.server.parser.model.WeatherVariableTimeSlice
 import com.luca009.imker.server.parser.model.WeatherVariableType
 import com.luca009.imker.server.queries.model.PreferredWeatherModelMode
 import com.luca009.imker.server.queries.model.WeatherDataQueryService
@@ -52,8 +52,8 @@ class WeatherDataQueryServiceImpl(
             throw ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to convert $lat $lon (lat, lon) into valid coordinates for weather model ${weatherModel.name}")
         }
 
-        val timeIndex = weatherModelCache.getTimeIndex(weatherVariable, time, timeSnapping)
-        requireNotNull(timeIndex) {
+        val snappedTime = weatherModelCache.getSnappedTime(weatherVariable, time, timeSnapping)
+        requireNotNull(snappedTime) {
             throw ResponseStatusException(HttpStatus.BAD_REQUEST, "$time is not in the range of the weather model ${weatherModel.name}")
         }
 
@@ -62,7 +62,7 @@ class WeatherDataQueryServiceImpl(
         return WeatherVariableProperties(
             weatherModelCache,
             coordinates,
-            timeIndex,
+            snappedTime,
             units
         )
     }
@@ -75,13 +75,13 @@ class WeatherDataQueryServiceImpl(
             forecasts
         }
     }
-    
+
     private fun getSafeLimit(limit: Int?): Int {
         val realLimit = (limit ?: queryProperties.maxResultLimit.toInt())
         if (realLimit < 1) {
             throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Query limit was outside of the accepted range (1 to 32-bit signed integer limit)")
         }
-        
+
         return realLimit
     }
 
@@ -190,7 +190,7 @@ class WeatherDataQueryServiceImpl(
             throw ResponseStatusException(HttpStatus.BAD_REQUEST, "No weather model available at $lat $lon (lat, lon)")
         }
 
-        return getVariableForecast(weatherVariable, lat, lon, time, limit, preferredWeatherModel)
+        return getVariableForecast(weatherVariable, lat, lon, time, timeSnapping, limit, preferredWeatherModel)
     }
 
     private fun getFixedPreferredWeatherModelVariableForecastOrNull(
@@ -216,10 +216,10 @@ class WeatherDataQueryServiceImpl(
         limit: Int?
     ): WeatherVariableForecastResponse {
         val safeLimit = getSafeLimit(limit)
-        
+
         val usedUnits: HashSet<String> = hashSetOf()
         val weatherVariableForecasts: MutableList<WeatherVariableForecastValueResponse> = mutableListOf()
-        
+
         var lastTime = time
         do {
             // Get the fixed preferred weather model forecast
@@ -275,11 +275,11 @@ class WeatherDataQueryServiceImpl(
         limit: Int?
     ): WeatherVariableForecastResponse {
         val safeLimit = getSafeLimit(limit)
-        
+
         val weatherVariableForecasts: MutableList<WeatherVariableForecastValueResponse> = mutableListOf()
         val usedUnits: HashSet<String> = hashSetOf()
         val availableModels = weatherModelManagerService.getAvailableWeatherModelsForLatLon(weatherVariable, lat, lon).values.filterNotNull()
-        
+
         for (model in availableModels) {
             val forecast = getVariableForecast(weatherVariable, lat, lon, time, limit, model)
             weatherVariableForecasts.addAll(forecast.values)
@@ -318,6 +318,24 @@ class WeatherDataQueryServiceImpl(
         weatherModel
     )
 
+    private fun WeatherVariableTimeSlice.toWeatherVariableForecastResponse(variableName: String, variableUnits: String, weatherModelName: String): WeatherVariableForecastResponse? {
+        if (!this.isDouble()) {
+            return null
+        }
+
+        return WeatherVariableForecastResponse(
+            variableName,
+            variableUnits,
+            this.mapNotNull {
+                WeatherVariableForecastValueResponse(
+                    weatherModelName,
+                    it.key.toEpochSecond(),
+                    it.value as Double // theoretically allowed unsafe cast, since we're checking for isDouble() at the top
+                )
+            }
+        )
+    }
+
     private fun getVariableForecast(
         weatherVariable: WeatherVariableType,
         lat: Double,
@@ -328,19 +346,17 @@ class WeatherDataQueryServiceImpl(
         weatherModel: WeatherModel
     ): WeatherVariableForecastResponse {
         val properties = getWeatherVariableProperties(weatherModel, weatherVariable, lat, lon, time, timeSnapping, true)
-
         val safeLimit = getSafeLimit(limit)
+        val values = properties.weatherModelCache.getVariableAtPosition(weatherVariable, properties.coordinates, safeLimit)
 
-        val variableValues: MutableMap<ZonedDateTime, Double> = mutableMapOf()
-        for (i in 0 until safeLimit) {
-            val value = properties.weatherModelCache.getVariableAtTimeAndPosition(weatherVariable, properties.timeIndex + i, properties.coordinates)
-                ?: continue
-            val date = properties.weatherModelCache.getTime(weatherVariable, properties.timeIndex + i) ?: continue
+        val response = values?.toWeatherVariableForecastResponse(weatherVariable.name, properties.units.toString(), weatherModel.name)
 
-            variableValues[date] = value
+        return requireNotNull(response) {
+            throw ResponseStatusException(
+                HttpStatus.NOT_IMPLEMENTED,
+                "Response from model ${weatherModel.name} would have been in a different data type than Double: ${values?.dataType?.simpleName}"
+            )
         }
-
-        return WeatherVariableForecastResponseHelper.doubleMapToWeatherVariableForecastResponse(variableValues, weatherVariable.name, properties.units.toString(), weatherModel.name)
     }
 
     override fun getForecastAtTimePoint(
@@ -382,8 +398,8 @@ class WeatherDataQueryServiceImpl(
             weatherVariables.mapNotNull {
                 val properties = getWeatherVariableProperties(it.value, it.key, lat, lon, time, WeatherRasterTimeSnappingType.Earliest,true)
 
-                val value = properties.weatherModelCache.getVariableAtTimeAndPosition(it.key, properties.timeIndex, properties.coordinates) ?: return@mapNotNull null
-                val epochTime = properties.weatherModelCache.getTime(it.key, properties.timeIndex)?.toEpochSecond() ?: return@mapNotNull null
+                val value = properties.weatherModelCache.getVariableAtTimeAndPosition(it.key, properties.snappedTime, properties.coordinates) ?: return@mapNotNull null
+                val epochTime = properties.snappedTime.toEpochSecond()
 
                 WeatherVariableForecastResponse(
                     it.key.name,
@@ -428,17 +444,8 @@ class WeatherDataQueryServiceImpl(
     ): WeatherVariableForecastResponse {
         val properties = getWeatherVariableProperties(weatherModel, weatherVariable, lat, lon, time, WeatherRasterTimeSnappingType.Earliest, true)
 
-        val value = properties.weatherModelCache.getVariableAtTimeAndPosition(weatherVariable, properties.timeIndex, properties.coordinates)
+        val value = properties.weatherModelCache.getVariableAtTimeAndPosition(weatherVariable, properties.snappedTime, properties.coordinates)
         requireNotNull(value) {
-            return WeatherVariableForecastResponse(
-                weatherVariable.name,
-                properties.units.toString(),
-                listOf()
-            )
-        }
-
-        val actualTime = properties.weatherModelCache.getTime(weatherVariable, properties.timeIndex)?.toEpochSecond()
-        requireNotNull(actualTime) {
             return WeatherVariableForecastResponse(
                 weatherVariable.name,
                 properties.units.toString(),
@@ -452,7 +459,7 @@ class WeatherDataQueryServiceImpl(
             listOf(
                 WeatherVariableForecastValueResponse(
                     weatherModel.name,
-                    actualTime,
+                    properties.snappedTime.toEpochSecond(),
                     value
                 )
             )
@@ -460,3 +467,4 @@ class WeatherDataQueryServiceImpl(
     }
 
 }
+

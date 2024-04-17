@@ -10,8 +10,7 @@ class WeatherRasterCompositeCacheImpl(
     val configuration: WeatherRasterCompositeCacheConfiguration,
     private val dataParser: WeatherDataParser,
     private val memoryCache: WeatherRasterMemoryCache,
-    private val diskCache: WeatherRasterDiskCache,
-    private val timeCache: WeatherTimeCache
+    private val diskCache: WeatherRasterDiskCache
 ) : WeatherRasterCompositeCache {
     private val logger: Logger = LoggerFactory.getLogger(this::class.java)
 
@@ -30,70 +29,6 @@ class WeatherRasterCompositeCacheImpl(
             .forEach {
                 updateCache(it)
             }
-
-        weatherVariables.forEach {
-            val times = dataParser.getTimes(it)
-            if (times != null) {
-                timeCache.setTimes(it, times)
-            }
-        }
-    }
-
-    override fun getTimeIndex(
-        weatherVariable: WeatherVariableType,
-        time: ZonedDateTime,
-        timeSnappingType: WeatherRasterTimeSnappingType
-    ) = when (timeSnappingType) {
-        WeatherRasterTimeSnappingType.Earliest -> timeCache.getEarliestIndex(weatherVariable, time)
-        WeatherRasterTimeSnappingType.Closest -> timeCache.getClosestIndex(weatherVariable, time)
-        WeatherRasterTimeSnappingType.Latest -> timeCache.getLatestIndex(weatherVariable, time)
-    }
-
-    override fun getSnappedTime(
-        weatherVariable: WeatherVariableType,
-        time: ZonedDateTime,
-        timeSnappingType: WeatherRasterTimeSnappingType
-    ) = when (timeSnappingType) {
-        WeatherRasterTimeSnappingType.Earliest -> timeCache.getEarliestTime(weatherVariable, time)
-        WeatherRasterTimeSnappingType.Closest -> timeCache.getClosestTime(weatherVariable, time)
-        WeatherRasterTimeSnappingType.Latest -> timeCache.getLatestTime(weatherVariable, time)
-    }
-
-    override fun getTime(weatherVariable: WeatherVariableType, index: Int): ZonedDateTime? = timeCache.getTime(weatherVariable, index)
-    override fun containsTime(weatherVariable: WeatherVariableType, time: ZonedDateTime): Boolean = timeCache.containsTime(weatherVariable, time)
-    override fun containsTimeIndex(weatherVariable: WeatherVariableType, index: Int): Boolean = timeCache.containsTimeIndex(weatherVariable, index)
-
-    override fun getUnits(weatherVariable: WeatherVariableType): WeatherVariableUnit? = dataParser.getVariable(weatherVariable)?.unitType
-
-    override fun variableExists(weatherVariableType: WeatherVariableType): Boolean {
-        if (configuration.ignoredVariables.contains(weatherVariableType)) {
-            return false
-        }
-
-        return memoryCache.variableExists(weatherVariableType) ||
-                diskCache.variableExists(weatherVariableType)
-    }
-
-    override fun variableExistsAtTime(weatherVariableType: WeatherVariableType, timeIndex: Int): Boolean {
-        if (configuration.ignoredVariables.contains(weatherVariableType)) {
-            return false
-        }
-
-        return memoryCache.variableExistsAtTime(weatherVariableType, timeIndex) ||
-                diskCache.variableExistsAtTime(weatherVariableType, timeIndex)
-    }
-
-    override fun variableExistsAtTimeAndPosition(
-        weatherVariableType: WeatherVariableType,
-        timeIndex: Int,
-        coordinate: WeatherVariable2dCoordinate
-    ): Boolean {
-        if (configuration.ignoredVariables.contains(weatherVariableType)) {
-            return false
-        }
-
-        return memoryCache.variableExistsAtTimeAndPosition(weatherVariableType, timeIndex, coordinate) ||
-                diskCache.variableExistsAtTimeAndPosition(weatherVariableType, timeIndex, coordinate)
     }
 
     private fun assertVariableExistsInMemoryCache(variableType: WeatherVariableType): Boolean {
@@ -105,47 +40,91 @@ class WeatherRasterCompositeCacheImpl(
         }
     }
 
-    override fun getVariable(weatherVariableType: WeatherVariableType): WeatherVariableTimeRasterSlice? {
+    private inline fun <T> autoCallFunction(weatherVariableType: WeatherVariableType, callback: (WeatherRasterCache) -> T?): T? {
         if (configuration.ignoredVariables.contains(weatherVariableType)) {
             return null
         }
 
         if (configuration.variablesInMemory.contains(weatherVariableType) &&
             assertVariableExistsInMemoryCache(weatherVariableType)) {
-            return memoryCache.getVariable(weatherVariableType)
+            return callback(memoryCache)
         }
 
-        return diskCache.getVariable(weatherVariableType)
+        return callback(diskCache)
     }
 
-    override fun getVariableAtTime(weatherVariableType: WeatherVariableType, timeIndex: Int): WeatherVariableRasterSlice? {
-        if (configuration.ignoredVariables.contains(weatherVariableType)) {
-            return null
+    // The functions below aren't really interesting - they merely map all the required functions to the autoCallFunction above
+    override fun getSnappedTime(
+        weatherVariable: WeatherVariableType,
+        time: ZonedDateTime,
+        timeSnappingType: WeatherRasterTimeSnappingType
+    ) = autoCallFunction(weatherVariable) {
+        it.getSnappedTime(weatherVariable, time, timeSnappingType)
+    }
+
+    override fun getUnits(weatherVariable: WeatherVariableType): WeatherVariableUnit? = dataParser.getVariable(weatherVariable)?.unitType
+
+    override fun variableExists(weatherVariableType: WeatherVariableType) =
+        autoCallFunction(weatherVariableType) {
+            it.variableExists(weatherVariableType)
+        } ?: false
+
+    override fun variableExistsAtTime(weatherVariableType: WeatherVariableType, time: ZonedDateTime) =
+        autoCallFunction(weatherVariableType) {
+            it.variableExistsAtTime(weatherVariableType, time)
+        } ?: false
+
+    override fun variableExistsAtTimeAndPosition(
+        weatherVariableType: WeatherVariableType,
+        time: ZonedDateTime,
+        coordinate: WeatherVariable2dCoordinate
+    ) = autoCallFunction(weatherVariableType) {
+        it.variableExistsAtTimeAndPosition(weatherVariableType, time, coordinate)
+    } ?: false
+
+    override fun getVariable(weatherVariableType: WeatherVariableType) =
+        autoCallFunction(weatherVariableType) {
+            it.getVariable(weatherVariableType)
         }
 
-        if (configuration.variablesInMemory.contains(weatherVariableType) &&
-            assertVariableExistsInMemoryCache(weatherVariableType)) {
-            return memoryCache.getVariableAtTime(weatherVariableType, timeIndex)
-        }
+    override fun getVariableAtTime(
+        weatherVariableType: WeatherVariableType,
+        time: ZonedDateTime
+    ) = autoCallFunction(weatherVariableType) {
+        it.getVariableAtTime(weatherVariableType, time)
+    }
 
-        return diskCache.getVariableAtTime(weatherVariableType, timeIndex)
+    override fun getVariableAtPosition(
+        weatherVariableType: WeatherVariableType,
+        coordinate: WeatherVariable2dCoordinate,
+        timeLimit: Int
+    ) = autoCallFunction(weatherVariableType) {
+        it.getVariableAtPosition(weatherVariableType, coordinate, timeLimit)
     }
 
     override fun getVariableAtTimeAndPosition(
         weatherVariableType: WeatherVariableType,
-        timeIndex: Int,
+        time: ZonedDateTime,
         coordinate: WeatherVariable2dCoordinate
-    ): Double? {
-        if (configuration.ignoredVariables.contains(weatherVariableType)) {
-            return null
+    ) = autoCallFunction(weatherVariableType) {
+        it.getVariableAtTimeAndPosition(weatherVariableType, time, coordinate)
+    }
+
+    override fun getTimes(weatherVariable: WeatherVariableType) =
+        autoCallFunction(weatherVariable) {
+            it.getTimes(weatherVariable)
         }
 
-        if (configuration.variablesInMemory.contains(weatherVariableType) &&
-            assertVariableExistsInMemoryCache(weatherVariableType)) {
-            return memoryCache.getVariableAtTimeAndPosition(weatherVariableType, timeIndex, coordinate)
-        }
-        return diskCache.getVariableAtTimeAndPosition(weatherVariableType, timeIndex, coordinate)
-    }
+    override fun containsTime(weatherVariable: WeatherVariableType, time: ZonedDateTime) =
+        autoCallFunction(weatherVariable) {
+            it.containsTime(weatherVariable, time)
+        } ?: false
+
+    override fun containsExactTime(weatherVariable: WeatherVariableType, time: ZonedDateTime) =
+        autoCallFunction(weatherVariable) {
+            it.containsExactTime(weatherVariable, time)
+        } ?: false
+
 
     override fun latLonToCoordinates(
         weatherVariableType: WeatherVariableType,
