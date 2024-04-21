@@ -56,20 +56,28 @@ class WeatherVariableTimeRasterSlice(
 
     }
 
-    fun subMapAt2dPosition(startIndex: Int, limit: Int, coordinate: WeatherVariable2dCoordinate): Map<ZonedDateTime, Any?>? {
-        val fullSubMap = subMap(startIndex, limit)
+    fun subSliceAt2dPosition(startIndex: Int, limit: Int, coordinate: WeatherVariable2dCoordinate): WeatherVariableTimeSlice? {
+        val fullSubMap = subMap(startIndex, limit) ?: return null
 
-        return fullSubMap?.mapValues {
-            it.value.getOrNull(coordinate.xIndex, coordinate.yIndex)
-        }
+        return WeatherVariableTimeSlice(
+            fullSubMap.mapValues {
+                it.value.getOrNull(coordinate.xIndex, coordinate.yIndex)
+            },
+            dataType,
+            unit
+        )
     }
 
-    fun subMapAt3dPosition(startIndex: Int, limit: Int, coordinate: WeatherVariable3dCoordinate): Map<ZonedDateTime, Any?>? {
-        val fullSubMap = subMap(startIndex, limit)
+    fun subSliceAt3dPosition(startIndex: Int, limit: Int, coordinate: WeatherVariable3dCoordinate): WeatherVariableTimeSlice? {
+        val fullSubMap = subMap(startIndex, limit) ?: return null
 
-        return fullSubMap?.mapValues {
-            it.value.getOrNull(coordinate.xIndex, coordinate.yIndex, coordinate.zIndex)
-        }
+        return WeatherVariableTimeSlice(
+            fullSubMap.mapValues {
+                it.value.getOrNull(coordinate.xIndex, coordinate.yIndex)
+            },
+            dataType,
+            unit
+        )
     }
 
     fun setSlice(time: ZonedDateTime, variableData: WeatherVariableRasterSlice) {

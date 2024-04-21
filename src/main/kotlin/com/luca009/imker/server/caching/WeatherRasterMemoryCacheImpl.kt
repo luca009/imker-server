@@ -61,7 +61,6 @@ class WeatherRasterMemoryCacheImpl : WeatherRasterMemoryCache {
         return store[weatherVariableType]?.variableSlices?.get(time)
     }
 
-    @Suppress("UNCHECKED_CAST")
     override fun getVariableAtPosition(
         weatherVariableType: WeatherVariableType,
         coordinate: WeatherVariable2dCoordinate,
@@ -70,14 +69,7 @@ class WeatherRasterMemoryCacheImpl : WeatherRasterMemoryCache {
         val variableSlice = store[weatherVariableType]
         requireNotNull(variableSlice) { return null }
 
-        val subMap = variableSlice.subMapAt2dPosition(0, timeLimit, coordinate)
-        requireNotNull(subMap) { return null }
-
-        return WeatherVariableTimeSlice(
-            subMap,
-            Double::class as KClass<Any>,
-            variableSlice.unit
-        )
+        return variableSlice.subSliceAt2dPosition(0, timeLimit, coordinate)
     }
 
     override fun getVariableAtTimeAndPosition(
