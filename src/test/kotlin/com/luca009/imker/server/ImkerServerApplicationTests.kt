@@ -20,6 +20,9 @@ import com.luca009.imker.server.management.models.model.WeatherModelManagerServi
 import com.luca009.imker.server.parser.DynamicDataParserImpl
 import com.luca009.imker.server.parser.NetCdfParserImpl
 import com.luca009.imker.server.parser.model.*
+import com.luca009.imker.server.queries.TimeQueryHelper.getClosest
+import com.luca009.imker.server.queries.TimeQueryHelper.getEarliest
+import com.luca009.imker.server.queries.TimeQueryHelper.getLatest
 import com.luca009.imker.server.queries.WeatherDataQueryServiceImpl
 import com.luca009.imker.server.queries.model.PreferredWeatherModelMode
 import com.luca009.imker.server.queries.model.WeatherDataQueryService
@@ -74,10 +77,10 @@ final class ImkerServerApplicationTests {
             WeatherVariableType.Temperature2m to "TT"
         )
 
-        val testDates: Set<Pair<Int, ZonedDateTime>> = setOf(
-            Pair(1, ZonedDateTime.of(2023, 12, 20, 12, 20, 0, 0, ZoneOffset.UTC)),
-            Pair(2, ZonedDateTime.of(2023, 12, 20, 14, 0, 0, 0, ZoneOffset.UTC)),
-            Pair(3, ZonedDateTime.of(2023, 12, 21, 12, 0, 0, 0, ZoneOffset.UTC))
+        val testDates: List<ZonedDateTime> = listOf(
+            ZonedDateTime.of(2023, 12, 20, 12, 20, 0, 0, ZoneOffset.UTC),
+            ZonedDateTime.of(2023, 12, 20, 14, 0, 0, 0, ZoneOffset.UTC),
+            ZonedDateTime.of(2023, 12, 21, 12, 0, 0, 0, ZoneOffset.UTC)
         )
         val mockIncaFiles = arrayOf(
             MockFTPFile(true, "nowcast_202309091330.nc"),
@@ -634,13 +637,30 @@ final class ImkerServerApplicationTests {
         // TODO: update this once more weather models are introduced
         Assert.isTrue(allLimitedTemperatureForecast.values == secondTemperatureForecast.values.subList(0, 5), "Query returned wrong forecast results (not equal to previous results despite being expected to be equal)")
     }
+
+    @Test
+    fun timeHelperWorks() {
+        // 2023-12-21 at 08:00:00 UTC
+        // in comparison to the test dates (not to scale :D):
+        // --0-----1-----2-- (indices 0, 1 and 2 in the test dataset)
+        // -------------T--- (this test date)
+        val testDate = ZonedDateTime.of(2023, 12, 21, 8, 0, 0, 0, ZoneOffset.UTC)
+
+        val earliestDate = testDates.getEarliest(testDate)
+        Assert.isTrue(earliestDate == testDates[1], "WeatherTimeCache earliest date calculation was incorrect")
+
+        val closestDate = testDates.getClosest(testDate)
+        Assert.isTrue(closestDate == testDates[2], "WeatherTimeCache closest date calculation was incorrect")
+
+        val latestDate = testDates.getLatest(testDate)
+        Assert.isTrue(latestDate == testDates[2], "WeatherTimeCache latest date calculation was incorrect")
+    }
 }
 
-class MockFTPFile : FTPFile {
-    private val isFileOverride: Boolean
+class MockFTPFile(isFile: Boolean, name: String) : FTPFile() {
+    private val isFileOverride: Boolean = isFile
 
-    constructor(isFile: Boolean, name: String) : super() {
-        isFileOverride = isFile
+    init {
         this.name = name
         this.rawListing = ""
     }
