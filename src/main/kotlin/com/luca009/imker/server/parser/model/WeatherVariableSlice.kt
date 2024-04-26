@@ -4,7 +4,7 @@ import java.time.ZonedDateTime
 import kotlin.reflect.KClass
 
 interface WeatherVariableSlice {
-    val dataType: KClass<Any>?
+    val dataType: KClass<*>?
     val unit: WeatherVariableUnit?
 
     fun isDouble(): Boolean
@@ -21,8 +21,9 @@ class WeatherVariableTimeRasterSlice(
     val variableSlices: Map<ZonedDateTime, WeatherVariableRasterSlice>
         get() = slices
 
-    override val dataType: KClass<Any>?
+    override val dataType: KClass<*>?
     override val unit: WeatherVariableUnit?
+    val dimensions: Map<WeatherVariableRasterDimensionType, WeatherVariableRasterDimension>?
 
     init {
         val firstDataType = slices.values.firstOrNull()?.dataType
@@ -35,6 +36,13 @@ class WeatherVariableTimeRasterSlice(
         val firstUnit = slices.values.firstOrNull()?.unit
         unit = if (slices.all { it.value.unit == firstUnit }) {
             firstUnit
+        } else {
+            null
+        }
+
+        val firstDimensions = slices.values.firstOrNull()?.dimensions
+        dimensions = if (slices.all { it.value.dimensions == firstDimensions }) {
+            firstDimensions
         } else {
             null
         }

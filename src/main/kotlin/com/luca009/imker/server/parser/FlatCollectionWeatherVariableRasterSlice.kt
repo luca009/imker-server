@@ -6,10 +6,10 @@ import com.luca009.imker.server.parser.model.WeatherVariableRasterSlice
 import com.luca009.imker.server.parser.model.WeatherVariableUnit
 import kotlin.reflect.KClass
 
-open class ArrayWeatherVariableRasterSlice(
+open class FlatCollectionWeatherVariableRasterSlice(
     unit: WeatherVariableUnit?,
-    dataType: KClass<Any>,
-    private val data: Array<*>,
+    dataType: KClass<*>,
+    private val data: Collection<*>,
     final override val dimensions: Map<WeatherVariableRasterDimensionType, WeatherVariableRasterDimension>
 ): WeatherVariableRasterSlice(unit, dataType) {
     override val size: Int
@@ -33,7 +33,7 @@ open class ArrayWeatherVariableRasterSlice(
         }
 
         val index = getIndex(indices)
-        return data[index]
+        return data.elementAt(index)
     }
 
     override fun getOrNull(vararg indices: Int): Any? {
@@ -42,6 +42,13 @@ open class ArrayWeatherVariableRasterSlice(
         }
 
         val index = getIndex(indices)
-        return data.getOrNull(index)
+        return data.elementAtOrNull(index)
     }
 }
+
+open class ArrayWeatherVariableRasterSlice(
+    unit: WeatherVariableUnit?,
+    dataType: KClass<*>,
+    data: Array<*>,
+    dimensions: Map<WeatherVariableRasterDimensionType, WeatherVariableRasterDimension>
+): FlatCollectionWeatherVariableRasterSlice(unit, dataType, data.asList(), dimensions)

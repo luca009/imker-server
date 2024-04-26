@@ -9,7 +9,7 @@ import kotlin.reflect.KClass
 
 class NetCdfWeatherVariableRasterSlice(
     unit: WeatherVariableUnit?,
-    dataType: KClass<Any>,
+    dataType: KClass<*>,
     private val data: Array<*>,
     ucarDimensions: List<Dimension>,
     isLatLon: Boolean
@@ -17,32 +17,35 @@ class NetCdfWeatherVariableRasterSlice(
     unit,
     dataType,
     data,
-    ucarDimensions.mapNotNull {
-        val enum = if (isLatLon) {
-            // If the coordinate system is latlon, then map the latitude and longitude variables to X and Y respectively
-            when (it.name.lowercase()) {
-                "latitude" -> WeatherVariableRasterDimensionType.X
-                "longitude" -> WeatherVariableRasterDimensionType.Y
-                else -> getDimensionTypeFromName(it.name)
-            }
-        } else {
-            getDimensionTypeFromName(it.name)
-        }
-
-        requireNotNull(enum) {
-            return@mapNotNull null
-        }
-
-        Pair(
-            enum,
-            WeatherVariableRasterDimension(
-                it.length
-            )
-        )
-    }.toMap()
+    getDimensions(ucarDimensions, isLatLon)
 ) {
-
     private companion object {
+        fun getDimensions(ucarDimensions: List<Dimension>, isLatLon: Boolean): Map<WeatherVariableRasterDimensionType, WeatherVariableRasterDimension> {
+            return ucarDimensions.mapNotNull {
+                val enum = if (isLatLon) {
+                    // If the coordinate system is latlon, then map the latitude and longitude variables to X and Y respectively
+                    when (it.name.lowercase()) {
+                        "latitude" -> WeatherVariableRasterDimensionType.X
+                        "longitude" -> WeatherVariableRasterDimensionType.Y
+                        else -> getDimensionTypeFromName(it.name)
+                    }
+                } else {
+                    getDimensionTypeFromName(it.name)
+                }
+
+                requireNotNull(enum) {
+                    return@mapNotNull null
+                }
+
+                Pair(
+                    enum,
+                    WeatherVariableRasterDimension(
+                        it.length
+                    )
+                )
+            }.toMap()
+        }
+
         fun getDimensionTypeFromName(name: String): WeatherVariableRasterDimensionType? = WeatherVariableRasterDimensionType.values().firstOrNull { it.name.equals(name, true) }
     }
 
