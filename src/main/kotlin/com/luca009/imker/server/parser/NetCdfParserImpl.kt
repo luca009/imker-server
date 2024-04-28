@@ -3,6 +3,14 @@ package com.luca009.imker.server.parser
 import com.luca009.imker.server.configuration.model.WeatherVariableTypeMapper
 import com.luca009.imker.server.configuration.model.WeatherVariableUnitMapper
 import com.luca009.imker.server.parser.model.*
+import com.luca009.imker.server.transformer.DataTransformerHelper.chainedTransformPoint
+import com.luca009.imker.server.transformer.DataTransformerHelper.chainedTransformRaster
+import com.luca009.imker.server.transformer.DataTransformerHelper.chainedTransformSlice
+import com.luca009.imker.server.transformer.DataTransformerHelper.chainedTransformTimeSeries
+import com.luca009.imker.server.transformer.model.DataTransformer
+import com.luca009.imker.server.transformer.model.PointDataTransformer
+import com.luca009.imker.server.transformer.model.RasterDataTransformer
+import com.luca009.imker.server.transformer.model.TimeDataTransformer
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import ucar.nc2.Dimension
@@ -22,7 +30,8 @@ import java.time.ZonedDateTime
 class NetCdfParserImpl(
     netCdfFilePath: Path,
     private val variableMapper: WeatherVariableTypeMapper,
-    private val unitMapper: WeatherVariableUnitMapper
+    private val unitMapper: WeatherVariableUnitMapper,
+    private val transformers: Map<WeatherVariableType, List<DataTransformer>> = mapOf()
 ) : NetCdfParser {
     private val sourceFilePath: Path
 
@@ -33,6 +42,10 @@ class NetCdfParserImpl(
     private val dataset: NetcdfDataset
     private val wrappedDataset: FeatureDataset
     private val wrappedGridDataset: GridDataset?
+
+    private val rasterTransformers = transformers.mapValues { it.value.filterIsInstance<RasterDataTransformer>() }
+    private val timeTransformer = transformers.mapValues { it.value.filterIsInstance<TimeDataTransformer>() }
+    private val pointTransformers = transformers.mapValues { it.value.filterIsInstance<PointDataTransformer>() }
 
     private val logger: Logger = LoggerFactory.getLogger(this::class.java)
 
@@ -182,13 +195,6 @@ class NetCdfParserImpl(
         return null
     }
 
-    private fun getGrid(variable: WeatherVariableType): GridDatatype? {
-        val variableName = variableMapper.getWeatherVariableName(variable) ?: return null
-
-        // Get the first gridset to contain a grid with our desired name
-        return wrappedGridDataset?.grids?.find { it.name == variableName }
-    }
-
     private fun getTimeSliceFromGrid(grid: GridDatatype, timeIndex: Int, unit: WeatherVariableUnit?): WeatherVariableRasterSlice? {
         val volumeArray = grid.readVolumeData(timeIndex)
 
@@ -244,9 +250,16 @@ class NetCdfParserImpl(
             )
         }.toMap()
 
-        return WeatherVariableTimeRasterSlice(
-            slices
-        )
+        val mergedSlice = WeatherVariableTimeRasterSlice(slices)
+
+        val transformers = transformers[variable]
+        return if (transformers == null) {
+            // No applicable transformers, return data as-is
+            mergedSlice
+        } else {
+            // Transform our slice :D
+            transformers.chainedTransformSlice(mergedSlice)
+        }
     }
 
     override fun getGridRasterSlice(variable: WeatherVariableType, time: ZonedDateTime): WeatherVariableRasterSlice? {
@@ -258,10 +271,19 @@ class NetCdfParserImpl(
             return null
         }
 
-        return if (isInRange(variableGrid.timeDimension, timeIndex)) {
-            getTimeSliceFromGrid(variableGrid, timeIndex, weatherVariable.unitType)
+        if (!isInRange(variableGrid.timeDimension, timeIndex)) {
+            return null
+        }
+
+        val rasterSlice = getTimeSliceFromGrid(variableGrid, timeIndex, weatherVariable.unitType) ?: return null
+
+        val transformers = rasterTransformers[variable]
+        return if (transformers == null) {
+            // No applicable transformers, return data as-is
+            rasterSlice
         } else {
-            null
+            // Transform our raster :D
+            transformers.chainedTransformRaster(rasterSlice)
         }
     }
 
@@ -299,11 +321,20 @@ class NetCdfParserImpl(
             )
         }.toMap()
 
-        return WeatherVariableTimeSlice(
+        val timeSlice = WeatherVariableTimeSlice(
             values,
             dataType,
             weatherVariable.unitType
         )
+
+        val transformers = timeTransformer[variable]
+        return if (transformers == null) {
+            // No applicable transformers, return data as-is
+            timeSlice
+        } else {
+            // Transform our series :D
+            transformers.chainedTransformTimeSeries(timeSlice)
+        }
     }
 
     override fun getGridTimeAnd2dPositionSlice(
@@ -314,10 +345,20 @@ class NetCdfParserImpl(
         val (variableGridset, variableGrid) = getGridsetAndGrid(variable) ?: return null
         val timeIndex = availableTimes[variableGridset]?.indexOf(time) ?: return null
 
-        return if (isIn2dRange(variableGrid, timeIndex, coordinate)) {
-            variableGrid.readDataSlice(timeIndex, 0, coordinate.yIndex, coordinate.xIndex).getObject(0)
+        if (!isIn2dRange(variableGrid, timeIndex, coordinate)) {
+            return null
+        }
+
+        val value = variableGrid.readDataSlice(timeIndex, 0, coordinate.yIndex, coordinate.xIndex).getObject(0)
+
+        val transformers = pointTransformers[variable]
+        return if (transformers == null) {
+            // No applicable transformers, return data as-is
+            value
         } else {
-            null
+            // Transform our value, but get the unit type first
+            val unit = getVariable(variable)?.unitType ?: return null
+            transformers.chainedTransformPoint(value, unit)
         }
     }
 
@@ -329,10 +370,20 @@ class NetCdfParserImpl(
         val (variableGridset, variableGrid) = getGridsetAndGrid(variable) ?: return null
         val timeIndex = availableTimes[variableGridset]?.indexOf(time) ?: return null
 
-        return if (isIn3dRange(variableGrid, timeIndex, coordinate)) {
-            variableGrid.readDataSlice(timeIndex, coordinate.zIndex, coordinate.yIndex, coordinate.xIndex).getObject(0)
+        if (!isIn3dRange(variableGrid, timeIndex, coordinate)) {
+            return null
+        }
+
+        val value = variableGrid.readDataSlice(timeIndex, coordinate.zIndex, coordinate.yIndex, coordinate.xIndex).getObject(0)
+
+        val transformers = pointTransformers[variable]
+        return if (transformers == null) {
+            // No applicable transformers, return data as-is
+            value
         } else {
-            null
+            // Transform our value, but get the unit type first
+            val unit = getVariable(variable)?.unitType ?: return null
+            transformers.chainedTransformPoint(value, unit)
         }
     }
 

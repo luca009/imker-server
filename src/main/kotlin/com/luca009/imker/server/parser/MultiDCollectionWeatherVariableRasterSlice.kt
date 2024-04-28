@@ -1,0 +1,67 @@
+package com.luca009.imker.server.parser
+
+import com.luca009.imker.server.parser.model.WeatherVariableRasterDimension
+import com.luca009.imker.server.parser.model.WeatherVariableRasterDimensionType
+import com.luca009.imker.server.parser.model.WeatherVariableRasterSlice
+import com.luca009.imker.server.parser.model.WeatherVariableUnit
+import kotlin.reflect.KClass
+
+abstract class MultiDCollectionWeatherVariableRasterSlice(
+    unit: WeatherVariableUnit?,
+    dataType: KClass<*>?,
+    override val dimensions: Map<WeatherVariableRasterDimensionType, WeatherVariableRasterDimension>
+) : WeatherVariableRasterSlice(unit, dataType) {
+    abstract val data: Collection<Collection<*>>
+}
+
+class TwoDCollectionWeatherVariableRasterSlice(
+    unit: WeatherVariableUnit?,
+    dataType: KClass<*>?,
+    override val data: Collection<Collection<*>>,
+    dimensions: Map<WeatherVariableRasterDimensionType, WeatherVariableRasterDimension>
+) : MultiDCollectionWeatherVariableRasterSlice(
+    unit,
+    dataType,
+    dimensions
+) {
+    override val size: Int = data.sumOf { it.size }
+
+    override fun get(vararg indices: Int): Any? {
+        val x = indices[0]
+        val y = indices[1]
+        return data.elementAt(x).elementAt(y)
+    }
+
+    override fun getOrNull(vararg indices: Int): Any? {
+        val x = indices.getOrNull(0) ?: return null
+        val y = indices.getOrNull(1) ?: return null
+        return data.elementAtOrNull(x)?.elementAtOrNull(y)
+    }
+}
+
+class ThreeDCollectionWeatherVariableRasterSlice(
+    unit: WeatherVariableUnit?,
+    dataType: KClass<*>?,
+    override val data: Collection<Collection<Collection<*>>>,
+    dimensions: Map<WeatherVariableRasterDimensionType, WeatherVariableRasterDimension>
+) : MultiDCollectionWeatherVariableRasterSlice(
+    unit,
+    dataType,
+    dimensions
+) {
+    override val size: Int = data.sumOf { it.sumOf { it.size } }
+
+    override fun get(vararg indices: Int): Any? {
+        val x = indices[0]
+        val y = indices[1]
+        val z = indices[2]
+        return data.elementAt(x).elementAt(y).elementAt(z)
+    }
+
+    override fun getOrNull(vararg indices: Int): Any? {
+        val x = indices.getOrNull(0) ?: return null
+        val y = indices.getOrNull(1) ?: return null
+        val z = indices.getOrNull(2) ?: return null
+        return data.elementAtOrNull(x)?.elementAtOrNull(y)?.elementAtOrNull(z)
+    }
+}

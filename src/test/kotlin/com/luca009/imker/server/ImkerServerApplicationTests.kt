@@ -19,6 +19,7 @@ import com.luca009.imker.server.management.models.WeatherModelUpdateJobEnabled
 import com.luca009.imker.server.management.models.model.WeatherModelManagerService
 import com.luca009.imker.server.parser.DynamicDataParserImpl
 import com.luca009.imker.server.parser.NetCdfParserImpl
+import com.luca009.imker.server.parser.TwoDCollectionWeatherVariableRasterSlice
 import com.luca009.imker.server.parser.model.*
 import com.luca009.imker.server.queries.TimeQueryHelper.getClosest
 import com.luca009.imker.server.queries.TimeQueryHelper.getEarliest
@@ -29,6 +30,7 @@ import com.luca009.imker.server.queries.model.WeatherDataQueryService
 import com.luca009.imker.server.receiver.ftp.FtpClientImpl
 import com.luca009.imker.server.receiver.ftp.FtpSingleFileReceiverImpl
 import com.luca009.imker.server.receiver.model.*
+import com.luca009.imker.server.transformer.DesumTransformer
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.onCompletion
@@ -82,6 +84,55 @@ final class ImkerServerApplicationTests {
             ZonedDateTime.of(2023, 12, 20, 14, 0, 0, 0, ZoneOffset.UTC),
             ZonedDateTime.of(2023, 12, 21, 12, 0, 0, 0, ZoneOffset.UTC)
         )
+        val testRaw2dRasterSlices: List<List<List<Double>>> = listOf(
+            listOf(
+                listOf(0.0, 1.5),
+                listOf(1.0, 2.0),
+                listOf(3.0, 4.0)
+            ),
+            listOf(
+                listOf(0.0, 2.0),
+                listOf(2.0, 3.0),
+                listOf(3.5, 4.0)
+            ),
+            listOf(
+                listOf(1.0, 2.0),
+                listOf(3.0, 3.0),
+                listOf(4.0, 100.0)
+            )
+        )
+        val test2dTimeRaster = WeatherVariableTimeRasterSlice(
+            mapOf(
+                testDates[0] to TwoDCollectionWeatherVariableRasterSlice(
+                    WeatherVariableUnit.MetersPerSecond,
+                    Double::class,
+                    testRaw2dRasterSlices[0],
+                    mapOf(
+                        WeatherVariableRasterDimensionType.X to WeatherVariableRasterDimension(3),
+                        WeatherVariableRasterDimensionType.Y to WeatherVariableRasterDimension(2)
+                    )
+                ),
+                testDates[1] to TwoDCollectionWeatherVariableRasterSlice(
+                    WeatherVariableUnit.MetersPerSecond,
+                    Double::class,
+                    testRaw2dRasterSlices[1],
+                    mapOf(
+                        WeatherVariableRasterDimensionType.X to WeatherVariableRasterDimension(3),
+                        WeatherVariableRasterDimensionType.Y to WeatherVariableRasterDimension(2)
+                    )
+                ),
+                testDates[2] to TwoDCollectionWeatherVariableRasterSlice(
+                    WeatherVariableUnit.MetersPerSecond,
+                    Double::class,
+                    testRaw2dRasterSlices[2],
+                    mapOf(
+                        WeatherVariableRasterDimensionType.X to WeatherVariableRasterDimension(3),
+                        WeatherVariableRasterDimensionType.Y to WeatherVariableRasterDimension(2)
+                    )
+                )
+            )
+        )
+
         val mockIncaFiles = arrayOf(
             MockFTPFile(true, "nowcast_202309091330.nc"),
             MockFTPFile(true, "nowcast_202309100915.nc"),
@@ -654,6 +705,42 @@ final class ImkerServerApplicationTests {
 
         val latestDate = testDates.getLatest(testDate)
         Assert.isTrue(latestDate == testDates[2], "WeatherTimeCache latest date calculation was incorrect")
+    }
+
+    @Test
+    fun desumTransformerWorks() {
+        // Desum the values rudimentarily for the sake of testing
+        val expectedDesumValues = listOf(testRaw2dRasterSlices[0]).plus(
+            testRaw2dRasterSlices.windowed(2) {
+                val raster1 = it[0]
+                val raster2 = it[1]
+
+                raster2.mapIndexed { xIndex, x ->
+                    x.mapIndexed { yIndex, y ->
+                        y - raster1[xIndex][yIndex]
+                    }
+                }
+            }
+        )
+
+        val transformer = DesumTransformer()
+        val transformedSlice = transformer.transformSlice(test2dTimeRaster)!!
+
+        val results = transformedSlice.variableSlices.values.mapIndexed { timeIndex, raster ->
+            val expectedRasterValues = expectedDesumValues[timeIndex]
+
+            expectedRasterValues.mapIndexed { xIndex, x ->
+                x.mapIndexed { yIndex, expectedValue ->
+                    Pair(
+                        Triple(timeIndex, xIndex, yIndex),
+                        Pair(raster.getDoubleOrNull(xIndex, yIndex), expectedValue)
+                    )
+                }
+            }
+        }.flatten().flatten().toMap()
+
+        val incorrectPoints = results.filterValues { it.first != it.second }
+        Assert.isTrue(incorrectPoints.isEmpty(), "The following points were desummed incorrectly ((time, x, y)=(actual, expected)): $incorrectPoints")
     }
 }
 
