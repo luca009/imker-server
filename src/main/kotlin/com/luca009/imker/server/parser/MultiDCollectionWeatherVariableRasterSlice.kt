@@ -18,11 +18,15 @@ class TwoDCollectionWeatherVariableRasterSlice(
     unit: WeatherVariableUnit?,
     dataType: KClass<*>?,
     override val data: Collection<Collection<*>>,
-    dimensions: Map<WeatherVariableRasterDimensionType, WeatherVariableRasterDimension>
+    xDimension: WeatherVariableRasterDimension? = null,
+    yDimension: WeatherVariableRasterDimension? = null
 ) : MultiDCollectionWeatherVariableRasterSlice(
     unit,
     dataType,
-    dimensions
+    mapOf(
+        WeatherVariableRasterDimensionType.X to (xDimension ?: WeatherVariableRasterDimension(data.size)),
+        WeatherVariableRasterDimensionType.Y to (yDimension ?: WeatherVariableRasterDimension(data.maxBy { it.size }.size))
+    )
 ) {
     override val size: Int = data.sumOf { it.size }
 
@@ -43,11 +47,17 @@ class ThreeDCollectionWeatherVariableRasterSlice(
     unit: WeatherVariableUnit?,
     dataType: KClass<*>?,
     override val data: Collection<Collection<Collection<*>>>,
-    dimensions: Map<WeatherVariableRasterDimensionType, WeatherVariableRasterDimension>
+    xDimension: WeatherVariableRasterDimension? = null,
+    yDimension: WeatherVariableRasterDimension? = null,
+    zDimension: WeatherVariableRasterDimension? = null
 ) : MultiDCollectionWeatherVariableRasterSlice(
     unit,
     dataType,
-    dimensions
+    mapOf(
+        WeatherVariableRasterDimensionType.X to (xDimension ?: WeatherVariableRasterDimension(data.size)),
+        WeatherVariableRasterDimensionType.Y to (yDimension ?: WeatherVariableRasterDimension(data.maxBy { it.size }.size)),
+        WeatherVariableRasterDimensionType.Z to (zDimension ?: WeatherVariableRasterDimension(data.maxOf { it.maxOf { it.size } }))
+    )
 ) {
     override val size: Int = data.sumOf { it.sumOf { it.size } }
 

@@ -5,6 +5,7 @@ import com.luca009.imker.server.configuration.model.WeatherVariableUnitMapper
 import com.luca009.imker.server.management.files.model.BestFileSearchService
 import com.luca009.imker.server.management.files.model.DataFileNameManager
 import com.luca009.imker.server.parser.model.*
+import com.luca009.imker.server.transformer.model.DataTransformer
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.io.File
@@ -14,12 +15,13 @@ import kotlin.io.path.Path
 
 class DynamicDataParserImpl(
     private var weatherDataParser: WeatherDataParser?,
-    private val dataParserFactory: (Path, WeatherVariableTypeMapper, WeatherVariableUnitMapper) -> WeatherDataParser,
+    private val dataParserFactory: (Path, WeatherVariableTypeMapper, WeatherVariableUnitMapper, Map<WeatherVariableType, List<DataTransformer>>) -> WeatherDataParser,
     filePath: Path,
     private val bestFileSearchService: BestFileSearchService,
     private val fileNameManager: DataFileNameManager,
     private val variableMapper: WeatherVariableTypeMapper,
-    private val unitMapper: WeatherVariableUnitMapper
+    private val unitMapper: WeatherVariableUnitMapper,
+    private val transformers: Map<WeatherVariableType, List<DataTransformer>>
 ) : DynamicDataParser {
     private val logger: Logger = LoggerFactory.getLogger(this::class.java)
     private val baseFolder: File
@@ -27,12 +29,11 @@ class DynamicDataParserImpl(
     init {
         val folder = filePath.toFile()
 
-        if (!folder.isDirectory) {
+        baseFolder = if (!folder.isDirectory) {
             logger.warn("Given file path was not a directory. Using parent directory instead.")
-            baseFolder = folder.parentFile
-        }
-        else {
-            baseFolder = folder
+            folder.parentFile
+        } else {
+            folder
         }
     }
 
@@ -55,7 +56,7 @@ class DynamicDataParserImpl(
         }
 
         val oldWeatherParser = weatherDataParser // keep a copy of this to close, just to be on the safe side with thread-safety
-        weatherDataParser = dataParserFactory(Path(bestFile.path), variableMapper, unitMapper)
+        weatherDataParser = dataParserFactory(Path(bestFile.path), variableMapper, unitMapper, transformers)
         oldWeatherParser?.close()
 
         return true

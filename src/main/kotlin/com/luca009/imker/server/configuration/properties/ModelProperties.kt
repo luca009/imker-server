@@ -16,6 +16,7 @@ data class RawWeatherModel(
     val receiver: RawWeatherModelReceiverInfo,
     val source: RawWeatherModelSourceFileInfo,
     val mapping: RawWeatherModelMappingInfo,
+    val transforming: RawWeatherModelTransformingInfo,
     val storage: RawWeatherModelStorageInfo,
     val cache: RawWeatherModelCacheInfo
 )
@@ -46,6 +47,10 @@ data class RawWeatherModelSourceFileInfo(
 data class RawWeatherModelMappingInfo(
     val variableMapping: Map<WeatherVariableType, String>,
     val unitMapperFile: String
+)
+
+data class RawWeatherModelTransformingInfo(
+    val transformers: Map<WeatherVariableType, List<String>> = mapOf()
 )
 
 data class RawWeatherModelStorageInfo(

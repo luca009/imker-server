@@ -118,7 +118,7 @@ class WeatherVariableTimeRasterSlice(
 
         val xDimension = dimensions[WeatherVariableRasterDimensionType.X] ?: return null
         val yDimension = dimensions[WeatherVariableRasterDimensionType.Y] ?: return null
-        val zDimension = dimensions[WeatherVariableRasterDimensionType.Z]
+        val zDimension = dimensions[WeatherVariableRasterDimensionType.Z].takeIf { it != null && it.size > 1 } // only take the z dimension if it's larger than 1, otherwise that's a waste of a dimension
 
         val rasterSlices = if (zDimension == null) {
             // There is no z dimension, so transform in 2d
@@ -136,18 +136,22 @@ class WeatherVariableTimeRasterSlice(
             // Iterate through all times
             variableSlices.keys.associateWith { time ->
                 // Recreate the 2d slice at the specified time
-                val twoDSlice = slices.map { x ->
-                    x.map {
-                        it[time]
+                val twoDSlice = slices
+                    .parallelStream()
+                    .map { x ->
+                        x.map {
+                            it[time]
+                        }
                     }
-                }
+                    .toList()
 
                 // Instantiate a new raster slice for the slice above
                 TwoDCollectionWeatherVariableRasterSlice(
                     unit,
                     dataType,
                     twoDSlice,
-                    dimensions
+                    xDimension,
+                    yDimension
                 )
             }
         } else {
@@ -181,7 +185,9 @@ class WeatherVariableTimeRasterSlice(
                     unit,
                     dataType,
                     threeDSlice,
-                    dimensions
+                    xDimension,
+                    yDimension,
+                    zDimension
                 )
             }
         }

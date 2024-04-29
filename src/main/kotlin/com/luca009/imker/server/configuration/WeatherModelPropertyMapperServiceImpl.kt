@@ -16,6 +16,7 @@ import com.luca009.imker.server.parser.model.WeatherVariableType
 import com.luca009.imker.server.receiver.model.DataReceiver
 import com.luca009.imker.server.receiver.model.DataReceiverConfiguration
 import com.luca009.imker.server.receiver.model.FtpClientConfiguration
+import com.luca009.imker.server.transformer.model.DataTransformer
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
@@ -31,8 +32,9 @@ class WeatherModelPropertyMapperServiceImpl(
     private val dataReceiverFactory: (String, DataReceiverConfiguration, DataFileNameManager) -> DataReceiver?,
     private val weatherVariableTypeMapperFactory: (Map<WeatherVariableType, String>) -> WeatherVariableTypeMapper,
     private val weatherVariableUnitMapperFactory: (File) -> WeatherVariableUnitMapper,
-    private val weatherDataParserFactoryFactory: (String) -> ((Path, WeatherVariableTypeMapper, WeatherVariableUnitMapper) -> WeatherDataParser)?,
-    private val dynamicDataParserFactory: ((Path, WeatherVariableTypeMapper, WeatherVariableUnitMapper) -> WeatherDataParser, Path, DataFileNameManager, WeatherVariableTypeMapper, WeatherVariableUnitMapper) -> DynamicDataParser,
+    private val dataTransformerFactory: (String) -> DataTransformer?,
+    private val weatherDataParserFactoryFactory: (String) -> ((Path, WeatherVariableTypeMapper, WeatherVariableUnitMapper, Map<WeatherVariableType, List<DataTransformer>>) -> WeatherDataParser)?,
+    private val dynamicDataParserFactory: ((Path, WeatherVariableTypeMapper, WeatherVariableUnitMapper, Map<WeatherVariableType, List<DataTransformer>>) -> WeatherDataParser, Path, DataFileNameManager, WeatherVariableTypeMapper, WeatherVariableUnitMapper, Map<WeatherVariableType, List<DataTransformer>>) -> DynamicDataParser,
     private val dataFileNameManagerFactory: (String, String, String, Duration) -> DataFileNameManager,
     private val fileManagerService: LocalFileManagerService,
     weatherModelProperties: ModelProperties
@@ -67,7 +69,6 @@ class WeatherModelPropertyMapperServiceImpl(
         }
         val unitMapper = weatherVariableUnitMapperFactory(unitMapperFile)
 
-        // Instantiate a DynamicDataParser with the factory from before
         val fileNameManager = dataFileNameManagerFactory(rawWeatherModel.source.prefix, rawWeatherModel.source.postfix, rawWeatherModel.source.dateFormat, rawWeatherModel.source.updateFrequency)
         val storagePath = fileManagerService.getWeatherDataLocation(rawWeatherModel.storage.storageLocationName, rawWeatherModel.storage.subFolderName).toAbsolutePath()
         require(storagePath.exists()) {
@@ -75,7 +76,16 @@ class WeatherModelPropertyMapperServiceImpl(
             return null
         }
 
-        val dataParser = dynamicDataParserFactory(dataParserFactory, storagePath, fileNameManager, variableMapper, unitMapper)
+        val dataTransformers = rawWeatherModel.transforming.transformers.mapValues {
+            it.value.map { transformerName ->
+                requireNotNull(dataTransformerFactory(transformerName)) {
+                    logger.error("Assembling ${rawWeatherModel.meta.name}: Could not resolve transformer name \"$transformerName\". Check if your weather models are configured correctly.")
+                }
+            }
+        }
+
+        // Instantiate a DynamicDataParser with the factory from before
+        val dataParser = dynamicDataParserFactory(dataParserFactory, storagePath, fileNameManager, variableMapper, unitMapper, dataTransformers)
 
         val dataReceiver = dataReceiverFactory(
             rawWeatherModel.receiver.receiverName,

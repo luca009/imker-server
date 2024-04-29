@@ -34,6 +34,10 @@ models:
           DewPoint: TD
           Temperature2m: TT
         unitMapperFile: src/test/resources/unit_map.csv
+      transforming:
+        transformers:
+          PrecipitationSum:
+            - desum
       storage:
         storageLocationName: default
         subFolderName: inca

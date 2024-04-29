@@ -31,6 +31,7 @@ import com.luca009.imker.server.receiver.ftp.FtpClientImpl
 import com.luca009.imker.server.receiver.ftp.FtpSingleFileReceiverImpl
 import com.luca009.imker.server.receiver.model.*
 import com.luca009.imker.server.transformer.DesumTransformer
+import com.luca009.imker.server.transformer.model.DataTransformer
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.onCompletion
@@ -106,29 +107,17 @@ final class ImkerServerApplicationTests {
                 testDates[0] to TwoDCollectionWeatherVariableRasterSlice(
                     WeatherVariableUnit.MetersPerSecond,
                     Double::class,
-                    testRaw2dRasterSlices[0],
-                    mapOf(
-                        WeatherVariableRasterDimensionType.X to WeatherVariableRasterDimension(3),
-                        WeatherVariableRasterDimensionType.Y to WeatherVariableRasterDimension(2)
-                    )
+                    testRaw2dRasterSlices[0]
                 ),
                 testDates[1] to TwoDCollectionWeatherVariableRasterSlice(
                     WeatherVariableUnit.MetersPerSecond,
                     Double::class,
-                    testRaw2dRasterSlices[1],
-                    mapOf(
-                        WeatherVariableRasterDimensionType.X to WeatherVariableRasterDimension(3),
-                        WeatherVariableRasterDimensionType.Y to WeatherVariableRasterDimension(2)
-                    )
+                    testRaw2dRasterSlices[1]
                 ),
                 testDates[2] to TwoDCollectionWeatherVariableRasterSlice(
                     WeatherVariableUnit.MetersPerSecond,
                     Double::class,
-                    testRaw2dRasterSlices[2],
-                    mapOf(
-                        WeatherVariableRasterDimensionType.X to WeatherVariableRasterDimension(3),
-                        WeatherVariableRasterDimensionType.Y to WeatherVariableRasterDimension(2)
-                    )
+                    testRaw2dRasterSlices[2]
                 )
             )
         )
@@ -151,7 +140,7 @@ final class ImkerServerApplicationTests {
     }
 
     val netCdfParserFactory = {
-            netCdfFilePath: Path, variableMapper: WeatherVariableTypeMapper, unitMapper: WeatherVariableUnitMapper -> NetCdfParserImpl(netCdfFilePath, variableMapper, unitMapper)
+            netCdfFilePath: Path, variableMapper: WeatherVariableTypeMapper, unitMapper: WeatherVariableUnitMapper, transformers: Map<WeatherVariableType, List<DataTransformer>> -> NetCdfParserImpl(netCdfFilePath, variableMapper, unitMapper, transformers)
     }
     val weatherVariableTypeMapperFactory = {
         weatherVariableMap: Map<WeatherVariableType, String> -> WeatherVariableTypeMapperImpl(weatherVariableMap)
@@ -178,7 +167,7 @@ final class ImkerServerApplicationTests {
     val bestFileSearchService: BestFileSearchService = BestFileSearchServiceImpl()
     val variableMapper: WeatherVariableTypeMapper = WeatherVariableTypeMapperImpl(testIncaVariableNameMapping)
     val unitMapper: WeatherVariableUnitMapper = WeatherVariableUnitMapperImpl(testUnitMapperConfigFilePath.toFile())
-    val netCdfParser: NetCdfParser = netCdfParserFactory(testPrimaryNetcdfFilePath, variableMapper, unitMapper)
+    val netCdfParser: NetCdfParser = netCdfParserFactory(testPrimaryNetcdfFilePath, variableMapper, unitMapper, mapOf())
     val weatherRasterMemoryCache: WeatherRasterMemoryCache = WeatherRasterMemoryCacheImpl()
     val weatherRasterDiskCache: WeatherRasterDiskCache = WeatherRasterDiskCacheImpl(netCdfParser)
     val weatherRasterCompositeCache: WeatherRasterCompositeCache = WeatherRasterCompositeCacheImpl(
@@ -211,13 +200,24 @@ final class ImkerServerApplicationTests {
         mockFtpClient
     )
 
+    val dynamicNetCdfParser: DynamicDataParser = DynamicDataParserImpl(
+        netCdfParser,
+        netCdfParserFactory,
+        testNetcdfFilesPath,
+        bestFileSearchService,
+        incaFileNameManager,
+        variableMapper,
+        unitMapper,
+        mapOf()
+    )
+
     val incaModel = WeatherModel(
         "INCA",
         "INCA",
         "GeoSphere Austria under CC BY-SA 4.0",
 
         incaReceiver,
-        DynamicDataParserImpl(netCdfParser, netCdfParserFactory, testNetcdfFilesPath, bestFileSearchService, incaFileNameManager, variableMapper, unitMapper),
+        dynamicNetCdfParser,
         weatherVariableTypeMapperFactory(testIncaVariableNameMapping),
         incaFileNameManager,
         weatherVariableUnitMapperFactory(testUnitMapperConfigFilePath.toFile()),
@@ -239,10 +239,10 @@ final class ImkerServerApplicationTests {
     val weatherModels: SortedMap<Int, WeatherModel> = sortedMapOf(
         0 to incaModel
     )
-
     val weatherDataCompositeCacheFactory = {
             configuration: WeatherRasterCompositeCacheConfiguration, dataParser: WeatherDataParser -> WeatherRasterCompositeCacheImpl(configuration, dataParser, weatherRasterMemoryCache, weatherRasterDiskCache)
     }
+
     val weatherModelManagerService: WeatherModelManagerService = WeatherModelManagerServiceImpl(
         weatherModels,
         weatherDataCompositeCacheFactory,
@@ -250,16 +250,6 @@ final class ImkerServerApplicationTests {
     )
 
     val weatherDataQueryService: WeatherDataQueryService = WeatherDataQueryServiceImpl(weatherModelManagerService, queryProperties)
-
-    val dynamicNetCdfParser: DynamicDataParser = DynamicDataParserImpl(
-        netCdfParser,
-        netCdfParserFactory,
-        testNetcdfFilesPath,
-        bestFileSearchService,
-        incaFileNameManager,
-        variableMapper,
-        unitMapper
-    )
 
     @BeforeAll
     fun setupMockFtpClient(): Unit = runBlocking {

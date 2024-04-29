@@ -22,6 +22,11 @@ class NetCdfWeatherVariableRasterSlice(
     private companion object {
         fun getDimensions(ucarDimensions: List<Dimension>, isLatLon: Boolean): Map<WeatherVariableRasterDimensionType, WeatherVariableRasterDimension> {
             return ucarDimensions.mapNotNull {
+                if (it.length <= 1) {
+                    // Flatten any dimensions of size 1
+                    return@mapNotNull null
+                }
+
                 val enum = if (isLatLon) {
                     // If the coordinate system is latlon, then map the latitude and longitude variables to X and Y respectively
                     when (it.name.lowercase()) {
