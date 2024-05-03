@@ -2,10 +2,10 @@ package com.luca009.imker.server
 
 import com.luca009.imker.server.caching.*
 import com.luca009.imker.server.caching.model.*
-import com.luca009.imker.server.configuration.WeatherVariableFileNameMapperImpl
+import com.luca009.imker.server.configuration.WeatherVariableTypeMapperImpl
 import com.luca009.imker.server.configuration.WeatherVariableUnitMapperImpl
 import com.luca009.imker.server.configuration.model.WeatherModel
-import com.luca009.imker.server.configuration.model.WeatherVariableFileNameMapper
+import com.luca009.imker.server.configuration.model.WeatherVariableTypeMapper
 import com.luca009.imker.server.configuration.model.WeatherVariableUnitMapper
 import com.luca009.imker.server.configuration.properties.QueryProperties
 import com.luca009.imker.server.configuration.properties.StorageProperties
@@ -62,8 +62,17 @@ final class ImkerServerApplicationTests {
         val testResourcesPath: String = File("src/test/resources").absolutePath
         val testNetcdfFilesPath = Path(testResourcesPath, "inca")
         val testPrimaryNetcdfFilePath: Path = testNetcdfFilesPath.resolve("nowcast_202309091345.nc")
-        val testMapperConfigFilePath = Path(testResourcesPath, "inca", "inca_map.csv")
         val testUnitMapperConfigFilePath = Path(testResourcesPath, "unit_map.csv")
+
+        val testIncaVariableNameMapping: Map<WeatherVariableType, String> = mapOf(
+            WeatherVariableType.WindDirection10m to "DD",
+            WeatherVariableType.WindSpeed10m to "FF",
+            WeatherVariableType.GustSpeed10m to "FX",
+            WeatherVariableType.RelativeHumidity2m to "RH",
+            WeatherVariableType.PrecipitationSum to "RR",
+            WeatherVariableType.DewPoint to "TD",
+            WeatherVariableType.Temperature2m to "TT"
+        )
 
         val testDates: Set<Pair<Int, ZonedDateTime>> = setOf(
             Pair(1, ZonedDateTime.of(2023, 12, 20, 12, 20, 0, 0, ZoneOffset.UTC)),
@@ -88,10 +97,10 @@ final class ImkerServerApplicationTests {
     }
 
     val netCdfParserFactory = {
-            netCdfFilePath: Path, variableMapper: WeatherVariableFileNameMapper, unitMapper: WeatherVariableUnitMapper -> NetCdfParserImpl(netCdfFilePath, variableMapper, unitMapper)
+            netCdfFilePath: Path, variableMapper: WeatherVariableTypeMapper, unitMapper: WeatherVariableUnitMapper -> NetCdfParserImpl(netCdfFilePath, variableMapper, unitMapper)
     }
-    val weatherVariableFileNameMapperFactory = {
-        weatherVariableMapFile: File -> WeatherVariableFileNameMapperImpl(weatherVariableMapFile)
+    val weatherVariableTypeMapperFactory = {
+        weatherVariableMap: Map<WeatherVariableType, String> -> WeatherVariableTypeMapperImpl(weatherVariableMap)
     }
     val weatherVariableUnitMapperFactory = {
         weatherVariableMapFile: File -> WeatherVariableUnitMapperImpl(weatherVariableMapFile)
@@ -113,7 +122,7 @@ final class ImkerServerApplicationTests {
     )
 
     val bestFileSearchService: BestFileSearchService = BestFileSearchServiceImpl()
-    val variableMapper: WeatherVariableFileNameMapper = WeatherVariableFileNameMapperImpl(testMapperConfigFilePath.toFile())
+    val variableMapper: WeatherVariableTypeMapper = WeatherVariableTypeMapperImpl(testIncaVariableNameMapping)
     val unitMapper: WeatherVariableUnitMapper = WeatherVariableUnitMapperImpl(testUnitMapperConfigFilePath.toFile())
     val netCdfParser: NetCdfParser = netCdfParserFactory(testPrimaryNetcdfFilePath, variableMapper, unitMapper)
     val weatherTimeCache: WeatherTimeCache = WeatherTimeCacheImpl()
@@ -157,7 +166,7 @@ final class ImkerServerApplicationTests {
 
         incaReceiver,
         DynamicDataParserImpl(netCdfParser, netCdfParserFactory, testNetcdfFilesPath, bestFileSearchService, incaFileNameManager, variableMapper, unitMapper),
-        weatherVariableFileNameMapperFactory(testMapperConfigFilePath.toFile()),
+        weatherVariableTypeMapperFactory(testIncaVariableNameMapping),
         incaFileNameManager,
         weatherVariableUnitMapperFactory(testUnitMapperConfigFilePath.toFile()),
 

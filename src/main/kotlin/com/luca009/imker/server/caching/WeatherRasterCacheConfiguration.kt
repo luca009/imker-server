@@ -1,8 +1,6 @@
 package com.luca009.imker.server.caching
 
 import com.luca009.imker.server.caching.model.*
-import com.luca009.imker.server.configuration.model.WeatherVariableFileNameMapper
-import com.luca009.imker.server.configuration.model.WeatherVariableUnitMapper
 import com.luca009.imker.server.parser.model.WeatherDataParser
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration

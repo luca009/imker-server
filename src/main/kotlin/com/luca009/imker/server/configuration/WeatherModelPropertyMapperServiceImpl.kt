@@ -3,7 +3,7 @@ package com.luca009.imker.server.configuration
 import com.luca009.imker.server.caching.model.WeatherRasterCompositeCacheConfiguration
 import com.luca009.imker.server.configuration.model.WeatherModel
 import com.luca009.imker.server.configuration.model.WeatherModelPropertyMapperService
-import com.luca009.imker.server.configuration.model.WeatherVariableFileNameMapper
+import com.luca009.imker.server.configuration.model.WeatherVariableTypeMapper
 import com.luca009.imker.server.configuration.model.WeatherVariableUnitMapper
 import com.luca009.imker.server.configuration.properties.ModelProperties
 import com.luca009.imker.server.configuration.properties.RawWeatherModel
@@ -12,6 +12,7 @@ import com.luca009.imker.server.management.files.model.LocalFileManagementConfig
 import com.luca009.imker.server.management.files.model.LocalFileManagerService
 import com.luca009.imker.server.parser.model.DynamicDataParser
 import com.luca009.imker.server.parser.model.WeatherDataParser
+import com.luca009.imker.server.parser.model.WeatherVariableType
 import com.luca009.imker.server.receiver.model.DataReceiver
 import com.luca009.imker.server.receiver.model.DataReceiverConfiguration
 import com.luca009.imker.server.receiver.model.FtpClientConfiguration
@@ -28,10 +29,10 @@ import kotlin.io.path.pathString
 @Component
 class WeatherModelPropertyMapperServiceImpl(
     private val dataReceiverFactory: (String, DataReceiverConfiguration, DataFileNameManager) -> DataReceiver?,
-    private val weatherVariableFileNameMapperFactory: (File) -> WeatherVariableFileNameMapper,
+    private val weatherVariableTypeMapperFactory: (Map<WeatherVariableType, String>) -> WeatherVariableTypeMapper,
     private val weatherVariableUnitMapperFactory: (File) -> WeatherVariableUnitMapper,
-    private val weatherDataParserFactoryFactory: (String) -> ((Path, WeatherVariableFileNameMapper, WeatherVariableUnitMapper) -> WeatherDataParser)?,
-    private val dynamicDataParserFactory: ((Path, WeatherVariableFileNameMapper, WeatherVariableUnitMapper) -> WeatherDataParser, Path, DataFileNameManager, WeatherVariableFileNameMapper, WeatherVariableUnitMapper) -> DynamicDataParser,
+    private val weatherDataParserFactoryFactory: (String) -> ((Path, WeatherVariableTypeMapper, WeatherVariableUnitMapper) -> WeatherDataParser)?,
+    private val dynamicDataParserFactory: ((Path, WeatherVariableTypeMapper, WeatherVariableUnitMapper) -> WeatherDataParser, Path, DataFileNameManager, WeatherVariableTypeMapper, WeatherVariableUnitMapper) -> DynamicDataParser,
     private val dataFileNameManagerFactory: (String, String, String, Duration) -> DataFileNameManager,
     private val fileManagerService: LocalFileManagerService,
     weatherModelProperties: ModelProperties
@@ -57,12 +58,7 @@ class WeatherModelPropertyMapperServiceImpl(
             return null
         }
 
-        val variableMapperFile = File(rawWeatherModel.mapping.variableMapperFile)
-        require(variableMapperFile.exists()) {
-            logger.error("Assembling ${rawWeatherModel.meta.name}: Variable mapping file \"${rawWeatherModel.mapping.variableMapperFile}\" does not exist. Check if your weather models are configured correctly.")
-            return null
-        }
-        val variableMapper = weatherVariableFileNameMapperFactory(variableMapperFile)
+        val variableMapper = weatherVariableTypeMapperFactory(rawWeatherModel.mapping.variableMapping)
 
         val unitMapperFile = File(rawWeatherModel.mapping.unitMapperFile)
         require(unitMapperFile.exists()) {

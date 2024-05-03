@@ -25,7 +25,14 @@ models:
         dateFormat: yyyyMMddHHmm
         updateFrequency: PT15M
       mapping:
-        variableMapperFile: src/test/resources/inca/inca_map.csv
+        variableMapping:
+          WindDirection10m: DD
+          WindSpeed10m: FF
+          GustSpeed10m: FX
+          RelativeHumidity2m: RH
+          PrecipitationSum: RR
+          DewPoint: TD
+          Temperature2m: TT
         unitMapperFile: src/test/resources/unit_map.csv
       storage:
         storageLocationName: default

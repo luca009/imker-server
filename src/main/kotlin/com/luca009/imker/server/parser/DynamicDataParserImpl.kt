@@ -1,6 +1,6 @@
 package com.luca009.imker.server.parser
 
-import com.luca009.imker.server.configuration.model.WeatherVariableFileNameMapper
+import com.luca009.imker.server.configuration.model.WeatherVariableTypeMapper
 import com.luca009.imker.server.configuration.model.WeatherVariableUnitMapper
 import com.luca009.imker.server.management.files.model.BestFileSearchService
 import com.luca009.imker.server.management.files.model.DataFileNameManager
@@ -14,11 +14,11 @@ import kotlin.io.path.Path
 
 class DynamicDataParserImpl(
     private var weatherDataParser: WeatherDataParser?,
-    private val dataParserFactory: (Path, WeatherVariableFileNameMapper, WeatherVariableUnitMapper) -> WeatherDataParser,
+    private val dataParserFactory: (Path, WeatherVariableTypeMapper, WeatherVariableUnitMapper) -> WeatherDataParser,
     filePath: Path,
     private val bestFileSearchService: BestFileSearchService,
     private val fileNameManager: DataFileNameManager,
-    private val variableMapper: WeatherVariableFileNameMapper,
+    private val variableMapper: WeatherVariableTypeMapper,
     private val unitMapper: WeatherVariableUnitMapper
 ) : DynamicDataParser {
     private val logger: Logger = LoggerFactory.getLogger(this::class.java)

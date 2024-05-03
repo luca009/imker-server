@@ -1,7 +1,6 @@
 package com.luca009.imker.server.caching
 
 import com.luca009.imker.server.caching.model.WeatherRasterDiskCache
-import com.luca009.imker.server.configuration.model.WeatherVariableFileNameMapper
 import com.luca009.imker.server.parser.model.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory

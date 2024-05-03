@@ -44,7 +44,7 @@ data class RawWeatherModelSourceFileInfo(
 )
 
 data class RawWeatherModelMappingInfo(
-    val variableMapperFile: String,
+    val variableMapping: Map<WeatherVariableType, String>,
     val unitMapperFile: String
 )
 
