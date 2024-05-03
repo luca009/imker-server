@@ -31,6 +31,7 @@ import com.luca009.imker.server.receiver.ftp.FtpClientImpl
 import com.luca009.imker.server.receiver.ftp.FtpSingleFileReceiverImpl
 import com.luca009.imker.server.receiver.model.*
 import com.luca009.imker.server.transformer.DesumTransformer
+import com.luca009.imker.server.transformer.ScaleTransformer
 import com.luca009.imker.server.transformer.model.DataTransformer
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flowOf
@@ -731,6 +732,37 @@ final class ImkerServerApplicationTests {
 
         val incorrectPoints = results.filterValues { it.first != it.second }
         Assert.isTrue(incorrectPoints.isEmpty(), "The following points were desummed incorrectly ((time, x, y)=(actual, expected)): $incorrectPoints")
+    }
+
+    @Test
+    fun scaleTransformerWorks() {
+        // Desum the values rudimentarily for the sake of testing
+        val expectedScaledValues = testRaw2dRasterSlices.map {
+            it.map {
+                it.map {
+                    it * 4.0
+                }
+            }
+        }
+
+        val transformer = ScaleTransformer(4.0)
+        val transformedSlice = transformer.transformSlice(test2dTimeRaster)!!
+
+        val results = transformedSlice.variableSlices.values.mapIndexed { timeIndex, raster ->
+            val expectedRasterValues = expectedScaledValues[timeIndex]
+
+            expectedRasterValues.mapIndexed { xIndex, x ->
+                x.mapIndexed { yIndex, expectedValue ->
+                    Pair(
+                        Triple(timeIndex, xIndex, yIndex),
+                        Pair(raster.getDoubleOrNull(xIndex, yIndex), expectedValue)
+                    )
+                }
+            }
+        }.flatten().flatten().toMap()
+
+        val incorrectPoints = results.filterValues { it.first != it.second }
+        Assert.isTrue(incorrectPoints.isEmpty(), "The following points were scaled incorrectly ((time, x, y)=(actual, expected)): $incorrectPoints")
     }
 }
 

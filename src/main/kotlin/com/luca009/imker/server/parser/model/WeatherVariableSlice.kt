@@ -9,6 +9,7 @@ interface WeatherVariableSlice {
     val unit: WeatherVariableUnit?
 
     fun isDouble(): Boolean
+    fun map(transform: (Any?) -> Any?): WeatherVariableSlice
 }
 
 /**
@@ -50,6 +51,13 @@ class WeatherVariableTimeRasterSlice(
     }
 
     override fun isDouble(): Boolean = dataType == Double::class
+    override fun map(transform: (Any?) -> Any?): WeatherVariableTimeRasterSlice {
+        val newSlices = slices.mapValues {
+            it.value.map(transform)
+        }
+
+        return WeatherVariableTimeRasterSlice(newSlices)
+    }
 
     fun subMap(startIndex: Int, limit: Int): Map<ZonedDateTime, WeatherVariableRasterSlice>? {
         val firstKey = slices.keys.elementAtOrNull(startIndex) ?: return null
@@ -222,6 +230,14 @@ class WeatherVariableTimeSlice(
     override fun containsKey(key: ZonedDateTime) = internalValues.containsKey(key)
 
     override fun isDouble(): Boolean = dataType == Double::class
+
+    override fun map(transform: (Any?) -> Any?): WeatherVariableTimeSlice {
+        return WeatherVariableTimeSlice(
+            internalValues.mapValues(transform),
+            dataType,
+            unit
+        )
+    }
 }
 
 /**
@@ -238,6 +254,7 @@ abstract class WeatherVariableRasterSlice(
     abstract fun getOrNull(vararg indices: Int): Any?
     override fun isDouble(): Boolean = dataType == Double::class
     fun getDoubleOrNull(vararg indices: Int) = getOrNull(*indices) as? Double
+    abstract override fun map(transform: (Any?) -> Any?): WeatherVariableRasterSlice
 }
 
 data class WeatherVariableRasterDimension(

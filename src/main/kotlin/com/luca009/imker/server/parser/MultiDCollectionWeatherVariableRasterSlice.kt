@@ -41,6 +41,16 @@ class TwoDCollectionWeatherVariableRasterSlice(
         val y = indices.getOrNull(1) ?: return null
         return data.elementAtOrNull(x)?.elementAtOrNull(y)
     }
+
+    override fun map(transform: (Any?) -> Any?): TwoDCollectionWeatherVariableRasterSlice {
+        return TwoDCollectionWeatherVariableRasterSlice(
+            unit,
+            dataType,
+            data.map { it.map(transform) },
+            dimensions[WeatherVariableRasterDimensionType.X],
+            dimensions[WeatherVariableRasterDimensionType.Y]
+        )
+    }
 }
 
 class ThreeDCollectionWeatherVariableRasterSlice(
@@ -73,5 +83,16 @@ class ThreeDCollectionWeatherVariableRasterSlice(
         val y = indices.getOrNull(1) ?: return null
         val z = indices.getOrNull(2) ?: return null
         return data.elementAtOrNull(x)?.elementAtOrNull(y)?.elementAtOrNull(z)
+    }
+
+    override fun map(transform: (Any?) -> Any?): ThreeDCollectionWeatherVariableRasterSlice {
+        return ThreeDCollectionWeatherVariableRasterSlice(
+            unit,
+            dataType,
+            data.map { it.map { it.map(transform) } },
+            dimensions[WeatherVariableRasterDimensionType.X],
+            dimensions[WeatherVariableRasterDimensionType.Y],
+            dimensions[WeatherVariableRasterDimensionType.Z]
+        )
     }
 }

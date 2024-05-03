@@ -56,5 +56,5 @@ enum class WeatherVariableUnit {
     DegreeCelsius,
     Percent,
     MetersPerSecond,
-    KilogramPerSquareMeter
+    KilogramPerSquareMeterPerHour
 }

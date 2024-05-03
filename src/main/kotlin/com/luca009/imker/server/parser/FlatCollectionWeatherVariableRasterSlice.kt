@@ -8,7 +8,7 @@ import kotlin.reflect.KClass
 
 open class FlatCollectionWeatherVariableRasterSlice(
     unit: WeatherVariableUnit?,
-    dataType: KClass<*>,
+    dataType: KClass<*>?,
     private val data: Collection<*>,
     final override val dimensions: Map<WeatherVariableRasterDimensionType, WeatherVariableRasterDimension>
 ): WeatherVariableRasterSlice(unit, dataType) {
@@ -43,6 +43,15 @@ open class FlatCollectionWeatherVariableRasterSlice(
 
         val index = getIndex(indices)
         return data.elementAtOrNull(index)
+    }
+
+    override fun map(transform: (Any?) -> Any?): FlatCollectionWeatherVariableRasterSlice {
+        return FlatCollectionWeatherVariableRasterSlice(
+            unit,
+            dataType,
+            data.map(transform),
+            dimensions
+        )
     }
 }
 

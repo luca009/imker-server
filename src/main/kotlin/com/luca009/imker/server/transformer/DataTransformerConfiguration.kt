@@ -14,6 +14,7 @@ class DataTransformerConfiguration {
     fun dataTransformer(name: String): DataTransformer? {
         return when (name) {
             "desum" -> DesumTransformer()
+            "scale4x" -> ScaleTransformer(4.0) // TODO: configurable arguments for transformers
             else -> null
         }
     }
