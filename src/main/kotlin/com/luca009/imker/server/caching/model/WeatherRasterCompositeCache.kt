@@ -15,25 +15,7 @@ interface WeatherRasterCompositeCache : WeatherRasterCache {
      */
     fun updateCaches(weatherVariables: Set<WeatherVariableType>)
 
-    /**
-     * Get the nearest time index to the specified [time] based on the [timeSnappingType]
-     */
-    fun getTimeIndex(weatherVariable: WeatherVariableType, time: ZonedDateTime, timeSnappingType: WeatherRasterTimeSnappingType): Int?
-
-    /**
-     * Get the nearest time to the specified [time] based on the [timeSnappingType]
-     */
-    fun getSnappedTime(weatherVariable: WeatherVariableType, time: ZonedDateTime, timeSnappingType: WeatherRasterTimeSnappingType): ZonedDateTime?
-
-    /**
-     * Get the ZonedDateTime associated with the [index]
-     */
-    fun getTime(weatherVariable: WeatherVariableType, index: Int): ZonedDateTime?
-
     fun getUnits(weatherVariable: WeatherVariableType): WeatherVariableUnit?
-
-    fun containsTime(weatherVariable: WeatherVariableType, time: ZonedDateTime): Boolean
-    fun containsTimeIndex(weatherVariable: WeatherVariableType, index: Int): Boolean
 }
 
 enum class WeatherRasterTimeSnappingType {

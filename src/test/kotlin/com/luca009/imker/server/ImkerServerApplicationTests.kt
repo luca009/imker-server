@@ -19,13 +19,20 @@ import com.luca009.imker.server.management.models.WeatherModelUpdateJobEnabled
 import com.luca009.imker.server.management.models.model.WeatherModelManagerService
 import com.luca009.imker.server.parser.DynamicDataParserImpl
 import com.luca009.imker.server.parser.NetCdfParserImpl
+import com.luca009.imker.server.parser.TwoDCollectionWeatherVariableRasterSlice
 import com.luca009.imker.server.parser.model.*
+import com.luca009.imker.server.queries.TimeQueryHelper.getClosest
+import com.luca009.imker.server.queries.TimeQueryHelper.getEarliest
+import com.luca009.imker.server.queries.TimeQueryHelper.getLatest
 import com.luca009.imker.server.queries.WeatherDataQueryServiceImpl
 import com.luca009.imker.server.queries.model.PreferredWeatherModelMode
 import com.luca009.imker.server.queries.model.WeatherDataQueryService
 import com.luca009.imker.server.receiver.ftp.FtpClientImpl
 import com.luca009.imker.server.receiver.ftp.FtpSingleFileReceiverImpl
 import com.luca009.imker.server.receiver.model.*
+import com.luca009.imker.server.transformer.DesumTransformer
+import com.luca009.imker.server.transformer.ScaleTransformer
+import com.luca009.imker.server.transformer.model.DataTransformer
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.onCompletion
@@ -69,16 +76,53 @@ final class ImkerServerApplicationTests {
             WeatherVariableType.WindSpeed10m to "FF",
             WeatherVariableType.GustSpeed10m to "FX",
             WeatherVariableType.RelativeHumidity2m to "RH",
-            WeatherVariableType.PrecipitationSum to "RR",
+            WeatherVariableType.PrecipitationAmount to "RR",
             WeatherVariableType.DewPoint to "TD",
             WeatherVariableType.Temperature2m to "TT"
         )
 
-        val testDates: Set<Pair<Int, ZonedDateTime>> = setOf(
-            Pair(1, ZonedDateTime.of(2023, 12, 20, 12, 20, 0, 0, ZoneOffset.UTC)),
-            Pair(2, ZonedDateTime.of(2023, 12, 20, 14, 0, 0, 0, ZoneOffset.UTC)),
-            Pair(3, ZonedDateTime.of(2023, 12, 21, 12, 0, 0, 0, ZoneOffset.UTC))
+        val testDates: List<ZonedDateTime> = listOf(
+            ZonedDateTime.of(2023, 12, 20, 12, 20, 0, 0, ZoneOffset.UTC),
+            ZonedDateTime.of(2023, 12, 20, 14, 0, 0, 0, ZoneOffset.UTC),
+            ZonedDateTime.of(2023, 12, 21, 12, 0, 0, 0, ZoneOffset.UTC)
         )
+        val testRaw2dRasterSlices: List<List<List<Double>>> = listOf(
+            listOf(
+                listOf(0.0, 1.5),
+                listOf(1.0, 2.0),
+                listOf(3.0, 4.0)
+            ),
+            listOf(
+                listOf(0.0, 2.0),
+                listOf(2.0, 3.0),
+                listOf(3.5, 4.0)
+            ),
+            listOf(
+                listOf(1.0, 2.0),
+                listOf(3.0, 3.0),
+                listOf(4.0, 100.0)
+            )
+        )
+        val test2dTimeRaster = WeatherVariableTimeRasterSlice(
+            mapOf(
+                testDates[0] to TwoDCollectionWeatherVariableRasterSlice(
+                    WeatherVariableUnit.MetersPerSecond,
+                    Double::class,
+                    testRaw2dRasterSlices[0]
+                ),
+                testDates[1] to TwoDCollectionWeatherVariableRasterSlice(
+                    WeatherVariableUnit.MetersPerSecond,
+                    Double::class,
+                    testRaw2dRasterSlices[1]
+                ),
+                testDates[2] to TwoDCollectionWeatherVariableRasterSlice(
+                    WeatherVariableUnit.MetersPerSecond,
+                    Double::class,
+                    testRaw2dRasterSlices[2]
+                )
+            )
+        )
+
         val mockIncaFiles = arrayOf(
             MockFTPFile(true, "nowcast_202309091330.nc"),
             MockFTPFile(true, "nowcast_202309100915.nc"),
@@ -97,7 +141,7 @@ final class ImkerServerApplicationTests {
     }
 
     val netCdfParserFactory = {
-            netCdfFilePath: Path, variableMapper: WeatherVariableTypeMapper, unitMapper: WeatherVariableUnitMapper -> NetCdfParserImpl(netCdfFilePath, variableMapper, unitMapper)
+            netCdfFilePath: Path, variableMapper: WeatherVariableTypeMapper, unitMapper: WeatherVariableUnitMapper, transformers: Map<WeatherVariableType, List<DataTransformer>> -> NetCdfParserImpl(netCdfFilePath, variableMapper, unitMapper, transformers)
     }
     val weatherVariableTypeMapperFactory = {
         weatherVariableMap: Map<WeatherVariableType, String> -> WeatherVariableTypeMapperImpl(weatherVariableMap)
@@ -124,16 +168,14 @@ final class ImkerServerApplicationTests {
     val bestFileSearchService: BestFileSearchService = BestFileSearchServiceImpl()
     val variableMapper: WeatherVariableTypeMapper = WeatherVariableTypeMapperImpl(testIncaVariableNameMapping)
     val unitMapper: WeatherVariableUnitMapper = WeatherVariableUnitMapperImpl(testUnitMapperConfigFilePath.toFile())
-    val netCdfParser: NetCdfParser = netCdfParserFactory(testPrimaryNetcdfFilePath, variableMapper, unitMapper)
-    val weatherTimeCache: WeatherTimeCache = WeatherTimeCacheImpl()
+    val netCdfParser: NetCdfParser = netCdfParserFactory(testPrimaryNetcdfFilePath, variableMapper, unitMapper, mapOf())
     val weatherRasterMemoryCache: WeatherRasterMemoryCache = WeatherRasterMemoryCacheImpl()
     val weatherRasterDiskCache: WeatherRasterDiskCache = WeatherRasterDiskCacheImpl(netCdfParser)
     val weatherRasterCompositeCache: WeatherRasterCompositeCache = WeatherRasterCompositeCacheImpl(
         compositeCacheConfig,
         netCdfParser,
         weatherRasterMemoryCache,
-        weatherRasterDiskCache,
-        weatherTimeCache,
+        weatherRasterDiskCache
     )
     val localFileManagerService: LocalFileManagerService = LocalFileManagerServiceImpl(
         StorageProperties().apply {
@@ -159,13 +201,24 @@ final class ImkerServerApplicationTests {
         mockFtpClient
     )
 
+    val dynamicNetCdfParser: DynamicDataParser = DynamicDataParserImpl(
+        netCdfParser,
+        netCdfParserFactory,
+        testNetcdfFilesPath,
+        bestFileSearchService,
+        incaFileNameManager,
+        variableMapper,
+        unitMapper,
+        mapOf()
+    )
+
     val incaModel = WeatherModel(
         "INCA",
         "INCA",
         "GeoSphere Austria under CC BY-SA 4.0",
 
         incaReceiver,
-        DynamicDataParserImpl(netCdfParser, netCdfParserFactory, testNetcdfFilesPath, bestFileSearchService, incaFileNameManager, variableMapper, unitMapper),
+        dynamicNetCdfParser,
         weatherVariableTypeMapperFactory(testIncaVariableNameMapping),
         incaFileNameManager,
         weatherVariableUnitMapperFactory(testUnitMapperConfigFilePath.toFile()),
@@ -187,10 +240,10 @@ final class ImkerServerApplicationTests {
     val weatherModels: SortedMap<Int, WeatherModel> = sortedMapOf(
         0 to incaModel
     )
-
     val weatherDataCompositeCacheFactory = {
-            configuration: WeatherRasterCompositeCacheConfiguration, dataParser: WeatherDataParser -> WeatherRasterCompositeCacheImpl(configuration, dataParser, weatherRasterMemoryCache, weatherRasterDiskCache, WeatherTimeCacheImpl())
+            configuration: WeatherRasterCompositeCacheConfiguration, dataParser: WeatherDataParser -> WeatherRasterCompositeCacheImpl(configuration, dataParser, weatherRasterMemoryCache, weatherRasterDiskCache)
     }
+
     val weatherModelManagerService: WeatherModelManagerService = WeatherModelManagerServiceImpl(
         weatherModels,
         weatherDataCompositeCacheFactory,
@@ -198,16 +251,6 @@ final class ImkerServerApplicationTests {
     )
 
     val weatherDataQueryService: WeatherDataQueryService = WeatherDataQueryServiceImpl(weatherModelManagerService, queryProperties)
-
-    val dynamicNetCdfParser: DynamicDataParser = DynamicDataParserImpl(
-        netCdfParser,
-        netCdfParserFactory,
-        testNetcdfFilesPath,
-        bestFileSearchService,
-        incaFileNameManager,
-        variableMapper,
-        unitMapper
-    )
 
     @BeforeAll
     fun setupMockFtpClient(): Unit = runBlocking {
@@ -234,11 +277,6 @@ final class ImkerServerApplicationTests {
                 location
             )
         }
-    }
-
-    @BeforeAll
-    fun setupTimeCache() {
-        weatherTimeCache.setTimes(WeatherVariableType.Temperature2m, testDates)
     }
 
     @BeforeAll
@@ -375,13 +413,17 @@ final class ImkerServerApplicationTests {
         val temperatureVariable = netCdfParser.getVariable(WeatherVariableType.Temperature2m)
         Assert.notNull(temperatureVariable, "Temperature variable was null")
 
+        // Get times
+        val times = netCdfParser.getTimes(WeatherVariableType.Temperature2m)!!
+        Assert.isTrue(times.count() == 13, "Times count was incorrect")
+
         // Get variable 2d slice
-        val temperatureSlice = netCdfParser.getGridTimeSlice(WeatherVariableType.Temperature2m, 0)
+        val temperatureSlice = netCdfParser.getGridRasterSlice(WeatherVariableType.Temperature2m, times.first())
         val indirectTemperaturePoint = temperatureSlice?.getDoubleOrNull(50, 100) // coordinates insignificant
         Assert.isTrue(indirectTemperaturePoint is Double, "Temperature point was not a double")
 
         // Get variable slice at point
-        val temperaturePoint = netCdfParser.getGridTimeAnd2dPositionSlice(WeatherVariableType.Temperature2m, 0, WeatherVariable2dCoordinate(50, 100)) // same coordinates as above
+        val temperaturePoint = netCdfParser.getGridTimeAnd2dPositionSlice(WeatherVariableType.Temperature2m, times.first(), WeatherVariable2dCoordinate(50, 100)) // same coordinates as above
         Assert.isTrue(temperaturePoint is Double, "Temperature point was not a double")
 
         // Compare getting value directly at point and via the 2d slice
@@ -407,6 +449,11 @@ final class ImkerServerApplicationTests {
         Assert.isTrue(temperatureVariableExistsInCompositeCache, "Temperature variable was not in the composite cache despite being configured to be so")
 
 
+        // Get times
+        val times = weatherRasterCompositeCache.getTimes(WeatherVariableType.Temperature2m)!!
+        Assert.isTrue(times.count() == 13, "Time count was not correct when returned from the composite cache")
+
+
         // Testing memory cache directly
         val temperatureVariableExistsInMemoryCache = weatherRasterMemoryCache.variableExists(WeatherVariableType.Temperature2m)
         Assert.isTrue(temperatureVariableExistsInMemoryCache, "Temperature variable was not in the memory cache despite being configured to be so")
@@ -415,11 +462,11 @@ final class ImkerServerApplicationTests {
         Assert.isTrue(!windSpeedVariableExistsInMemoryCache, "Wind speed variable was in the memory cache despite being configured not to be so")
 
         val temperatureVariableExistsAtTimeInMemoryCache =
-            weatherRasterMemoryCache.variableExistsAtTime(WeatherVariableType.Temperature2m, 2)
+            weatherRasterMemoryCache.variableExistsAtTime(WeatherVariableType.Temperature2m, times[2])
         Assert.isTrue(temperatureVariableExistsAtTimeInMemoryCache, "Temperature variable did not exist at specified time in the memory cache despite being configured to be so")
 
         val temperatureVariableExistsAtPointInMemoryCache =
-            weatherRasterMemoryCache.variableExistsAtTimeAndPosition(WeatherVariableType.Temperature2m, 0, WeatherVariable2dCoordinate(700, 430)) // Note: these are the maximum indices of the x and y coordinates in the INCA dataset respectively
+            weatherRasterMemoryCache.variableExistsAtTimeAndPosition(WeatherVariableType.Temperature2m, times[0], WeatherVariable2dCoordinate(700, 430)) // Note: these are the maximum indices of the x and y coordinates in the INCA dataset respectively
         Assert.isTrue(temperatureVariableExistsAtPointInMemoryCache, "Temperature variable did not exist at specified point in the memory cache despite being configured to be so")
 
 
@@ -428,21 +475,21 @@ final class ImkerServerApplicationTests {
         Assert.isTrue(windSpeedVariableExistsInCompositeCache, "Wind speed variable was not in the composite cache despite being configured to be so")
 
         val windSpeedVariableExistsAtTimeInCompositeCache =
-            weatherRasterCompositeCache.variableExistsAtTime(WeatherVariableType.WindSpeed10m, 2)
+            weatherRasterCompositeCache.variableExistsAtTime(WeatherVariableType.WindSpeed10m, times[2])
         Assert.isTrue(windSpeedVariableExistsAtTimeInCompositeCache, "Wind speed variable did not exist at specified time in the composite cache despite being configured to be so")
 
         val windSpeedVariableExistsAtPointInCompositeCache =
-            weatherRasterCompositeCache.variableExistsAtTimeAndPosition(WeatherVariableType.WindSpeed10m, 0, WeatherVariable2dCoordinate(700, 430)) // Note: these are the maximum indices of the x and y coordinates in the INCA dataset respectively
+            weatherRasterCompositeCache.variableExistsAtTimeAndPosition(WeatherVariableType.WindSpeed10m, times[0], WeatherVariable2dCoordinate(700, 430)) // Note: these are the maximum indices of the x and y coordinates in the INCA dataset respectively
         Assert.isTrue(windSpeedVariableExistsAtPointInCompositeCache, "Wind speed variable did not exist at specified point in the composite cache despite being configured to be so")
 
 
         // Testing negative indices
         val temperatureVariableExistsAtNegativePointInCompositeCache =
-            weatherRasterCompositeCache.variableExistsAtTimeAndPosition(WeatherVariableType.Temperature2m, 0, WeatherVariable2dCoordinate(-1, -1))
+            weatherRasterCompositeCache.variableExistsAtTimeAndPosition(WeatherVariableType.Temperature2m, times[0], WeatherVariable2dCoordinate(-1, -1))
         Assert.isTrue(!temperatureVariableExistsAtNegativePointInCompositeCache, "Temperature variable existed at negative point in the composite cache")
 
         val windSpeedVariableExistsAtNegativePointInCompositeCache =
-            weatherRasterCompositeCache.variableExistsAtTimeAndPosition(WeatherVariableType.WindSpeed10m, 0, WeatherVariable2dCoordinate(-1, -1))
+            weatherRasterCompositeCache.variableExistsAtTimeAndPosition(WeatherVariableType.WindSpeed10m, times[0], WeatherVariable2dCoordinate(-1, -1))
         Assert.isTrue(!windSpeedVariableExistsAtNegativePointInCompositeCache, "Wind speed variable existed at negative point in the composite cache")
     }
 
@@ -522,24 +569,6 @@ final class ImkerServerApplicationTests {
         Assert.isTrue(firstDataSources != secondDataSource, "Dynamic NetCDF parser was not updated, despite the update being reported as successful")
     }
 
-    @Test
-    @Order(1)
-    fun weatherTimeCacheWorks() {
-        // 2023-12-21 at 08:00:00 UTC
-        // in comparison to the test dates (not to scale :D):
-        // --1-----2-----3-- (indices 1, 2 and 3 in the test dataset)
-        // -------------T--- (this test date)
-        val testDate = ZonedDateTime.of(2023, 12, 21, 8, 0, 0, 0, ZoneOffset.UTC)
-
-        val earliestIndex = weatherTimeCache.getEarliestIndex(WeatherVariableType.Temperature2m, testDate)
-        Assert.isTrue(earliestIndex == 2, "WeatherTimeCache earliest date calculation was incorrect")
-
-        val closestIndex = weatherTimeCache.getClosestIndex(WeatherVariableType.Temperature2m, testDate)
-        Assert.isTrue(closestIndex == 3, "WeatherTimeCache closest date calculation was incorrect")
-
-        val latestIndex = weatherTimeCache.getLatestIndex(WeatherVariableType.Temperature2m, testDate)
-        Assert.isTrue(latestIndex == 3, "WeatherTimeCache latest date calculation was incorrect")
-    }
 
     @Test
     @Order(2)
@@ -650,13 +679,97 @@ final class ImkerServerApplicationTests {
         // TODO: update this once more weather models are introduced
         Assert.isTrue(allLimitedTemperatureForecast.values == secondTemperatureForecast.values.subList(0, 5), "Query returned wrong forecast results (not equal to previous results despite being expected to be equal)")
     }
+
+    @Test
+    fun timeHelperWorks() {
+        // 2023-12-21 at 08:00:00 UTC
+        // in comparison to the test dates (not to scale :D):
+        // --0-----1-----2-- (indices 0, 1 and 2 in the test dataset)
+        // -------------T--- (this test date)
+        val testDate = ZonedDateTime.of(2023, 12, 21, 8, 0, 0, 0, ZoneOffset.UTC)
+
+        val earliestDate = testDates.getEarliest(testDate)
+        Assert.isTrue(earliestDate == testDates[1], "WeatherTimeCache earliest date calculation was incorrect")
+
+        val closestDate = testDates.getClosest(testDate)
+        Assert.isTrue(closestDate == testDates[2], "WeatherTimeCache closest date calculation was incorrect")
+
+        val latestDate = testDates.getLatest(testDate)
+        Assert.isTrue(latestDate == testDates[2], "WeatherTimeCache latest date calculation was incorrect")
+    }
+
+    @Test
+    fun desumTransformerWorks() {
+        // Desum the values rudimentarily for the sake of testing
+        val expectedDesumValues = listOf(testRaw2dRasterSlices[0]).plus(
+            testRaw2dRasterSlices.windowed(2) {
+                val raster1 = it[0]
+                val raster2 = it[1]
+
+                raster2.mapIndexed { xIndex, x ->
+                    x.mapIndexed { yIndex, y ->
+                        y - raster1[xIndex][yIndex]
+                    }
+                }
+            }
+        )
+
+        val transformer = DesumTransformer()
+        val transformedSlice = transformer.transformSlice(test2dTimeRaster)!!
+
+        val results = transformedSlice.variableSlices.values.mapIndexed { timeIndex, raster ->
+            val expectedRasterValues = expectedDesumValues[timeIndex]
+
+            expectedRasterValues.mapIndexed { xIndex, x ->
+                x.mapIndexed { yIndex, expectedValue ->
+                    Pair(
+                        Triple(timeIndex, xIndex, yIndex),
+                        Pair(raster.getDoubleOrNull(xIndex, yIndex), expectedValue)
+                    )
+                }
+            }
+        }.flatten().flatten().toMap()
+
+        val incorrectPoints = results.filterValues { it.first != it.second }
+        Assert.isTrue(incorrectPoints.isEmpty(), "The following points were desummed incorrectly ((time, x, y)=(actual, expected)): $incorrectPoints")
+    }
+
+    @Test
+    fun scaleTransformerWorks() {
+        // Desum the values rudimentarily for the sake of testing
+        val expectedScaledValues = testRaw2dRasterSlices.map {
+            it.map {
+                it.map {
+                    it * 4.0
+                }
+            }
+        }
+
+        val transformer = ScaleTransformer(4.0)
+        val transformedSlice = transformer.transformSlice(test2dTimeRaster)!!
+
+        val results = transformedSlice.variableSlices.values.mapIndexed { timeIndex, raster ->
+            val expectedRasterValues = expectedScaledValues[timeIndex]
+
+            expectedRasterValues.mapIndexed { xIndex, x ->
+                x.mapIndexed { yIndex, expectedValue ->
+                    Pair(
+                        Triple(timeIndex, xIndex, yIndex),
+                        Pair(raster.getDoubleOrNull(xIndex, yIndex), expectedValue)
+                    )
+                }
+            }
+        }.flatten().flatten().toMap()
+
+        val incorrectPoints = results.filterValues { it.first != it.second }
+        Assert.isTrue(incorrectPoints.isEmpty(), "The following points were scaled incorrectly ((time, x, y)=(actual, expected)): $incorrectPoints")
+    }
 }
 
-class MockFTPFile : FTPFile {
-    private val isFileOverride: Boolean
+class MockFTPFile(isFile: Boolean, name: String) : FTPFile() {
+    private val isFileOverride: Boolean = isFile
 
-    constructor(isFile: Boolean, name: String) : super() {
-        isFileOverride = isFile
+    init {
         this.name = name
         this.rawListing = ""
     }
