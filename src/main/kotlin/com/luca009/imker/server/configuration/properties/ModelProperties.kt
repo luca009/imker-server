@@ -16,9 +16,9 @@ data class RawWeatherModel(
     val receiver: RawWeatherModelReceiverInfo,
     val source: RawWeatherModelSourceFileInfo,
     val mapping: RawWeatherModelMappingInfo,
-    val transforming: RawWeatherModelTransformingInfo,
+    val transforming: RawWeatherModelTransformingInfo = RawWeatherModelTransformingInfo(),
     val storage: RawWeatherModelStorageInfo,
-    val cache: RawWeatherModelCacheInfo
+    val cache: RawWeatherModelCacheInfo = RawWeatherModelCacheInfo()
 )
 
 data class RawWeatherModelMetaInfo(
@@ -56,7 +56,7 @@ data class RawWeatherModelTransformingInfo(
 data class RawWeatherModelStorageInfo(
     val storageLocationName: String,
     val subFolderName: String? = null,
-    val policy: RawWeatherModelStoragePolicyInfo
+    val policy: RawWeatherModelStoragePolicyInfo = RawWeatherModelStoragePolicyInfo()
 )
 
 data class RawWeatherModelStoragePolicyInfo(
