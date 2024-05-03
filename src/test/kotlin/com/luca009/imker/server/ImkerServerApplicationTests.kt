@@ -76,7 +76,7 @@ final class ImkerServerApplicationTests {
             WeatherVariableType.WindSpeed10m to "FF",
             WeatherVariableType.GustSpeed10m to "FX",
             WeatherVariableType.RelativeHumidity2m to "RH",
-            WeatherVariableType.PrecipitationSum to "RR",
+            WeatherVariableType.PrecipitationAmount to "RR",
             WeatherVariableType.DewPoint to "TD",
             WeatherVariableType.Temperature2m to "TT"
         )

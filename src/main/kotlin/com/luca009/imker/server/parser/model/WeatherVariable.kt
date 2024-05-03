@@ -39,7 +39,6 @@ enum class WeatherVariableType {
     ThermalRadiation,
     SunshineDuration,
     PrecipitationAmount,
-    PrecipitationSum,
     WindSpeedU10m,
     WindSpeedV10m,
     GustSpeedU10m,

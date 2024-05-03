@@ -30,13 +30,13 @@ models:
           WindSpeed10m: FF
           GustSpeed10m: FX
           RelativeHumidity2m: RH
-          PrecipitationSum: RR
+          PrecipitationAmount: RR
           DewPoint: TD
           Temperature2m: TT
         unitMapperFile: src/test/resources/unit_map.csv
       transforming:
         transformers:
-          PrecipitationSum:
+          PrecipitationAmount:
             - scale4x
       storage:
         storageLocationName: default
@@ -50,7 +50,7 @@ models:
           - WindSpeed10m
           - GustSpeed10m
           - RelativeHumidity2m
-          - PrecipitationSum
+          - PrecipitationAmount
           - DewPoint
           - Temperature2m
     1:
@@ -90,7 +90,7 @@ models:
           SnowAmount: SSNOW
           ThermalRadiation: STR
           SunshineDuration: SUNDUR
-          PrecipitationSum: TP
+          PrecipitationAmount: TP
           WindSpeedU10m: U10M
           WindSpeedV10m: V10M
           GustSpeedU10m: UGUST
