@@ -12,7 +12,7 @@ data class WeatherModel(
     val copyright: String,
     val receiver: DataReceiver, // TODO: Update these
     val parser: WeatherDataParser,
-    val mapper: WeatherVariableFileNameMapper,
+    val mapper: WeatherVariableTypeMapper,
     val fileNameManager: DataFileNameManager,
     val unitMapper: WeatherVariableUnitMapper,
     val cacheConfiguration: WeatherRasterCompositeCacheConfiguration,

@@ -1,6 +1,6 @@
 package com.luca009.imker.server.parser
 
-import com.luca009.imker.server.configuration.model.WeatherVariableFileNameMapper
+import com.luca009.imker.server.configuration.model.WeatherVariableTypeMapper
 import com.luca009.imker.server.configuration.model.WeatherVariableUnitMapper
 import com.luca009.imker.server.parser.model.*
 import org.slf4j.Logger
@@ -22,7 +22,7 @@ import java.util.*
 
 class NetCdfParserImpl(
     netCdfFilePath: Path,
-    private val variableMapper: WeatherVariableFileNameMapper,
+    private val variableMapper: WeatherVariableTypeMapper,
     private val unitMapper: WeatherVariableUnitMapper
 ) : NetCdfParser {
     private val sourceFilePath: Path

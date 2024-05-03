@@ -25,7 +25,14 @@ models:
         dateFormat: yyyyMMddHHmm
         updateFrequency: PT15M
       mapping:
-        variableMapperFile: src/test/resources/inca/inca_map.csv
+        variableMapping:
+          WindDirection10m: DD
+          WindSpeed10m: FF
+          GustSpeed10m: FX
+          RelativeHumidity2m: RH
+          PrecipitationSum: RR
+          DewPoint: TD
+          Temperature2m: TT
         unitMapperFile: src/test/resources/unit_map.csv
       storage:
         storageLocationName: default
@@ -58,7 +65,33 @@ models:
         dateFormat: yyyyMMddHH
         updateFrequency: PT3H
       mapping:
-        variableMapperFile: src/test/resources/arome/arome_map.csv
+        variableMapping:
+          ConvectiveAvailablePotentialEnergy: CAPE
+          ConvectiveInhibition: CIN
+          GlobalRadiation: GRAD
+          LowCloudCoverage: LCC
+          MediumCloudCoverage: MCC
+          HighCloudCoverage: HCC
+          TotalCloudCoverage: TCC
+          Temperature2m: T2M
+          Minimum2mTemperature: MNT2M
+          Maximum2mTemperature: MXT2M
+          NetLongWaveRadiationFlux: NSLR
+          NetShortWaveRadiationFlux: NSSR
+          RainfallAmount: RAIN
+          RelativeHumidity2m: RH2M
+          ShowalterIndex: SAI
+          SnowfallAmount: SNOW
+          Pressure: SP
+          SnowAmount: SSNOW
+          ThermalRadiation: STR
+          SunshineDuration: SUNDUR
+          PrecipitationSum: TP
+          WindSpeedU10m: U10M
+          WindSpeedV10m: V10M
+          GustSpeedU10m: UGUST
+          GustSpeedV10m: VGUST
+          SurfaceGeopotential: ZSURF
         unitMapperFile: src/test/resources/unit_map.csv
       storage:
         storageLocationName: default

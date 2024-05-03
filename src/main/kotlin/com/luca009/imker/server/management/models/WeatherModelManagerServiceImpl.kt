@@ -4,8 +4,6 @@ import com.luca009.imker.server.caching.model.WeatherRasterCompositeCache
 import com.luca009.imker.server.caching.model.WeatherRasterCompositeCacheConfiguration
 import com.luca009.imker.server.caching.model.WeatherRasterTimeSnappingType
 import com.luca009.imker.server.configuration.model.WeatherModel
-import com.luca009.imker.server.configuration.model.WeatherVariableFileNameMapper
-import com.luca009.imker.server.configuration.model.WeatherVariableUnitMapper
 import com.luca009.imker.server.management.files.model.LocalFileManagerService
 import com.luca009.imker.server.management.models.model.WeatherModelManagerService
 import com.luca009.imker.server.parser.model.*
