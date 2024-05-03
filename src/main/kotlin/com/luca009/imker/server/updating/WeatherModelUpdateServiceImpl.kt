@@ -11,7 +11,6 @@ import java.util.concurrent.TimeUnit
 
 @Component
 class WeatherModelUpdateServiceImpl(
-    private val updateProperties: UpdateProperties,
     private val weatherModelManagerService: WeatherModelManagerService
 ) : WeatherModelUpdateService() {
     @Scheduled(fixedRateString = "\${update.updateCheckInterval}", initialDelayString = "\${update.updateCheckInterval}", timeUnit = TimeUnit.MINUTES)

@@ -20,8 +20,7 @@ class WeatherRasterCacheConfiguration {
             configuration,
             dataParser,
             weatherRasterMemoryCache(),
-            weatherRasterDiskCache(dataParser),
-            weatherTimeCache()
+            weatherRasterDiskCache(dataParser)
         )
     }
 
@@ -33,11 +32,5 @@ class WeatherRasterCacheConfiguration {
     @Scope("prototype")
     fun weatherRasterMemoryCache(): WeatherRasterMemoryCache {
         return WeatherRasterMemoryCacheImpl()
-    }
-
-    @Bean
-    @Scope("prototype")
-    fun weatherTimeCache(): WeatherTimeCache {
-        return WeatherTimeCacheImpl()
     }
 }

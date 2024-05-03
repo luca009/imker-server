@@ -8,8 +8,6 @@ import java.time.ZonedDateTime
 import java.util.SortedMap
 
 interface WeatherModelManagerService {
-    // TODO: A bunch more functions for managing available weather models (available variables, etc.)
-
     fun getWeatherModels(): SortedMap<Int, WeatherModel>
 
     fun queueUpdateWeatherModel(

@@ -3,6 +3,14 @@ package com.luca009.imker.server.parser
 import com.luca009.imker.server.configuration.model.WeatherVariableTypeMapper
 import com.luca009.imker.server.configuration.model.WeatherVariableUnitMapper
 import com.luca009.imker.server.parser.model.*
+import com.luca009.imker.server.transformer.DataTransformerHelper.chainedTransformPoint
+import com.luca009.imker.server.transformer.DataTransformerHelper.chainedTransformRaster
+import com.luca009.imker.server.transformer.DataTransformerHelper.chainedTransformSlice
+import com.luca009.imker.server.transformer.DataTransformerHelper.chainedTransformTimeSeries
+import com.luca009.imker.server.transformer.model.DataTransformer
+import com.luca009.imker.server.transformer.model.PointDataTransformer
+import com.luca009.imker.server.transformer.model.RasterDataTransformer
+import com.luca009.imker.server.transformer.model.TimeDataTransformer
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import ucar.nc2.Dimension
@@ -11,26 +19,34 @@ import ucar.nc2.dataset.NetcdfDataset
 import ucar.nc2.dataset.NetcdfDatasets
 import ucar.nc2.dt.GridDatatype
 import ucar.nc2.dt.GridDataset
+import ucar.nc2.dt.GridDataset.Gridset
 import ucar.nc2.ft.FeatureDataset
 import ucar.nc2.ft.FeatureDatasetFactoryManager
-import ucar.nc2.time.CalendarDate
 import ucar.nc2.util.CancelTask
 import java.nio.file.Path
 import java.time.ZoneOffset
 import java.time.ZonedDateTime
-import java.util.*
 
 class NetCdfParserImpl(
     netCdfFilePath: Path,
     private val variableMapper: WeatherVariableTypeMapper,
-    private val unitMapper: WeatherVariableUnitMapper
+    private val unitMapper: WeatherVariableUnitMapper,
+    private val transformers: Map<WeatherVariableType, List<DataTransformer>> = mapOf()
 ) : NetCdfParser {
     private val sourceFilePath: Path
+
     private val availableRawVariables: Set<RawWeatherVariable>
     private val availableVariables: Map<WeatherVariableType, WeatherVariable>
+    private val availableTimes: Map<Gridset, List<ZonedDateTime>>
+
     private val dataset: NetcdfDataset
     private val wrappedDataset: FeatureDataset
     private val wrappedGridDataset: GridDataset?
+
+    private val rasterTransformers = transformers.mapValues { it.value.filterIsInstance<RasterDataTransformer>() }
+    private val timeTransformer = transformers.mapValues { it.value.filterIsInstance<TimeDataTransformer>() }
+    private val pointTransformers = transformers.mapValues { it.value.filterIsInstance<PointDataTransformer>() }
+
     private val logger: Logger = LoggerFactory.getLogger(this::class.java)
 
     init {
@@ -65,6 +81,8 @@ class NetCdfParserImpl(
             // Create a new map with each weather variable's variable types...
             variable.variableTypes.associateWith { variable }
         }.mergeMaps() // ...and merge them into one map. There should be no duplicate entries, assuming a correct configuration.
+
+        availableTimes = getAllTimes()
     }
 
     private fun <K, V> List<Map<K, V>>.mergeMaps(): Map<K, V> =
@@ -95,25 +113,51 @@ class NetCdfParserImpl(
         }
     }
 
+    private fun getAllTimes(): Map<Gridset, List<ZonedDateTime>> {
+        return wrappedGridDataset!!.gridsets!!.associateWith {
+            val rawDates = it.geoCoordSystem.calendarDates
+
+            rawDates.mapNotNull { date ->
+                val utilDate = date?.toDate()
+                utilDate?.toInstant()?.atZone(ZoneOffset.UTC)
+            }
+        }
+    }
+
     private fun isInRange(dimension: Dimension?, index: Int): Boolean {
         requireNotNull(dimension) {
             return false
         }
 
-        return index >= 0 && index < dimension.length
+        return index in 0..dimension.length
     }
 
-    private fun isIn2dRange(weatherVariable: GridDatatype, timeIndex: Int, xIndex: Int, yIndex: Int): Boolean {
-        return isInRange(weatherVariable.timeDimension, timeIndex) &&
-                isInRange(weatherVariable.xDimension, xIndex) &&
-                isInRange(weatherVariable.yDimension, yIndex)
+    private fun isIn2dRange(gridset: Gridset, grid: GridDatatype, time: ZonedDateTime, coordinate: WeatherVariable2dCoordinate): Boolean {
+        val times = availableTimes[gridset] ?: return false
+        return times.contains(time) &&
+                isInRange(grid.xDimension, coordinate.xIndex) &&
+                isInRange(grid.yDimension, coordinate.yIndex)
     }
 
-    private fun isIn3dRange(weatherVariable: GridDatatype, timeIndex: Int, xIndex: Int, yIndex: Int, zIndex: Int): Boolean {
-        return isInRange(weatherVariable.timeDimension, timeIndex) &&
-                isInRange(weatherVariable.xDimension, xIndex) &&
-                isInRange(weatherVariable.yDimension, yIndex) &&
-                isInRange(weatherVariable.zDimension, zIndex)
+    private fun isIn2dRange(grid: GridDatatype, timeIndex: Int, coordinate: WeatherVariable2dCoordinate): Boolean {
+        return isInRange(grid.timeDimension, timeIndex) &&
+                isInRange(grid.xDimension, coordinate.xIndex) &&
+                isInRange(grid.yDimension, coordinate.yIndex)
+    }
+
+    private fun isIn3dRange(gridset: Gridset, grid: GridDatatype, time: ZonedDateTime, coordinate: WeatherVariable3dCoordinate): Boolean {
+        val times = availableTimes[gridset] ?: return false
+        return times.contains(time) &&
+                isInRange(grid.xDimension, coordinate.xIndex) &&
+                isInRange(grid.yDimension, coordinate.yIndex) &&
+                isInRange(grid.zDimension, coordinate.zIndex)
+    }
+
+    private fun isIn3dRange(grid: GridDatatype, timeIndex: Int, coordinate: WeatherVariable3dCoordinate): Boolean {
+        return isInRange(grid.timeDimension, timeIndex) &&
+                isInRange(grid.xDimension, coordinate.xIndex) &&
+                isInRange(grid.yDimension, coordinate.yIndex) &&
+                isInRange(grid.zDimension, coordinate.zIndex)
     }
 
     private fun getArrayFromAny(inputArray: Any?): Array<*>? {
@@ -131,23 +175,27 @@ class NetCdfParserImpl(
         }
     }
 
-    private fun getGridset(variable: WeatherVariableType): GridDataset.Gridset? {
+    private fun getGridset(variable: WeatherVariableType): Gridset? {
+        return getGridsetAndGrid(variable)?.first
+    }
+
+    private fun getGridsetAndGrid(variable: WeatherVariableType): Pair<Gridset, GridDatatype>? {
         val variableName = variableMapper.getWeatherVariableName(variable) ?: return null
 
         // Get the first gridset to contain a grid with our desired name
-        return wrappedGridDataset?.gridsets?.find {
-            it.grids?.find { it.name == variableName } != null
+        wrappedGridDataset?.gridsets?.forEach {
+            val grid = it.grids?.find { it.name == variableName } ?: return@forEach
+
+            return Pair(
+                it,
+                grid
+            )
         }
+
+        return null
     }
 
-    private fun getGrid(variable: WeatherVariableType): GridDatatype? {
-        val variableName = variableMapper.getWeatherVariableName(variable) ?: return null
-
-        // Get the first gridset to contain a grid with our desired name
-        return wrappedGridDataset?.grids?.find { it.name == variableName }
-    }
-
-    private fun getTimeSliceFromGrid(grid: GridDatatype, timeIndex: Int): WeatherVariableRasterSlice? {
+    private fun getTimeSliceFromGrid(grid: GridDatatype, timeIndex: Int, unit: WeatherVariableUnit?): WeatherVariableRasterSlice? {
         val volumeArray = grid.readVolumeData(timeIndex)
 
         val dataType = volumeArray.dataType
@@ -160,6 +208,7 @@ class NetCdfParserImpl(
         }
 
         return NetCdfWeatherVariableRasterSlice(
+            unit,
             javaDataType,
             castArray,
             grid.dimensions,
@@ -187,96 +236,190 @@ class NetCdfParserImpl(
         return availableVariables[variableType]
     }
 
-    override fun getGridEntireSlice(variable: WeatherVariableType): WeatherVariableSlice? {
-        val weatherVariable = getGrid(variable) ?: return null
-        val allSlices: MutableList<WeatherVariableRasterSlice> = mutableListOf()
+    override fun getGridEntireSlice(variable: WeatherVariableType): WeatherVariableTimeRasterSlice? {
+        val weatherVariable = availableVariables[variable] ?: return null
+        val (variableGridset, variableGrid) = getGridsetAndGrid(variable) ?: return null
+        val times = availableTimes[variableGridset] ?: return null
 
-        for (x in 0 until weatherVariable.timeDimension.length) {
-            val slice = getTimeSliceFromGrid(weatherVariable, x)
-            requireNotNull(slice) {
-                return null
-            }
+        val slices = (0 until variableGrid.timeDimension.length).map {
+            val slice = getTimeSliceFromGrid(variableGrid, it, weatherVariable.unitType) ?: return null
 
-            allSlices.add(slice)
+            Pair(
+                times[it],
+                slice
+            )
+        }.toMap()
+
+        val mergedSlice = WeatherVariableTimeRasterSlice(slices)
+
+        val transformers = transformers[variable]
+        return if (transformers == null) {
+            // No applicable transformers, return data as-is
+            mergedSlice
+        } else {
+            // Transform our slice :D
+            transformers.chainedTransformSlice(mergedSlice)
+        }
+    }
+
+    override fun getGridRasterSlice(variable: WeatherVariableType, time: ZonedDateTime): WeatherVariableRasterSlice? {
+        val weatherVariable = availableVariables[variable] ?: return null
+        val (variableGridset, variableGrid) = getGridsetAndGrid(variable) ?: return null
+
+        val timeIndex = availableTimes[variableGridset]?.indexOf(time)
+        require(timeIndex != null && timeIndex >= 0) {
+            return null
         }
 
-        return WeatherVariableSlice(
-            allSlices
+        if (!isInRange(variableGrid.timeDimension, timeIndex)) {
+            return null
+        }
+
+        val rasterSlice = getTimeSliceFromGrid(variableGrid, timeIndex, weatherVariable.unitType) ?: return null
+
+        val transformers = rasterTransformers[variable]
+        return if (transformers == null) {
+            // No applicable transformers, return data as-is
+            rasterSlice
+        } else {
+            // Transform our raster :D
+            transformers.chainedTransformRaster(rasterSlice)
+        }
+    }
+
+    override fun getGridTimeSeriesAt2dPosition(
+        variable: WeatherVariableType,
+        coordinate: WeatherVariable2dCoordinate,
+        timeLimit: Int
+    ): WeatherVariableTimeSlice? = getGridTimeSeriesAt3dPosition(
+        variable,
+        WeatherVariable3dCoordinate(
+            coordinate.xIndex, coordinate.yIndex, 0
+        ),
+        timeLimit
+    )
+
+    override fun getGridTimeSeriesAt3dPosition(
+        variable: WeatherVariableType,
+        coordinate: WeatherVariable3dCoordinate,
+        timeLimit: Int
+    ): WeatherVariableTimeSlice? {
+        val weatherVariable = availableVariables[variable] ?: return null
+        val (variableGridset, variableGrid) = getGridsetAndGrid(variable) ?: return null
+
+        val timeDepth = if (timeLimit < 0) {
+            variableGrid.timeDimension.length
+        } else {
+            timeLimit.coerceAtMost(variableGrid.timeDimension.length)
+        }
+
+        val dataType = variableGrid.dataType.primitiveClassType.kotlin
+        val values = (0 until timeDepth).map {
+            Pair(
+                variableGridset.getTime(it) ?: return null,
+                variableGrid.readDataSlice(it, coordinate.zIndex, coordinate.yIndex, coordinate.xIndex).getObject(0)
+            )
+        }.toMap()
+
+        val timeSlice = WeatherVariableTimeSlice(
+            values,
+            dataType,
+            weatherVariable.unitType
         )
-    }
 
-    override fun getGridTimeSlice(variable: WeatherVariableType, timeIndex: Int): WeatherVariableRasterSlice? {
-        val weatherVariable = getGrid(variable) ?: return null
-
-        return if (isInRange(weatherVariable.timeDimension, timeIndex)) {
-            getTimeSliceFromGrid(weatherVariable, timeIndex)
+        val transformers = timeTransformer[variable]
+        return if (transformers == null) {
+            // No applicable transformers, return data as-is
+            timeSlice
         } else {
-            null
+            // Transform our series :D
+            transformers.chainedTransformTimeSeries(timeSlice)
         }
     }
 
-    override fun getGridTimeAnd2dPositionSlice(variable: WeatherVariableType, timeIndex: Int, coordinate: WeatherVariable2dCoordinate): Any? {
-        val weatherVariable = getGrid(variable) ?: return null
+    override fun getGridTimeAnd2dPositionSlice(
+        variable: WeatherVariableType,
+        time: ZonedDateTime,
+        coordinate: WeatherVariable2dCoordinate
+    ): Any? {
+        val (variableGridset, variableGrid) = getGridsetAndGrid(variable) ?: return null
+        val timeIndex = availableTimes[variableGridset]?.indexOf(time) ?: return null
 
-        return if (isIn2dRange(weatherVariable, timeIndex, coordinate.xIndex, coordinate.yIndex)) {
-            weatherVariable.readDataSlice(timeIndex, 0, coordinate.yIndex, coordinate.xIndex).getObject(0)
+        if (!isIn2dRange(variableGrid, timeIndex, coordinate)) {
+            return null
+        }
+
+        val value = variableGrid.readDataSlice(timeIndex, 0, coordinate.yIndex, coordinate.xIndex).getObject(0)
+
+        val transformers = pointTransformers[variable]
+        return if (transformers == null) {
+            // No applicable transformers, return data as-is
+            value
         } else {
-            null
+            // Transform our value, but get the unit type first
+            val unit = getVariable(variable)?.unitType ?: return null
+            transformers.chainedTransformPoint(value, unit)
         }
     }
 
-    override fun getGridTimeAnd3dPositionSlice(variable: WeatherVariableType, timeIndex: Int, coordinate: WeatherVariable3dCoordinate): Any? {
-        val weatherVariable = getGrid(variable) ?: return null
+    override fun getGridTimeAnd3dPositionSlice(
+        variable: WeatherVariableType,
+        time: ZonedDateTime,
+        coordinate: WeatherVariable3dCoordinate
+    ): Any? {
+        val (variableGridset, variableGrid) = getGridsetAndGrid(variable) ?: return null
+        val timeIndex = availableTimes[variableGridset]?.indexOf(time) ?: return null
 
-        return if (isIn3dRange(weatherVariable, timeIndex, coordinate.xIndex, coordinate.yIndex, coordinate.zIndex)) {
-            weatherVariable.readDataSlice(timeIndex, coordinate.zIndex, coordinate.yIndex, coordinate.xIndex).getObject(0)
+        if (!isIn3dRange(variableGrid, timeIndex, coordinate)) {
+            return null
+        }
+
+        val value = variableGrid.readDataSlice(timeIndex, coordinate.zIndex, coordinate.yIndex, coordinate.xIndex).getObject(0)
+
+        val transformers = pointTransformers[variable]
+        return if (transformers == null) {
+            // No applicable transformers, return data as-is
+            value
         } else {
-            null
+            // Transform our value, but get the unit type first
+            val unit = getVariable(variable)?.unitType ?: return null
+            transformers.chainedTransformPoint(value, unit)
         }
     }
 
-    override fun getTimes(variable: WeatherVariableType): Set<Pair<Int, ZonedDateTime>>? {
-        val gridset = getGridset(variable) ?: return null
-
-        return gridset.geoCoordSystem.calendarDates.mapIndexed { index, date ->
-            val utilDate = date.toDate()
-            Pair(index, utilDate.toInstant().atZone(ZoneOffset.UTC))
-        }.toSet()
+    private fun Gridset.getTime(timeIndex: Int): ZonedDateTime? {
+        return this.geoCoordSystem.calendarDates.getOrNull(timeIndex).run {
+            val utilDate = this?.toDate()
+            utilDate?.toInstant()?.atZone(ZoneOffset.UTC)
+        }
     }
 
-    override fun gridTimeSliceExists(variable: WeatherVariableType, timeIndex: Int): Boolean {
-        val weatherVariable = getGrid(variable) ?: return false
-        return isInRange(weatherVariable.timeDimension, timeIndex)
+    override fun getTimes(variable: WeatherVariableType): List<ZonedDateTime>? {
+        val variableGridset = getGridset(variable)
+        return availableTimes[variableGridset]
+    }
+
+    override fun gridTimeSliceExists(variable: WeatherVariableType, time: ZonedDateTime): Boolean {
+        val variableGridset = getGridset(variable)
+        return availableTimes[variableGridset]?.contains(time) ?: false
     }
 
     override fun gridTimeAnd2dPositionSliceExists(
         variable: WeatherVariableType,
-        timeIndex: Int,
+        time: ZonedDateTime,
         coordinate: WeatherVariable2dCoordinate
     ): Boolean {
-        val weatherVariable = getGrid(variable) ?: return false
-        return isIn2dRange(weatherVariable, timeIndex, coordinate.xIndex, coordinate.yIndex)
+        val (variableGridset, variableGrid) = getGridsetAndGrid(variable) ?: return false
+        return isIn2dRange(variableGridset, variableGrid, time, coordinate)
     }
 
     override fun gridTimeAnd3dPositionSliceExists(
         variable: WeatherVariableType,
-        timeIndex: Int,
+        time: ZonedDateTime,
         coordinate: WeatherVariable3dCoordinate
     ): Boolean {
-        val weatherVariable = getGrid(variable) ?: return false
-        return isIn3dRange(weatherVariable, timeIndex, coordinate.xIndex, coordinate.yIndex, coordinate.zIndex)
-    }
-
-    override fun containsTime(variable: WeatherVariableType, time: ZonedDateTime): Boolean {
-        val gridset = getGridset(variable) ?: return false
-
-        return try {
-            val calendarDate = CalendarDate.of(Date.from(time.toInstant()))
-            gridset.geoCoordSystem.timeAxis1D.hasCalendarDate(calendarDate)
-        } catch (e: Exception) {
-            logger.error("$sourceFilePath: $variable: could not determine if $time is contained in the gridset. ${e.message}")
-            false
-        }
+        val (variableGridset, variableGrid) = getGridsetAndGrid(variable) ?: return false
+        return isIn3dRange(variableGridset, variableGrid, time, coordinate)
     }
 
     override fun containsLatLon(variable: WeatherVariableType, latitude: Double, longitude: Double): Boolean {

@@ -1,7 +1,5 @@
 package com.luca009.imker.server.parser.model
 
-import kotlin.reflect.KClass
-
 data class RawWeatherVariable(
     val unitType: String,
     val name: String,
@@ -41,7 +39,6 @@ enum class WeatherVariableType {
     ThermalRadiation,
     SunshineDuration,
     PrecipitationAmount,
-    PrecipitationSum,
     WindSpeedU10m,
     WindSpeedV10m,
     GustSpeedU10m,
@@ -58,5 +55,5 @@ enum class WeatherVariableUnit {
     DegreeCelsius,
     Percent,
     MetersPerSecond,
-    KilogramPerSquareMeter
+    KilogramPerSquareMeterPerHour
 }
