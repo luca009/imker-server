@@ -255,7 +255,7 @@ class WeatherDataQueryServiceImpl(
         }
 
         val finalUnits = if (usedUnits.count() != 1) {
-            "null" // Too many or no units defined (TODO: implement unit conversion)
+            "null" // Too many or no units defined (TODO: #2 implement unit conversion)
         } else {
             usedUnits.elementAtOrNull(0) ?: "null"
         }
@@ -287,7 +287,7 @@ class WeatherDataQueryServiceImpl(
         }
 
         val finalUnits = if (usedUnits.count() != 1) {
-            "null" // Too many or no units defined (TODO: implement unit conversion)
+            "null" // Too many or no units defined (TODO: #2 implement unit conversion)
         } else {
             usedUnits.elementAtOrNull(0) ?: "null"
         }
