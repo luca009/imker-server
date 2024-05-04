@@ -1,55 +1,58 @@
 package com.luca009.imker.server.controllers.model
 
-import java.time.ZonedDateTime
+import com.fasterxml.jackson.annotation.JsonIgnore
+import com.luca009.imker.server.configuration.model.WeatherModel
 
 data class WeatherForecastResponse(
-    val variables: List<WeatherVariableForecastResponse>
-)
+    val variables: List<WeatherVariableForecastResponse>,
+    val models: List<WeatherModelDetailsResponse>
+) {
+    constructor(variables: List<WeatherVariableForecastResponse>, usedModels: Set<WeatherModel>) : this(
+        variables,
+        usedModels.map {
+            WeatherModelDetailsResponse(
+                it.name,
+                it.friendlyName,
+                it.copyright,
+                0 // TODO: implement last updated
+            )
+        }
+    )
+
+    constructor(variables: List<WeatherVariableForecastResponse>) : this(
+        variables,
+        variables.fold(setOf()) { usedModels, forecast ->
+            usedModels.plus(forecast.usedModels)
+        }
+    )
+}
 
 data class WeatherVariableForecastResponse(
-    val variableName: String,
+    val variable: String,
     val units: String,
-    val values: List<WeatherVariableForecastValueResponse>
+    val values: List<WeatherVariableForecastValueResponse>,
+    @JsonIgnore
+    val usedModels: Set<WeatherModel>
 ) {
     operator fun WeatherVariableForecastResponse.plus(other: WeatherVariableForecastResponse): WeatherVariableForecastResponse {
         return WeatherVariableForecastResponse(
-            variableName,
+            variable,
             units,
-            values + other.values
+            values + other.values,
+            usedModels
         )
-    }
-
-    override fun equals(other: Any?): Boolean {
-        if (other !is WeatherVariableForecastResponse) {
-            return false
-        }
-
-        if (variableName != other.variableName ||
-            units != other.units) {
-            return false
-        }
-
-        return values == other.values
     }
 }
 
 data class WeatherVariableForecastValueResponse(
-    val weatherModelName: String,
+    val model: String,
     val date: Long,
     val value: Double
 )
-object WeatherVariableForecastResponseHelper {
-    fun doubleMapToWeatherVariableForecastResponse(data: Map<ZonedDateTime, Double>, variableName: String, units: String, weatherModelName: String): WeatherVariableForecastResponse {
-        return WeatherVariableForecastResponse(
-            variableName,
-            units,
-            data.map {
-                WeatherVariableForecastValueResponse(
-                    weatherModelName,
-                    it.key.toEpochSecond(),
-                    it.value
-                )
-            }
-        )
-    }
-}
+
+data class WeatherModelDetailsResponse(
+    val name: String,
+    val friendlyName: String,
+    val copyright: String,
+    val lastUpdated: Long
+)

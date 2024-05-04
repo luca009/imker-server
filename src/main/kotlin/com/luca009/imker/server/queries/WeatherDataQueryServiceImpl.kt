@@ -99,7 +99,7 @@ class WeatherDataQueryServiceImpl(
         query: (T) -> WeatherVariableForecastResponse
     ): WeatherForecastResponse {
         if (weatherVariables.isEmpty()) {
-            return WeatherForecastResponse(emptyList())
+            return WeatherForecastResponse(emptyList(), emptyList())
         }
 
         val errors: MutableSet<ResponseStatusException> = mutableSetOf()
@@ -218,6 +218,7 @@ class WeatherDataQueryServiceImpl(
         val safeLimit = getSafeLimit(limit)
 
         val usedUnits: HashSet<String> = hashSetOf()
+        val usedModels: HashSet<WeatherModel> = hashSetOf()
         val weatherVariableForecasts: MutableList<WeatherVariableForecastValueResponse> = mutableListOf()
 
         var lastTime = time
@@ -237,6 +238,7 @@ class WeatherDataQueryServiceImpl(
 
             weatherVariableForecasts.addAll(fixedWeatherForecast.values)
             usedUnits.add(fixedWeatherForecast.units)
+            usedModels.addAll(fixedWeatherForecast.usedModels)
 
             // Early break, because we're going to do a more expensive operation now
             if (weatherVariableForecasts.count() >= safeLimit) {
@@ -263,7 +265,8 @@ class WeatherDataQueryServiceImpl(
         return WeatherVariableForecastResponse(
             weatherVariable.name,
             finalUnits,
-            limitForecastList(weatherVariableForecasts, safeLimit)
+            limitForecastList(weatherVariableForecasts, safeLimit),
+            usedModels
         )
     }
 
@@ -278,12 +281,14 @@ class WeatherDataQueryServiceImpl(
 
         val weatherVariableForecasts: MutableList<WeatherVariableForecastValueResponse> = mutableListOf()
         val usedUnits: HashSet<String> = hashSetOf()
+        val usedModels: HashSet<WeatherModel> = hashSetOf()
         val availableModels = weatherModelManagerService.getAvailableWeatherModelsForLatLon(weatherVariable, lat, lon).values.filterNotNull()
 
         for (model in availableModels) {
             val forecast = getVariableForecast(weatherVariable, lat, lon, time, limit, model)
             weatherVariableForecasts.addAll(forecast.values)
             usedUnits.add(forecast.units)
+            usedModels.add(model)
         }
 
         val finalUnits = if (usedUnits.count() != 1) {
@@ -297,7 +302,8 @@ class WeatherDataQueryServiceImpl(
         return WeatherVariableForecastResponse(
             weatherVariable.name,
             finalUnits,
-            limitForecastList(weatherVariableForecasts, safeLimit)
+            limitForecastList(weatherVariableForecasts, safeLimit),
+            usedModels
         )
     }
 
@@ -318,7 +324,7 @@ class WeatherDataQueryServiceImpl(
         weatherModel
     )
 
-    private fun WeatherVariableTimeSlice.toWeatherVariableForecastResponse(variableName: String, variableUnits: String, weatherModelName: String): WeatherVariableForecastResponse? {
+    private fun WeatherVariableTimeSlice.toWeatherVariableForecastResponse(variableName: String, variableUnits: String, weatherModel: WeatherModel): WeatherVariableForecastResponse? {
         if (!this.isDouble()) {
             return null
         }
@@ -328,11 +334,12 @@ class WeatherDataQueryServiceImpl(
             variableUnits,
             this.mapNotNull {
                 WeatherVariableForecastValueResponse(
-                    weatherModelName,
+                    weatherModel.name,
                     it.key.toEpochSecond(),
                     it.value as Double // theoretically allowed unsafe cast, since we're checking for isDouble() at the top
                 )
-            }
+            },
+            setOf(weatherModel)
         )
     }
 
@@ -349,7 +356,7 @@ class WeatherDataQueryServiceImpl(
         val safeLimit = getSafeLimit(limit)
         val values = properties.weatherModelCache.getVariableAtPosition(weatherVariable, properties.coordinates, safeLimit)
 
-        val response = values?.toWeatherVariableForecastResponse(weatherVariable.name, properties.units.toString(), weatherModel.name)
+        val response = values?.toWeatherVariableForecastResponse(weatherVariable.name, properties.units.toString(), weatherModel)
 
         return requireNotNull(response) {
             throw ResponseStatusException(
@@ -408,7 +415,8 @@ class WeatherDataQueryServiceImpl(
                         it.value.name,
                         epochTime,
                         value
-                    ))
+                    )),
+                    setOf(it.value)
                 )
             }
         )
@@ -449,7 +457,8 @@ class WeatherDataQueryServiceImpl(
             return WeatherVariableForecastResponse(
                 weatherVariable.name,
                 properties.units.toString(),
-                listOf()
+                listOf(),
+                setOf(weatherModel)
             )
         }
 
@@ -462,7 +471,8 @@ class WeatherDataQueryServiceImpl(
                     properties.snappedTime.toEpochSecond(),
                     value
                 )
-            )
+            ),
+            setOf(weatherModel)
         )
     }
 
