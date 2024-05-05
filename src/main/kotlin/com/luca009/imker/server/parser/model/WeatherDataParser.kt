@@ -4,7 +4,7 @@ import java.nio.file.Path
 import java.time.ZonedDateTime
 
 interface WeatherDataParser {
-    fun getDataSources(): Set<Path>
+    fun getDataSources(): Map<Path, ZonedDateTime>
     fun getAvailableVariableTypes(): Set<WeatherVariableType>
     fun getAvailableVariables(): Set<WeatherVariable>
     fun getVariable(variableType: WeatherVariableType): WeatherVariable?

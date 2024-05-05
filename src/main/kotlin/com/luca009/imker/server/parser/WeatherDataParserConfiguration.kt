@@ -9,17 +9,18 @@ import com.luca009.imker.server.transformer.model.DataTransformer
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import java.nio.file.Path
+import java.time.ZonedDateTime
 
 @Configuration
 class WeatherDataParserConfiguration(
-    val netCdfParserFactory: (Path, variableMapper: WeatherVariableTypeMapper, unitMapper: WeatherVariableUnitMapper, transformers: Map<WeatherVariableType, List<DataTransformer>>) -> NetCdfParser,
+    val netCdfParserFactory: (Path, ZonedDateTime, variableMapper: WeatherVariableTypeMapper, unitMapper: WeatherVariableUnitMapper, transformers: Map<WeatherVariableType, List<DataTransformer>>) -> NetCdfParser,
 ) {
     @Bean
     fun weatherDataParserFactoryFactory() = {
             parserName: String -> weatherDataParserFactory(parserName)
     }
 
-    fun weatherDataParserFactory(name: String): ((Path, variableMapper: WeatherVariableTypeMapper, unitMapper: WeatherVariableUnitMapper, transformers: Map<WeatherVariableType, List<DataTransformer>>) -> WeatherDataParser)? {
+    fun weatherDataParserFactory(name: String): ((Path, ZonedDateTime, variableMapper: WeatherVariableTypeMapper, unitMapper: WeatherVariableUnitMapper, transformers: Map<WeatherVariableType, List<DataTransformer>>) -> WeatherDataParser)? {
         return when (name) {
             "netcdf" -> netCdfParserFactory // TODO: add more parsers if required
             else -> null

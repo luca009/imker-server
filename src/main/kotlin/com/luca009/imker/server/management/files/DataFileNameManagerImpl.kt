@@ -1,6 +1,7 @@
 package com.luca009.imker.server.management.files
 
 import com.luca009.imker.server.management.files.model.DataFileNameManager
+import java.nio.file.Path
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDateTime
@@ -22,8 +23,8 @@ class DataFileNameManagerImpl(
         return prefix + timeString + postfix
     }
 
-    override fun getDateTimeForFile(file: String): ZonedDateTime? {
-        val fileNamePath = Path(file).fileName ?: return null
+    override fun getDateTimeForFile(file: Path): ZonedDateTime? {
+        val fileNamePath = file.fileName ?: return null
         val fileName = fileNamePath.toString()
 
         val dateString = fileName

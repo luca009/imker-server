@@ -14,7 +14,7 @@ data class WeatherForecastResponse(
                 it.name,
                 it.friendlyName,
                 it.copyright,
-                0 // TODO: implement last updated
+                it.parser.getDataSources().minOf { date -> date.value }.toEpochSecond()
             )
         }
     )

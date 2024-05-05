@@ -141,7 +141,7 @@ final class ImkerServerApplicationTests {
     }
 
     val netCdfParserFactory = {
-            netCdfFilePath: Path, variableMapper: WeatherVariableTypeMapper, unitMapper: WeatherVariableUnitMapper, transformers: Map<WeatherVariableType, List<DataTransformer>> -> NetCdfParserImpl(netCdfFilePath, variableMapper, unitMapper, transformers)
+            netCdfFilePath: Path, fileDate: ZonedDateTime, variableMapper: WeatherVariableTypeMapper, unitMapper: WeatherVariableUnitMapper, transformers: Map<WeatherVariableType, List<DataTransformer>> -> NetCdfParserImpl(netCdfFilePath, fileDate, variableMapper, unitMapper, transformers)
     }
     val weatherVariableTypeMapperFactory = {
         weatherVariableMap: Map<WeatherVariableType, String> -> WeatherVariableTypeMapperImpl(weatherVariableMap)
@@ -168,7 +168,7 @@ final class ImkerServerApplicationTests {
     val bestFileSearchService: BestFileSearchService = BestFileSearchServiceImpl()
     val variableMapper: WeatherVariableTypeMapper = WeatherVariableTypeMapperImpl(testIncaVariableNameMapping)
     val unitMapper: WeatherVariableUnitMapper = WeatherVariableUnitMapperImpl(testUnitMapperConfigFilePath.toFile())
-    val netCdfParser: NetCdfParser = netCdfParserFactory(testPrimaryNetcdfFilePath, variableMapper, unitMapper, mapOf())
+    val netCdfParser: NetCdfParser = netCdfParserFactory(testPrimaryNetcdfFilePath, ZonedDateTime.of(2023, 9, 9, 13, 45, 0, 0, ZoneOffset.UTC), variableMapper, unitMapper, mapOf())
     val weatherRasterMemoryCache: WeatherRasterMemoryCache = WeatherRasterMemoryCacheImpl()
     val weatherRasterDiskCache: WeatherRasterDiskCache = WeatherRasterDiskCacheImpl(netCdfParser)
     val weatherRasterCompositeCache: WeatherRasterCompositeCache = WeatherRasterCompositeCacheImpl(
@@ -631,7 +631,16 @@ final class ImkerServerApplicationTests {
         )
         Assert.isTrue(windTemperatureForecast.variables.count() == 2, "Query returned wrong amount of variables")
 
-        val windTemperatureForecastTemperatureVariable = requireNotNull(windTemperatureForecast.variables.firstOrNull { it.variableName == WeatherVariableType.Temperature2m.name }) {
+        val windTemperatureForecastModels = windTemperatureForecast.models
+        Assert.isTrue(windTemperatureForecastModels.count() == 1, "Query returned wrong amount of weather models")
+
+        val windTemperatureForecastModel = windTemperatureForecastModels.first()
+        Assert.isTrue(windTemperatureForecastModel.name == "INCA", "Query returned wrong weather model")
+
+        // NOTE: This uses secondDate, because this is the start of the dataset
+        Assert.isTrue(windTemperatureForecastModel.lastUpdated == secondDate.toEpochSecond(), "Query returned wrong last updated date")
+
+        val windTemperatureForecastTemperatureVariable = requireNotNull(windTemperatureForecast.variables.firstOrNull { it.variable == WeatherVariableType.Temperature2m.name }) {
             throw IllegalArgumentException("Temperature forecast was not contained in query result despite being requested")
         }
         Assert.isTrue(windTemperatureForecastTemperatureVariable == secondTemperatureForecast, "Query returned wrong forecast results (not equal to previous results despite being expected to be equal)")

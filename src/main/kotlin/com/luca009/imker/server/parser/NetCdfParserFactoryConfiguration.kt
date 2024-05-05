@@ -8,17 +8,19 @@ import com.luca009.imker.server.transformer.model.DataTransformer
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import java.nio.file.Path
+import java.time.ZonedDateTime
 
 @Configuration
 class NetCdfParserFactoryConfiguration {
     @Bean
     fun netCdfParserFactory() = {
-            netCdfFilePath: Path, variableMapper: WeatherVariableTypeMapper, unitMapper: WeatherVariableUnitMapper, transformers: Map<WeatherVariableType, List<DataTransformer>> -> netCdfParser(netCdfFilePath, variableMapper, unitMapper, transformers)
+            netCdfFilePath: Path, fileDate: ZonedDateTime, variableMapper: WeatherVariableTypeMapper, unitMapper: WeatherVariableUnitMapper, transformers: Map<WeatherVariableType, List<DataTransformer>> -> netCdfParser(netCdfFilePath, fileDate, variableMapper, unitMapper, transformers)
     }
 
-     fun netCdfParser(netCdfFilePath: Path, variableMapper: WeatherVariableTypeMapper, unitMapper: WeatherVariableUnitMapper, transformers: Map<WeatherVariableType, List<DataTransformer>>): NetCdfParser {
+     fun netCdfParser(netCdfFilePath: Path, fileDate: ZonedDateTime, variableMapper: WeatherVariableTypeMapper, unitMapper: WeatherVariableUnitMapper, transformers: Map<WeatherVariableType, List<DataTransformer>>): NetCdfParser {
         return NetCdfParserImpl(
             netCdfFilePath,
+            fileDate,
             variableMapper,
             unitMapper,
             transformers
