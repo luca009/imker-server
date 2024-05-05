@@ -11,17 +11,18 @@ import com.luca009.imker.server.transformer.model.DataTransformer
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import java.nio.file.Path
+import java.time.ZonedDateTime
 import kotlin.io.path.isDirectory
 
 @Configuration
 class DynamicDataParserConfiguration {
     @Bean
     fun dynamicDataParserFactory(bestFileSearchService: BestFileSearchService) = {
-            parserFactory: (Path, WeatherVariableTypeMapper, WeatherVariableUnitMapper, Map<WeatherVariableType, List<DataTransformer>>) -> WeatherDataParser, initFilePath: Path, fileNameManager: DataFileNameManager, variableMapper: WeatherVariableTypeMapper, unitMapper: WeatherVariableUnitMapper, transformers: Map<WeatherVariableType, List<DataTransformer>> -> dynamicDataParser(parserFactory, initFilePath, bestFileSearchService, fileNameManager, variableMapper, unitMapper, transformers)
+            parserFactory: (Path, ZonedDateTime, WeatherVariableTypeMapper, WeatherVariableUnitMapper, Map<WeatherVariableType, List<DataTransformer>>) -> WeatherDataParser, initFilePath: Path, fileNameManager: DataFileNameManager, variableMapper: WeatherVariableTypeMapper, unitMapper: WeatherVariableUnitMapper, transformers: Map<WeatherVariableType, List<DataTransformer>> -> dynamicDataParser(parserFactory, initFilePath, bestFileSearchService, fileNameManager, variableMapper, unitMapper, transformers)
     }
 
      fun dynamicDataParser(
-         parserFactory: (Path, WeatherVariableTypeMapper, WeatherVariableUnitMapper, Map<WeatherVariableType, List<DataTransformer>>) -> WeatherDataParser,
+         parserFactory: (Path, ZonedDateTime, WeatherVariableTypeMapper, WeatherVariableUnitMapper, Map<WeatherVariableType, List<DataTransformer>>) -> WeatherDataParser,
          initFilePath: Path,
          bestFileSearchService: BestFileSearchService,
          fileNameManager: DataFileNameManager,
@@ -32,7 +33,13 @@ class DynamicDataParserConfiguration {
         val initParser = if (initFilePath.isDirectory()) {
             null
         } else {
-            parserFactory(initFilePath, variableMapper, unitMapper, transformers)
+            parserFactory(
+                initFilePath,
+                fileNameManager.getDateTimeForFile(initFilePath)!!, // This shouldn't be null - otherwise something else would've failed before this
+                variableMapper,
+                unitMapper,
+                transformers
+            )
         }
 
         return DynamicDataParserImpl(

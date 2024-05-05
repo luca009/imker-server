@@ -15,7 +15,7 @@ import kotlin.io.path.Path
 
 class DynamicDataParserImpl(
     private var weatherDataParser: WeatherDataParser?,
-    private val dataParserFactory: (Path, WeatherVariableTypeMapper, WeatherVariableUnitMapper, Map<WeatherVariableType, List<DataTransformer>>) -> WeatherDataParser,
+    private val dataParserFactory: (Path, ZonedDateTime, WeatherVariableTypeMapper, WeatherVariableUnitMapper, Map<WeatherVariableType, List<DataTransformer>>) -> WeatherDataParser,
     filePath: Path,
     private val bestFileSearchService: BestFileSearchService,
     private val fileNameManager: DataFileNameManager,
@@ -56,13 +56,13 @@ class DynamicDataParserImpl(
         }
 
         val oldWeatherParser = weatherDataParser // keep a copy of this to close, just to be on the safe side with thread-safety
-        weatherDataParser = dataParserFactory(Path(bestFile.path), variableMapper, unitMapper, transformers)
+        weatherDataParser = dataParserFactory(Path(bestFile.first.path), bestFile.second, variableMapper, unitMapper, transformers)
         oldWeatherParser?.close()
 
         return true
     }
 
-    override fun getDataSources(): Set<Path> = weatherDataParser?.getDataSources() ?: setOf()
+    override fun getDataSources(): Map<Path, ZonedDateTime> = weatherDataParser?.getDataSources() ?: mapOf()
     override fun getAvailableVariableTypes(): Set<WeatherVariableType> = weatherDataParser?.getAvailableVariableTypes() ?: setOf()
 
     override fun getAvailableVariables() = weatherDataParser?.getAvailableVariables() ?: setOf()

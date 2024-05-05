@@ -41,10 +41,10 @@ class FtpSingleFileReceiverImpl(
         val bestFile = bestFileSearchService.getBestFile(availableFileNames, roundedDateTime, fileNameManager)
             ?: throw BestFileNotFoundException("Best file could not be found.")
 
-        val filePath = Path(dataReceiverConfiguration.subFolder, bestFile.name)
+        val filePath = Path(dataReceiverConfiguration.subFolder, bestFile.first.name)
 
         return ftpClient
-            .downloadFile(filePath, dataLocation, downloadedFileName ?: bestFile.name)
+            .downloadFile(filePath, dataLocation, downloadedFileName ?: bestFile.first.name)
             .percentageFlow
             .apply {
                 this.onCompletion {
@@ -71,7 +71,7 @@ class FtpSingleFileReceiverImpl(
         requireNotNull(availableFileNames) { return true }
 
         val bestFile = bestFileSearchService.getBestFile(availableFileNames, roundedDateTime, fileNameManager) ?: return true
-        val bestFileTime = fileNameManager.getDateTimeForFile(bestFile.name) ?: return true
+        val bestFileTime = fileNameManager.getDateTimeForFile(bestFile.first.toPath()) ?: return true
 
         val bestFileTimeDifference = Duration.between(bestFileTime, dateTime)
 
@@ -99,7 +99,7 @@ class FtpSingleFileReceiverImpl(
 
         // Note: we're only checking the difference between the local file's time and the remote file's time.
         // This is because using the current time to compare doesn't reflect the current state of our downloaded files.
-        val bestOnlineFileTimeDifference = Duration.between(bestFileTime, fileNameManager.getDateTimeForFile(bestOnlineFile.name))
+        val bestOnlineFileTimeDifference = Duration.between(bestFileTime, fileNameManager.getDateTimeForFile(Path(bestOnlineFile.first.name)))
         if (bestOnlineFileTimeDifference.isNegative) {
             logger.warn("Best online ${dataReceiverConfiguration.modelName} file was in the future")
         }

@@ -29,11 +29,13 @@ import java.time.ZonedDateTime
 
 class NetCdfParserImpl(
     netCdfFilePath: Path,
+    netCdfFileDate: ZonedDateTime,
     private val variableMapper: WeatherVariableTypeMapper,
     private val unitMapper: WeatherVariableUnitMapper,
     private val transformers: Map<WeatherVariableType, List<DataTransformer>> = mapOf()
 ) : NetCdfParser {
     private val sourceFilePath: Path
+    private val sourceFileDate: ZonedDateTime = netCdfFileDate
 
     private val availableRawVariables: Set<RawWeatherVariable>
     private val availableVariables: Map<WeatherVariableType, WeatherVariable>
@@ -220,8 +222,10 @@ class NetCdfParserImpl(
         return availableRawVariables
     }
 
-    override fun getDataSources(): Set<Path> {
-        return setOf(sourceFilePath)
+    override fun getDataSources(): Map<Path, ZonedDateTime> {
+        return mapOf(
+            sourceFilePath to sourceFileDate
+        )
     }
 
     override fun getAvailableVariableTypes(): Set<WeatherVariableType> {

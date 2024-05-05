@@ -87,7 +87,7 @@ class LocalFileManagerServiceImpl(
                 // Ensure that the file and its date isn't null
                 Pair(
                     it ?: return@mapNotNull null,
-                    weatherModel.fileNameManager.getDateTimeForFile(it.name) ?: return@mapNotNull null
+                    weatherModel.fileNameManager.getDateTimeForFile(it.toPath()) ?: return@mapNotNull null
                 )
             }
             ?.toSet()

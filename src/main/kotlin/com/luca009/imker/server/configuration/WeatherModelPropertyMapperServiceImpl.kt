@@ -23,6 +23,7 @@ import org.springframework.stereotype.Component
 import java.io.File
 import java.nio.file.Path
 import java.time.Duration
+import java.time.ZonedDateTime
 import java.util.*
 import kotlin.io.path.exists
 import kotlin.io.path.pathString
@@ -33,8 +34,8 @@ class WeatherModelPropertyMapperServiceImpl(
     private val weatherVariableTypeMapperFactory: (Map<WeatherVariableType, String>) -> WeatherVariableTypeMapper,
     private val weatherVariableUnitMapperFactory: (File) -> WeatherVariableUnitMapper,
     private val dataTransformerFactory: (String) -> DataTransformer?,
-    private val weatherDataParserFactoryFactory: (String) -> ((Path, WeatherVariableTypeMapper, WeatherVariableUnitMapper, Map<WeatherVariableType, List<DataTransformer>>) -> WeatherDataParser)?,
-    private val dynamicDataParserFactory: ((Path, WeatherVariableTypeMapper, WeatherVariableUnitMapper, Map<WeatherVariableType, List<DataTransformer>>) -> WeatherDataParser, Path, DataFileNameManager, WeatherVariableTypeMapper, WeatherVariableUnitMapper, Map<WeatherVariableType, List<DataTransformer>>) -> DynamicDataParser,
+    private val weatherDataParserFactoryFactory: (String) -> ((Path, ZonedDateTime, WeatherVariableTypeMapper, WeatherVariableUnitMapper, Map<WeatherVariableType, List<DataTransformer>>) -> WeatherDataParser)?,
+    private val dynamicDataParserFactory: ((Path, ZonedDateTime, WeatherVariableTypeMapper, WeatherVariableUnitMapper, Map<WeatherVariableType, List<DataTransformer>>) -> WeatherDataParser, Path, DataFileNameManager, WeatherVariableTypeMapper, WeatherVariableUnitMapper, Map<WeatherVariableType, List<DataTransformer>>) -> DynamicDataParser,
     private val dataFileNameManagerFactory: (String, String, String, Duration) -> DataFileNameManager,
     private val fileManagerService: LocalFileManagerService,
     weatherModelProperties: ModelProperties
