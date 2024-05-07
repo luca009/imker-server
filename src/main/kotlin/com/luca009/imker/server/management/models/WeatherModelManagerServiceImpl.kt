@@ -5,7 +5,7 @@ import com.luca009.imker.server.caching.model.WeatherRasterCompositeCacheConfigu
 import com.luca009.imker.server.caching.model.WeatherRasterTimeSnappingType
 import com.luca009.imker.server.configuration.model.WeatherModel
 import com.luca009.imker.server.management.files.model.LocalFileManagerService
-import com.luca009.imker.server.management.models.WeatherModelUpdateQueueHelper.removeJobDependencies
+import com.luca009.imker.server.management.models.WeatherModelUpdateQueueHelper.removeJobDependents
 import com.luca009.imker.server.management.models.model.WeatherModelManagerService
 import com.luca009.imker.server.parser.model.*
 import kotlinx.coroutines.*
@@ -250,7 +250,7 @@ class WeatherModelUpdateGroup(
                 emit(job)
             } else {
                 // If the job wasn't successful, remove all the other jobs that depend on it
-                jobs.removeJobDependencies(job)
+                jobs.removeJobDependents(job)
             }
 
             job = jobs.removeFirstOrNull()
@@ -380,7 +380,7 @@ data class WeatherModelUpdateJob(
 }
 
 object WeatherModelUpdateQueueHelper {
-    fun ArrayDeque<WeatherModelUpdateJob>.removeJobDependencies(job: WeatherModelUpdateJob) {
+    fun ArrayDeque<WeatherModelUpdateJob>.removeJobDependents(job: WeatherModelUpdateJob) {
         val dependentJobs = this.getDependentJobs(job)
         this.removeAll(dependentJobs)
     }
