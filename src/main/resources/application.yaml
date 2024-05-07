@@ -2,7 +2,7 @@ storage:
   storageLocations:
     default: D:\DataSSD\Imker\Data
 update:
-  updateCheckInterval: 10
+  updateCheckInterval: PT10M
 endpoints:
   simpleWeatherVariables:
     - Temperature2m

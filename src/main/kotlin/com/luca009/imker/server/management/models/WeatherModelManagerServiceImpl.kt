@@ -5,6 +5,7 @@ import com.luca009.imker.server.caching.model.WeatherRasterCompositeCacheConfigu
 import com.luca009.imker.server.caching.model.WeatherRasterTimeSnappingType
 import com.luca009.imker.server.configuration.model.WeatherModel
 import com.luca009.imker.server.management.files.model.LocalFileManagerService
+import com.luca009.imker.server.management.models.WeatherModelUpdateQueueHelper.removeJobDependencies
 import com.luca009.imker.server.management.models.model.WeatherModelManagerService
 import com.luca009.imker.server.parser.model.*
 import kotlinx.coroutines.*
@@ -165,8 +166,26 @@ class WeatherModelUpdateGroup(
             dependsOn
         )
 
-        jobs.add(updateJob)
+        queueJob(updateJob)
         return updateJob
+    }
+
+    private fun queueJob(job: WeatherModelUpdateJob) {
+        val duplicateIndex = jobs.indexOfFirst { it.weatherModel == job.weatherModel && it.jobType == job.jobType }
+
+        if (duplicateIndex < 0) {
+            // No duplicate, add new job
+            jobs.add(job)
+        } else {
+            // Duplicate, overwrite old job
+            jobs[duplicateIndex] = job
+        }
+    }
+
+    private fun queueJobs(jobs: List<WeatherModelUpdateJob>) {
+        jobs.forEach {
+            queueJob(it)
+        }
     }
 
     fun queueUpdateJob(
@@ -184,7 +203,7 @@ class WeatherModelUpdateGroup(
         val cacheJob = createJob(updateCache, WeatherModelUpdateJobType.Cache, weatherModel, weatherModelCache, dateTime, parserJob)
         val cleanupJob = createJob(cleanupStorage, WeatherModelUpdateJobType.Cleanup, weatherModel, weatherModelCache, dateTime, cacheJob)
 
-        jobs.addAll(listOfNotNull(sourceJob, parserJob, cacheJob, cleanupJob))
+        queueJobs(listOfNotNull(sourceJob, parserJob, cacheJob, cleanupJob))
     }
 
     private fun createJob(
@@ -231,9 +250,7 @@ class WeatherModelUpdateGroup(
                 emit(job)
             } else {
                 // If the job wasn't successful, remove all the other jobs that depend on it
-                jobs.removeAll {
-                    it.dependsOn == job
-                }
+                jobs.removeJobDependencies(job)
             }
 
             job = jobs.removeFirstOrNull()
@@ -256,7 +273,12 @@ class WeatherModelUpdateGroup(
 
         try {
             // Try downloading the weather model
-            updateOnlineWeatherModel(updateJob)
+            val updated = updateOnlineWeatherModel(updateJob)
+
+            if (!updated) {
+                logger.info("No new source for ${updateJob.weatherModel.name} available. Skipping update process.")
+                return false
+            }
 
             // If we succeed, print this info message and carry on
             logger.info("Updated source for ${updateJob.weatherModel.name}")
@@ -268,10 +290,10 @@ class WeatherModelUpdateGroup(
         return true
     }
 
-    private suspend fun updateOnlineWeatherModel(updateJob: WeatherModelUpdateJob) {
+    private suspend fun updateOnlineWeatherModel(updateJob: WeatherModelUpdateJob): Boolean {
         if (!updateJob.receiver.updateNecessary(ZonedDateTime.now())) {
             // No update necessary
-            return
+            return false
         }
 
         updateJob.receiver.downloadData(ZonedDateTime.now()).collect { // TODO: dynamic file names
@@ -281,6 +303,8 @@ class WeatherModelUpdateGroup(
                 logger.info("Download progress for ${updateJob.weatherModel.name}: $it%")
             }
         }
+
+        return true
     }
 
     private fun updateDataParser(updateJob: WeatherModelUpdateJob): Boolean {
@@ -353,4 +377,23 @@ data class WeatherModelUpdateJob(
 ) {
     val receiver
         get() = weatherModel.receiver
+}
+
+object WeatherModelUpdateQueueHelper {
+    fun ArrayDeque<WeatherModelUpdateJob>.removeJobDependencies(job: WeatherModelUpdateJob) {
+        val dependentJobs = this.getDependentJobs(job)
+        this.removeAll(dependentJobs)
+    }
+
+    private fun Collection<WeatherModelUpdateJob>.getDependentJobs(job: WeatherModelUpdateJob): List<WeatherModelUpdateJob> {
+        val directDependencies = this.filter {
+            // Get all jobs that directly depend on the specified argument
+            it.dependsOn == job
+        }
+
+        return directDependencies.flatMap {
+            // For each one directly dependent jobs, get their dependent jobs...
+            getDependentJobs(it)
+        }.plus(directDependencies) // ...and finally add back the original jobs
+    }
 }
