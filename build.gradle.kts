@@ -31,6 +31,7 @@ dependencies {
     implementation("commons-net:commons-net:3.9.0")
     implementation("org.mockito.kotlin:mockito-kotlin:5.1.0")
     implementation("edu.ucar:cdm-core:5.5.4-SNAPSHOT")
+    runtimeOnly("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.5.0")
     runtimeOnly("edu.ucar:netcdf4:5.5.4-SNAPSHOT")
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     annotationProcessor("org.springframework.boot:spring-boot-configuration-processor")
