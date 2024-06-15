@@ -5,6 +5,7 @@ import com.luca009.imker.server.controllers.model.WeatherForecastResponse
 import com.luca009.imker.server.parser.model.WeatherVariableType
 import com.luca009.imker.server.queries.model.PreferredWeatherModelMode
 import com.luca009.imker.server.queries.model.WeatherDataQueryService
+import io.swagger.v3.oas.annotations.Operation
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RequestMapping
@@ -63,7 +64,16 @@ class WeatherDataController(
         )
     }
 
+    /**
+     * Returns a forecast at the specified [lat]/[lon] coordinates, only including simple weather variables.
+     * Optionally, a [date] (epoch seconds, start of the forecast), a [limit] for the amount of values per variable, and/or a specific weather [model] can be specified.
+     */
     @GetMapping("/forecast/simple")
+    @Operation(
+        summary = "Simple Forecast",
+        description = "Get a forecast at the specified lat/lon coordinates, only including simple weather variables.\n" +
+                "Optionally, a date (epoch seconds, start of the forecast), a limit for the amount of values per variable, and/or a specific weather model can be specified."
+    )
     fun simpleForecast(
         @RequestParam lat: Double,
         @RequestParam lon: Double,
@@ -78,7 +88,16 @@ class WeatherDataController(
         )
     }
 
+    /**
+     * Returns a forecast at the specified [lat]/[lon] coordinates, including all available weather variables.
+     * Optionally, a [date] (epoch seconds, start of the forecast), a [limit] for the amount of values per variable, and/or a specific weather [model] can be specified.
+     */
     @GetMapping("/forecast/complete")
+    @Operation(
+        summary = "Complete Forecast",
+        description = "Get a forecast at the specified lat/lon coordinates, including all available weather variables.\n" +
+                "Optionally, a date (epoch seconds, start of the forecast), a limit for the amount of values per variable, and/or a specific weather model can be specified."
+    )
     fun completeForecast(
         @RequestParam lat: Double,
         @RequestParam lon: Double,

@@ -31,6 +31,7 @@ dependencies {
     implementation("commons-net:commons-net:3.9.0")
     implementation("org.mockito.kotlin:mockito-kotlin:5.1.0")
     implementation("edu.ucar:cdm-core:5.5.4-SNAPSHOT")
+    implementation("io.swagger.core.v3:swagger-annotations:2.2.21")
     runtimeOnly("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.5.0")
     runtimeOnly("edu.ucar:netcdf4:5.5.4-SNAPSHOT")
     testImplementation("org.springframework.boot:spring-boot-starter-test")
