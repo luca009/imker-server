@@ -27,8 +27,7 @@ interface WeatherModelManagerService {
     fun queueCleanupDataStorageLocations()
     fun queueCleanupDataStorageLocations(weatherModels: Set<WeatherModel>)
 
-    fun getAvailableWeatherModelsForLatLon(variable: WeatherVariableType, latitude: Double, longitude: Double): SortedMap<Int, WeatherModel>
-    fun getAvailableWeatherModelsForLatLon(variable: WeatherVariableType, latitude: Double, longitude: Double, time: ZonedDateTime): SortedMap<Int, WeatherModel>
+    fun getAvailableWeatherModelsForLatLon(latitude: Double, longitude: Double, variable: WeatherVariableType? = null, time: ZonedDateTime? = null): SortedMap<Int, WeatherModel>
 
     fun getPreferredWeatherModelForLatLon(variable: WeatherVariableType, latitude: Double, longitude: Double, time: ZonedDateTime): WeatherModel?
     fun getPreferredWeatherModelForLatLon(variable: WeatherVariableType, latitude: Double, longitude: Double): WeatherModel?

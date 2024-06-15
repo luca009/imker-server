@@ -125,6 +125,19 @@ class WeatherRasterCompositeCacheImpl(
             it.containsExactTime(weatherVariable, time)
         } ?: false
 
+    override fun containsLatLon(
+        weatherVariableType: WeatherVariableType?,
+        latitude: Double,
+        longitude: Double
+    ): Boolean {
+        if (configuration.ignoredVariables.contains(weatherVariableType)) {
+            return false
+        }
+
+        // TODO: caching of coordinates?
+        return diskCache.containsLatLon(weatherVariableType, latitude, longitude)
+    }
+
 
     override fun latLonToCoordinates(
         weatherVariableType: WeatherVariableType,

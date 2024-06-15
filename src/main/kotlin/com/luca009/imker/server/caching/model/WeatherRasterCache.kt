@@ -33,6 +33,7 @@ interface WeatherRasterCache {
       */
      fun containsExactTime(weatherVariable: WeatherVariableType, time: ZonedDateTime): Boolean
 
+     fun containsLatLon(weatherVariableType: WeatherVariableType?, latitude: Double, longitude: Double): Boolean
      fun latLonToCoordinates(weatherVariableType: WeatherVariableType, latitude: Double, longitude: Double): WeatherVariable2dCoordinate?
  }
 

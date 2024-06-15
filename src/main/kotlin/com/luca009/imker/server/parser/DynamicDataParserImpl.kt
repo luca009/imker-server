@@ -125,8 +125,14 @@ class DynamicDataParserImpl(
         coordinate
     ) ?: false
 
-    override fun containsLatLon(variable: WeatherVariableType, latitude: Double, longitude: Double) = weatherDataParser?.containsLatLon(variable, latitude, longitude) ?: false
+    override fun containsLatLon(latitude: Double, longitude: Double, variable: WeatherVariableType?): Boolean = weatherDataParser?.containsLatLon(
+        latitude,
+        longitude,
+        variable
+    ) ?: false
+
     override fun latLonToCoordinates(variable: WeatherVariableType, latitude: Double, longitude: Double) = weatherDataParser?.latLonToCoordinates(variable, latitude, longitude)
+
     override fun close() {
         weatherDataParser?.close()
     }

@@ -20,7 +20,7 @@ interface WeatherDataParser {
     fun gridTimeAnd2dPositionSliceExists(variable: WeatherVariableType, time: ZonedDateTime, coordinate: WeatherVariable2dCoordinate): Boolean
     fun gridTimeAnd3dPositionSliceExists(variable: WeatherVariableType, time: ZonedDateTime, coordinate: WeatherVariable3dCoordinate): Boolean
 
-    fun containsLatLon(variable: WeatherVariableType, latitude: Double, longitude: Double): Boolean
+    fun containsLatLon(latitude: Double, longitude: Double, variable: WeatherVariableType? = null): Boolean
     fun latLonToCoordinates(variable: WeatherVariableType, latitude: Double, longitude: Double): WeatherVariable2dCoordinate?
 
     fun close()

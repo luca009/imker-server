@@ -115,6 +115,14 @@ class WeatherRasterDiskCacheImpl(
         return times.contains(time)
     }
 
+    override fun containsLatLon(
+        weatherVariableType: WeatherVariableType?,
+        latitude: Double,
+        longitude: Double
+    ): Boolean {
+        return dataParser.containsLatLon(latitude, longitude, weatherVariableType)
+    }
+
     override fun latLonToCoordinates(weatherVariableType: WeatherVariableType, latitude: Double, longitude: Double): WeatherVariable2dCoordinate? {
         val coordinate = dataParser.latLonToCoordinates(weatherVariableType, latitude, longitude)
         requireNotNull(coordinate) { return null }

@@ -177,10 +177,6 @@ class NetCdfParserImpl(
         }
     }
 
-    private fun getGridset(variable: WeatherVariableType): Gridset? {
-        return getGridsetAndGrid(variable)?.first
-    }
-
     private fun getGridsetAndGrid(variable: WeatherVariableType): Pair<Gridset, GridDatatype>? {
         val variableName = variableMapper.getWeatherVariableName(variable) ?: return null
 
@@ -195,6 +191,10 @@ class NetCdfParserImpl(
         }
 
         return null
+    }
+
+    private fun getGridset(variable: WeatherVariableType): Gridset? {
+        return getGridsetAndGrid(variable)?.first
     }
 
     private fun getTimeSliceFromGrid(grid: GridDatatype, timeIndex: Int, unit: WeatherVariableUnit?): WeatherVariableRasterSlice? {
@@ -426,15 +426,24 @@ class NetCdfParserImpl(
         return isIn3dRange(variableGridset, variableGrid, time, coordinate)
     }
 
-    override fun containsLatLon(variable: WeatherVariableType, latitude: Double, longitude: Double): Boolean {
-        val gridset = getGridset(variable) ?: return false
+    override fun containsLatLon(latitude: Double, longitude: Double, variable: WeatherVariableType?): Boolean {
+        return if (variable == null) {
+            wrappedGridDataset?.gridsets?.any {
+                gridsetContainsLatLon(it, latitude, longitude)
+            } == true
+        } else {
+            val gridset = getGridset(variable) ?: return false
+            gridsetContainsLatLon(gridset, latitude, longitude)
+        }
+    }
 
+    private fun gridsetContainsLatLon(gridset: Gridset, latitude: Double, longitude: Double): Boolean {
         return try {
             val xy = gridset.geoCoordSystem.findXYindexFromLatLon(latitude, longitude, null)
 
             xy[0] >= 0 && xy[1] >= 0
         } catch (e: Exception) {
-            logger.error("$sourceFilePath: $variable: could not project latlon coordinate to indices. ${e.message}")
+            logger.error("$sourceFilePath: ${gridset.grids.joinToString()}: could not project latlon coordinate to indices. ${e.message}")
             false
         }
     }

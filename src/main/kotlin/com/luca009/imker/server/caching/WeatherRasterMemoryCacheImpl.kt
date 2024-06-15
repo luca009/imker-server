@@ -131,6 +131,15 @@ class WeatherRasterMemoryCacheImpl : WeatherRasterMemoryCache {
         return variableSlices.containsKey(time)
     }
 
+    override fun containsLatLon(
+        weatherVariableType: WeatherVariableType?,
+        latitude: Double,
+        longitude: Double
+    ): Boolean {
+        // TODO: caching of coordinates?
+        return false
+    }
+
     override fun latLonToCoordinates(
         weatherVariableType: WeatherVariableType,
         latitude: Double,
