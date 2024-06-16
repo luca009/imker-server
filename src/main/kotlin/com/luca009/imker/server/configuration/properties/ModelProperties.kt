@@ -8,16 +8,49 @@ import java.time.Duration
 @Configuration
 @ConfigurationProperties(prefix = "models")
 class ModelProperties {
+    /**
+     * The defined raw weather models
+     */
     var definedModels: Map<Int, RawWeatherModel> = mapOf()
 }
 
+/**
+ * Represents a weather model in only basic data types. This is to be mapped to an instance of [com.luca009.imker.server.configuration.model.WeatherModel].
+ */
 data class RawWeatherModel(
+    /**
+     * Metadata about the weather model
+     */
     val meta: RawWeatherModelMetaInfo,
+
+    /**
+     * Information about the data receiver and parser
+     */
     val receiver: RawWeatherModelReceiverInfo,
+
+    /**
+     * Information about the data source
+     */
     val source: RawWeatherModelSourceFileInfo,
+
+    /**
+     * Information about how to map variable names/identifiers to [WeatherVariableType]s and unit strings to [com.luca009.imker.server.parser.model.WeatherVariableUnit]s
+     */
     val mapping: RawWeatherModelMappingInfo,
+
+    /**
+     * Transformers to use for modifying the weather data
+     */
     val transforming: RawWeatherModelTransformingInfo = RawWeatherModelTransformingInfo(),
+
+    /**
+     * Configuration about how to store the weather data files
+     */
     val storage: RawWeatherModelStorageInfo,
+
+    /**
+     * Configuration about how to cache the weather data files in memory
+     */
     val cache: RawWeatherModelCacheInfo = RawWeatherModelCacheInfo()
 )
 
