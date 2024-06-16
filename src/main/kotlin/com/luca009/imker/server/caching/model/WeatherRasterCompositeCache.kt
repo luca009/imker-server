@@ -2,7 +2,6 @@ package com.luca009.imker.server.caching.model
 
 import com.luca009.imker.server.parser.model.WeatherVariableType
 import com.luca009.imker.server.parser.model.WeatherVariableUnit
-import java.time.ZonedDateTime
 
 interface WeatherRasterCompositeCache : WeatherRasterCache {
     /**
@@ -15,6 +14,9 @@ interface WeatherRasterCompositeCache : WeatherRasterCache {
      */
     fun updateCaches(weatherVariables: Set<WeatherVariableType>)
 
+    /**
+     * Get the units used by a specified [weatherVariable]
+     */
     fun getUnits(weatherVariable: WeatherVariableType): WeatherVariableUnit?
 }
 
@@ -36,11 +38,16 @@ enum class WeatherRasterTimeSnappingType {
 }
 
 /**
- * Configuration for a WeatherRasterCacheManagerService.
- * [variablesInMemory] decides which variables will be stored in memory and therefore fast to access.
- * [ignoredVariables] decides which variables will be ignored.
+ * Configuration for a WeatherRasterCacheManagerService
  */
 data class WeatherRasterCompositeCacheConfiguration(
+    /**
+     * Variables to be stored in memory and therefore fast to access
+     */
     val variablesInMemory: Set<WeatherVariableType>,
+
+    /**
+     * Variables to be ignored
+     */
     val ignoredVariables: Set<WeatherVariableType>
 )
