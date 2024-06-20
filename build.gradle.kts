@@ -1,3 +1,4 @@
+import org.jetbrains.kotlin.gradle.internal.ensureParentDirsCreated
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import java.util.Properties
 import java.net.URI
@@ -44,7 +45,7 @@ tasks.withType<KotlinCompile> {
         jvmTarget = "18"
     }
 
-    dependsOn("createProperties")
+    finalizedBy("createProperties")
 }
 
 tasks.withType<Test> {
@@ -72,7 +73,13 @@ fun getCheckedOutGitCommitHash(): String {
 
 task("createProperties") {
     doLast {
-        with(File("$buildDir/resources/main/version.properties").writer()) {
+        val propertiesFile = File("$buildDir/resources/main/version.properties")
+        if (!propertiesFile.exists()) {
+            propertiesFile.ensureParentDirsCreated()
+            propertiesFile.createNewFile()
+        }
+
+        with(propertiesFile.writer()) {
             val p = Properties()
             p["version.versionString"] = project.version.toString()
             p["version.gitLastTag"] = getCheckedOutGitCommitHash()
