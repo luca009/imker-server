@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore
 import com.luca009.imker.server.configuration.model.WeatherModel
 
 /**
- * Data class representing a list of weather variables and their data ([WeatherVariableForecastResponse])
+ * Data class representing a list of weather variables and their data ([WeatherVariableForecastResponse]).
  */
 data class WeatherForecastResponse(
     val variables: List<WeatherVariableForecastResponse>,
@@ -31,7 +31,7 @@ data class WeatherForecastResponse(
 }
 
 /**
- * Data class representing a list of weather variable values ([WeatherVariableForecastValueResponse])
+ * Data class representing a list of weather variable values ([WeatherVariableForecastValueResponse]).
  */
 data class WeatherVariableForecastResponse(
     val variable: String,
@@ -51,7 +51,7 @@ data class WeatherVariableForecastResponse(
 }
 
 /**
- * Data class representing a weather variable value at a single point and time
+ * Data class representing a weather variable value at a single point and time.
  */
 data class WeatherVariableForecastValueResponse(
     val model: String,

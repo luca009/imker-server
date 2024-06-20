@@ -3,7 +3,7 @@ package com.luca009.imker.server.controllers.model
 import com.luca009.imker.server.configuration.model.WeatherModel
 
 /**
- * Data class representing characteristics of a weather model
+ * Data class representing characteristics of a weather model.
  */
 data class WeatherModelResponse(
     val name: String,
@@ -13,7 +13,7 @@ data class WeatherModelResponse(
 
 object WeatherModelResponseHelper {
     /**
-     * Convert this [WeatherModel] to a [WeatherModelResponse]
+     * Convert this [WeatherModel] to a [WeatherModelResponse].
      */
     fun WeatherModel.toWeatherModelResponse(): WeatherModelResponse {
         return WeatherModelResponse(

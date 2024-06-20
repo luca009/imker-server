@@ -7,7 +7,7 @@ import org.springframework.context.annotation.Configuration
 @ConfigurationProperties(prefix = "query")
 class QueryProperties {
     /**
-     * The maximum number of results to output per query
+     * The maximum number of results to output per query.
      */
     var maxResultLimit: UInt = 100u
 }

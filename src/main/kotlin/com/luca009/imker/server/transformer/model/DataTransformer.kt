@@ -8,53 +8,53 @@ import kotlin.reflect.KClass
 import kotlin.reflect.full.isSubclassOf
 
 /**
- * A transformer which supports transforming entire slices of data
+ * A transformer which supports transforming entire slices of data.
  */
 interface DataTransformer {
     /**
-     * Checks if the DataTransformer supports the specified [type]
+     * Checks if the DataTransformer supports the specified [type].
      */
     fun supportsDataType(type: KClass<*>?): Boolean
 
     /**
-     * Transform an entire [slice] of data and return the transformed slice or null, if the data type is invalid
+     * Transform an entire [slice] of data and return the transformed slice or null, if the data type is invalid.
      */
     fun transformSlice(slice: WeatherVariableTimeRasterSlice): WeatherVariableTimeRasterSlice?
 }
 
 /**
- * A transformer which supports transforming a raster of data
+ * A transformer which supports transforming a raster of data.
  */
 interface RasterDataTransformer : DataTransformer {
     /**
-     * Transform an entire [raster] of data and return the transformed raster or null, if the data type is invalid
+     * Transform an entire [raster] of data and return the transformed raster or null, if the data type is invalid.
      */
     fun transformRaster(raster: WeatherVariableRasterSlice): WeatherVariableRasterSlice?
 }
 
 /**
- * A transformer which supports transforming a time series of data
+ * A transformer which supports transforming a time series of data.
  */
 // TODO: reevaluate time transformers
 interface TimeDataTransformer : DataTransformer {
     /**
-     * Transform a [series] of values sampled at a single point, throughout time and return the transformed list or null, if the data type is invalid
+     * Transform a [series] of values sampled at a single point, throughout time and return the transformed list or null, if the data type is invalid.
      */
     fun transformTimeSeries(series: WeatherVariableTimeSlice): WeatherVariableTimeSlice?
 }
 
 /**
- * A transformer which supports transforming a specific point of data
+ * A transformer which supports transforming a specific point of data.
  */
 interface PointDataTransformer : DataTransformer, RasterDataTransformer, TimeDataTransformer {
     /**
-     * Transform the [value] sampled at a specific point and return the transformed value or null, if the data type is invalid
+     * Transform the [value] sampled at a specific point and return the transformed value or null, if the data type is invalid.
      */
     fun transformPoint(value: Any, unit: WeatherVariableUnit): Any?
 }
 
 /**
- * A partial implementation of [DataTransformer] supporting validating data types
+ * A partial implementation of [DataTransformer] supporting validating data types.
  */
 abstract class TypeSensitiveDataTransformer(
     val compatibleDataTypes: List<KClass<*>>
@@ -67,7 +67,7 @@ abstract class TypeSensitiveDataTransformer(
 }
 
 /**
- * A transformer for converting between different units
+ * A transformer for converting between different units.
  */
 abstract class UnitDataTransformer(
     compatibleDataTypes: List<KClass<out Any>>

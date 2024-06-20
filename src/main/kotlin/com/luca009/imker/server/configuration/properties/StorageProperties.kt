@@ -7,7 +7,7 @@ import org.springframework.context.annotation.Configuration
 @ConfigurationProperties(prefix = "storage")
 class StorageProperties {
     /**
-     * The storage locations specified for storing the weather data files
+     * The storage locations specified for storing the weather data files.
      */
     var storageLocations: MutableMap<String, String> = mutableMapOf(
         "default" to "/imkerstorage"

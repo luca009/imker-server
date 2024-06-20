@@ -5,7 +5,7 @@ import java.time.ZonedDateTime
 import kotlin.reflect.KClass
 
 /**
- * Interface resembling a slice of weather data from a variable
+ * Interface resembling a slice of weather data from a variable.
  */
 interface WeatherVariableSlice {
     /**
@@ -14,17 +14,17 @@ interface WeatherVariableSlice {
     val dataType: KClass<*>?
 
     /**
-     * The real-world units of this slice
+     * The real-world units of this slice.
      */
     val unit: WeatherVariableUnit?
 
     /**
-     * Gets whether this slice's [dataType] is a [Double]
+     * Gets whether this slice's [dataType] is a [Double].
      */
     fun isDouble(): Boolean
 
     /**
-     * Maps all entries of this slice using the specified [transform]
+     * Maps all entries of this slice using the specified [transform].
      */
     fun map(transform: (Any?) -> Any?): WeatherVariableSlice
 }
@@ -38,7 +38,7 @@ class WeatherVariableTimeRasterSlice(
     private val slices = slices.toSortedMap()
 
     /**
-     * The [WeatherVariableRasterSlice]s at each individual point in time
+     * The [WeatherVariableRasterSlice]s at each individual point in time.
      */
     val variableSlices: Map<ZonedDateTime, WeatherVariableRasterSlice>
         get() = slices
@@ -47,7 +47,7 @@ class WeatherVariableTimeRasterSlice(
     override val unit: WeatherVariableUnit?
 
     /**
-     * The dimensions this slice encompasses
+     * The dimensions this slice encompasses.
      */
     val dimensions: Map<WeatherVariableRasterDimensionType, WeatherVariableRasterDimension>?
 
@@ -84,7 +84,7 @@ class WeatherVariableTimeRasterSlice(
     }
 
     /**
-     * Get all [WeatherVariableRasterSlice] entries starting at time index [startIndex] with a specified [limit]
+     * Get all [WeatherVariableRasterSlice] entries starting at time index [startIndex] with a specified [limit].
      */
     fun subMap(startIndex: Int, limit: Int): Map<ZonedDateTime, WeatherVariableRasterSlice>? {
         val firstKey = slices.keys.elementAtOrNull(startIndex) ?: return null
@@ -101,7 +101,7 @@ class WeatherVariableTimeRasterSlice(
     }
 
     /**
-     * Get a [WeatherVariableTimeSlice] (time series) from the specified [coordinate]
+     * Get a [WeatherVariableTimeSlice] (time series) from the specified [coordinate].
      */
     fun subSliceAt2dPosition(coordinate: WeatherVariable2dCoordinate): WeatherVariableTimeSlice {
         return WeatherVariableTimeSlice(
@@ -114,7 +114,7 @@ class WeatherVariableTimeRasterSlice(
     }
 
     /**
-     * Get a [WeatherVariableTimeSlice] (time series) from the specified [coordinate] starting at the time index [startIndex] and ending after the [limit]
+     * Get a [WeatherVariableTimeSlice] (time series) from the specified [coordinate] starting at the time index [startIndex] and ending after the [limit].
      */
     fun subSliceAt2dPosition(startIndex: Int, limit: Int, coordinate: WeatherVariable2dCoordinate): WeatherVariableTimeSlice? {
         val fullSubMap = subMap(startIndex, limit) ?: return null
@@ -129,7 +129,7 @@ class WeatherVariableTimeRasterSlice(
     }
 
     /**
-     * Get a [WeatherVariableTimeSlice] (time series) from the specified [coordinate]
+     * Get a [WeatherVariableTimeSlice] (time series) from the specified [coordinate].
      */
     fun subSliceAt3dPosition(coordinate: WeatherVariable3dCoordinate): WeatherVariableTimeSlice {
         return WeatherVariableTimeSlice(
@@ -142,7 +142,7 @@ class WeatherVariableTimeRasterSlice(
     }
 
     /**
-     * Get a [WeatherVariableTimeSlice] (time series) from the specified [coordinate] starting at the time index [startIndex] and ending after the [limit]
+     * Get a [WeatherVariableTimeSlice] (time series) from the specified [coordinate] starting at the time index [startIndex] and ending after the [limit].
      */
     fun subSliceAt3dPosition(startIndex: Int, limit: Int, coordinate: WeatherVariable3dCoordinate): WeatherVariableTimeSlice? {
         val fullSubMap = subMap(startIndex, limit) ?: return null
@@ -157,7 +157,7 @@ class WeatherVariableTimeRasterSlice(
     }
 
     /**
-     * Map each [WeatherVariableTimeSlice] (time series, at each coordinate) using the specified [transform]
+     * Map each [WeatherVariableTimeSlice] (time series, at each coordinate) using the specified [transform].
      */
     fun mapIndexedTimeSlices(transform: (x: Int, y: Int, z: Int?, WeatherVariableTimeSlice) -> WeatherVariableTimeSlice): WeatherVariableTimeRasterSlice? {
         // TODO: This function might have to get replaced with a more efficient method later
@@ -303,7 +303,7 @@ abstract class WeatherVariableRasterSlice(
 }
 
 /**
- * Represents a dimension with a specified [size]
+ * Represents a dimension with a specified [size].
  */
 data class WeatherVariableRasterDimension(
     val size: Int,

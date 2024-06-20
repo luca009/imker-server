@@ -374,22 +374,22 @@ enum class WeatherModelUpdateJobEnabled {
 
 enum class WeatherModelUpdateJobType {
     /**
-     * Update the source of the weather model data
+     * Update the source of the weather model data.
      */
     Source,
 
     /**
-     * Update the parser for the weather model data
+     * Update the parser for the weather model data.
      */
     Parser,
 
     /**
-     * Update the cache for the weather model data
+     * Update the cache for the weather model data.
      */
     Cache,
 
     /**
-     * Cleanup any redundant files
+     * Cleanup any redundant files.
      */
     Cleanup
 }

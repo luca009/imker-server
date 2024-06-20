@@ -8,16 +8,16 @@ import java.time.ZonedDateTime
 import java.util.SortedMap
 
 /**
- * Interface for a service managing various different weather models and support for queueing tasks regarding them
+ * Interface for a service managing various different weather models and support for queueing tasks regarding them.
  */
 interface WeatherModelManagerService {
     /**
-     * Get all managed weather models
+     * Get all managed weather models.
      */
     fun getWeatherModels(): SortedMap<Int, WeatherModel>
 
     /**
-     * Queue a new update job for a specific [weatherModel]
+     * Queue a new update job for a specific [weatherModel].
      */
     fun queueUpdateWeatherModel(
         weatherModel: WeatherModel,
@@ -28,7 +28,7 @@ interface WeatherModelManagerService {
     )
 
     /**
-     * Queue a new update job for all weather models and start the queue
+     * Queue a new update job for all weather models and start the queue.
      */
     suspend fun beginUpdateWeatherModels(
         updateSource: WeatherModelUpdateJobEnabled = WeatherModelUpdateJobEnabled.Enabled,
@@ -38,32 +38,32 @@ interface WeatherModelManagerService {
     )
 
     /**
-     * Queue a new cleanup job for all weather models
+     * Queue a new cleanup job for all weather models.
      */
     fun queueCleanupDataStorageLocations()
 
     /**
-     * Queue a new cleanup job for the specified [weatherModels]
+     * Queue a new cleanup job for the specified [weatherModels].
      */
     fun queueCleanupDataStorageLocations(weatherModels: Set<WeatherModel>)
 
     /**
-     * Get the available weather models at the specified [latitude] and [longitude], optionally of the specified [variable] and/or at the specified [time]
+     * Get the available weather models at the specified [latitude] and [longitude], optionally of the specified [variable] and/or at the specified [time].
      */
     fun getAvailableWeatherModelsForLatLon(latitude: Double, longitude: Double, variable: WeatherVariableType? = null, time: ZonedDateTime? = null): SortedMap<Int, WeatherModel>
 
     /**
-     * Get the preferred weather model for the specified [variable], at the specified [latitude] and [longitude]
+     * Get the preferred weather model for the specified [variable], at the specified [latitude] and [longitude].
      */
     fun getPreferredWeatherModelForLatLon(variable: WeatherVariableType, latitude: Double, longitude: Double): WeatherModel?
 
     /**
-     * Get the preferred weather model for the specified [variable], at the specified [latitude], [longitude] and [time]
+     * Get the preferred weather model for the specified [variable], at the specified [latitude], [longitude] and [time].
      */
     fun getPreferredWeatherModelForLatLon(variable: WeatherVariableType, latitude: Double, longitude: Double, time: ZonedDateTime): WeatherModel?
 
     /**
-     * Get the [WeatherRasterCompositeCache] associated with the specified [weatherModel]
+     * Get the [WeatherRasterCompositeCache] associated with the specified [weatherModel].
      */
     fun getCompositeCacheForWeatherModel(weatherModel: WeatherModel): WeatherRasterCompositeCache?
 }

@@ -7,21 +7,21 @@ import java.time.Duration
 import java.time.ZonedDateTime
 
 /**
- * Interface for managing storage locations for local files
+ * Interface for managing storage locations for local files.
  */
 interface LocalFileManagerService {
     /**
-     * Get the path to the specified [storageLocation] (and optionally, with a [subFolder])
+     * Get the path to the specified [storageLocation] (and optionally, with a [subFolder]).
      */
     fun getWeatherDataLocation(storageLocation: String, subFolder: String? = null): Path
 
     /**
-     * Get files by the specified [weatherModel] that are to be cleaned up as based on the configured storage policy
+     * Get files by the specified [weatherModel] that are to be cleaned up as based on the configured storage policy.
      */
     fun getFilesForCleanup(weatherModel: WeatherModel, referenceDateTime: ZonedDateTime = ZonedDateTime.now()): Set<Pair<File, ZonedDateTime>>?
 
     /**
-     * Cleanup files by the specified [weatherModel] based on the configured storage policy
+     * Cleanup files by the specified [weatherModel] based on the configured storage policy.
      */
     fun cleanupWeatherDataLocation(weatherModel: WeatherModel, referenceDateTime: ZonedDateTime = ZonedDateTime.now()): Boolean
 }

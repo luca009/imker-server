@@ -9,12 +9,12 @@ import org.springframework.context.annotation.PropertySource
 @PropertySource("\${classpath:version.properties}")
 class VersionProperties {
     /**
-     * The current version of Imker
+     * The current version of Imker.
      */
     var versionString: String? = null
 
     /**
-     * The last git tag associated with this version of Imker
+     * The last git tag associated with this version of Imker.
      */
     var gitLastTag: String? = null
 }

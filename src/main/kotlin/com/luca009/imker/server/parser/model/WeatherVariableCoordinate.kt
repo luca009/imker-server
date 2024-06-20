@@ -5,7 +5,7 @@ interface WeatherVariableCoordinate {
     val yIndex: Int
 
     /**
-     * Determines if this [WeatherVariableCoordinate] is in range of [xMax] and [yMax]
+     * Determines if this [WeatherVariableCoordinate] is in range of [xMax] and [yMax].
      */
     fun isInRange(xMax: Int, yMax: Int): Boolean {
         return xIndex >= 0 && yIndex >= 0 &&
@@ -14,7 +14,7 @@ interface WeatherVariableCoordinate {
 }
 
 /**
- * A 2d integer coordinate
+ * A 2d integer coordinate.
  */
 data class WeatherVariable2dCoordinate(
     override val xIndex: Int,
@@ -22,7 +22,7 @@ data class WeatherVariable2dCoordinate(
 ) : WeatherVariableCoordinate
 
 /**
- * A 3d integer coordinate
+ * A 3d integer coordinate.
  */
 data class WeatherVariable3dCoordinate(
     override val xIndex: Int,
@@ -30,7 +30,7 @@ data class WeatherVariable3dCoordinate(
     val zIndex: Int
 ) : WeatherVariableCoordinate {
     /**
-     * Determines if this [WeatherVariable3dCoordinate] is in range of [xMax], [yMax] and [zMax]
+     * Determines if this [WeatherVariable3dCoordinate] is in range of [xMax], [yMax] and [zMax].
      */
     fun isInRange(xMax: Int, yMax: Int, zMax: Int): Boolean {
         return isInRange(xMax, yMax) &&
