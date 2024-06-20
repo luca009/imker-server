@@ -35,7 +35,7 @@ data class WeatherForecastResponse(
  */
 data class WeatherVariableForecastResponse(
     val variable: String,
-    val units: String,
+    val units: String?,
     val values: List<WeatherVariableForecastValueResponse>,
     @JsonIgnore
     val usedModels: Set<WeatherModel>
