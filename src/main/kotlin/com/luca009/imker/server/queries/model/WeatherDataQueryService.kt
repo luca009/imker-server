@@ -7,6 +7,9 @@ import com.luca009.imker.server.parser.model.WeatherVariableType
 import java.time.ZonedDateTime
 
 interface WeatherDataQueryService {
+    /**
+     * Find the weather model with the specified [name].
+     */
     fun findWeatherModel(name: String): WeatherModel?
 
     /**
