@@ -1,5 +1,7 @@
 degree,Degree
 m s\*\*-1,MetersPerSecond
+m s-1,MetersPerSecond
 %,Percent
 kg m\*\*-2,KilogramPerSquareMeterPerHour
+kg m-2,KilogramPerSquareMeterPerHour
 degree_Celsius,DegreeCelsius
