@@ -7,14 +7,14 @@
  * A cache for weather raster data. Supports getting weather variables.
  */
 interface WeatherRasterCache {
-    fun variableExists(weatherVariableType: WeatherVariableType): Boolean
-    fun variableExistsAtTime(weatherVariableType: WeatherVariableType, time: ZonedDateTime): Boolean
-    fun variableExistsAtTimeAndPosition(weatherVariableType: WeatherVariableType, time: ZonedDateTime, coordinate: WeatherVariable2dCoordinate): Boolean
+    fun variableExists(weatherVariable: WeatherVariableType): Boolean
+    fun variableExistsAtTime(weatherVariable: WeatherVariableType, time: ZonedDateTime): Boolean
+    fun variableExistsAtTimeAndPosition(weatherVariable: WeatherVariableType, time: ZonedDateTime, coordinate: WeatherVariable2dCoordinate): Boolean
 
-    fun getVariable(weatherVariableType: WeatherVariableType): WeatherVariableTimeRasterSlice?
-    fun getVariableAtTime(weatherVariableType: WeatherVariableType, time: ZonedDateTime): WeatherVariableRasterSlice?
-    fun getVariableAtPosition(weatherVariableType: WeatherVariableType, coordinate: WeatherVariable2dCoordinate, timeLimit: Int = -1): WeatherVariableTimeSlice?
-    fun getVariableAtTimeAndPosition(weatherVariableType: WeatherVariableType, time: ZonedDateTime, coordinate: WeatherVariable2dCoordinate): Double?
+    fun getVariable(weatherVariable: WeatherVariableType): WeatherVariableTimeRasterSlice?
+    fun getVariableAtTime(weatherVariable: WeatherVariableType, time: ZonedDateTime): WeatherVariableRasterSlice?
+    fun getVariableAtPosition(weatherVariable: WeatherVariableType, coordinate: WeatherVariable2dCoordinate, timeLimit: Int = -1): WeatherVariableTimeSlice?
+    fun getVariableAtTimeAndPosition(weatherVariable: WeatherVariableType, time: ZonedDateTime, coordinate: WeatherVariable2dCoordinate): Double?
 
     fun getTimes(weatherVariable: WeatherVariableType): List<ZonedDateTime>?
 
@@ -33,15 +33,23 @@ interface WeatherRasterCache {
       */
      fun containsExactTime(weatherVariable: WeatherVariableType, time: ZonedDateTime): Boolean
 
-     fun latLonToCoordinates(weatherVariableType: WeatherVariableType, latitude: Double, longitude: Double): WeatherVariable2dCoordinate?
+     /**
+      * Gets whether the [weatherVariable] (may be null for any) contains the specified [latitude] and [longitude].
+      */
+     fun containsLatLon(weatherVariable: WeatherVariableType?, latitude: Double, longitude: Double): Boolean
+
+     /**
+      * Gets the [WeatherVariable2dCoordinate] representing the closest point to the specified [latitude] and [longitude] within the [weatherVariable].
+      */
+     fun latLonToCoordinates(weatherVariable: WeatherVariableType, latitude: Double, longitude: Double): WeatherVariable2dCoordinate?
  }
 
 /**
  * A cache for weather raster data in memory. Supports getting and setting weather variables.
  */
 interface WeatherRasterMemoryCache : WeatherRasterCache {
-    fun setVariable(weatherVariableType: WeatherVariableType, variableData: WeatherVariableTimeRasterSlice)
-    fun setVariableAtTime(weatherVariableType: WeatherVariableType, variableData: WeatherVariableRasterSlice, time: ZonedDateTime)
+    fun setVariable(weatherVariable: WeatherVariableType, variableData: WeatherVariableTimeRasterSlice)
+    fun setVariableAtTime(weatherVariable: WeatherVariableType, variableData: WeatherVariableRasterSlice, time: ZonedDateTime)
 }
 
 /**
