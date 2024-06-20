@@ -5,7 +5,13 @@ import java.nio.file.Path
 import java.time.Duration
 import java.time.ZonedDateTime
 
+/**
+ * Interface representing a data receiver, responsible for obtaining and updating weather data files.
+ */
 interface DataReceiver {
+    /**
+     * The receiver group this [DataReceiver] belongs to. Receivers in the same group will not be updated simultaneously.
+     */
     val receiverGroup: String
 
     /**
@@ -15,17 +21,44 @@ interface DataReceiver {
      */
     suspend fun downloadData(dateTime: ZonedDateTime, downloadedFileName: String? = null, autoDisconnect: Boolean = false): Flow<Int?>
 
+    /**
+     * Disconnects from the remote data source.
+     */
     fun disconnect()
 
+    /**
+     * Determines if an update is necessary, assuming [dateTime].
+     */
     fun updateNecessary(dateTime: ZonedDateTime): Boolean
 }
 
+/**
+ * An FTP receiver that is capable of obtaining a single file. This is useful if all weather data is consolidated in one file.
+ */
 interface FtpSingleFileReceiver : DataReceiver
 
+/**
+ * Configuration class for a [DataReceiver].
+ */
 data class DataReceiverConfiguration(
+    /**
+     * The name of the weather model. Used for logging.
+     */
     val modelName: String,
+
+    /**
+     * How often the weather model is updated at the source (interval between updates).
+     */
     val updateFrequency: Duration,
+
+    /**
+     * The location where to store the weather data.
+     */
     val storageLocation: Path,
+
+    /**
+     * The receiver group this [DataReceiver] belongs to. Receivers in the same group will not be updated simultaneously.
+     */
     val receiverGroup: String,
     val ftpClientConfiguration: FtpClientConfiguration, // TODO: support different configurations
     val subFolder: String
