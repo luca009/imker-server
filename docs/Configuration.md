@@ -27,6 +27,7 @@ models:
       receiver:
         receiverName: changeMe # This is the name of the receiver that will be used to retrieve the weather data (see "Receivers" for more info).
         parserName: changeMe # This is the name of the parser that will be used to parse the weather data (see "Parsers" for more info).
+        receiverGroup: default # Optional: Specify a receiver group here. Receivers in the same group won't update at the same time (to avoid issues when connecting to the same host for example).
         
       source:
         updateFrequency: PT15M # How often the weather model gets updated at the source, in Java Duration format. 
