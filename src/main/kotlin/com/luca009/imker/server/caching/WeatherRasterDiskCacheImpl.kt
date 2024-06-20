@@ -15,26 +15,26 @@ class WeatherRasterDiskCacheImpl(
 ) : WeatherRasterDiskCache {
     private val logger: Logger = LoggerFactory.getLogger(this::class.java)
 
-    override fun variableExists(weatherVariableType: WeatherVariableType): Boolean {
-        return dataParser.getVariable(weatherVariableType) != null
+    override fun variableExists(weatherVariable: WeatherVariableType): Boolean {
+        return dataParser.getVariable(weatherVariable) != null
     }
 
-    override fun variableExistsAtTime(weatherVariableType: WeatherVariableType, time: ZonedDateTime): Boolean {
-        return dataParser.gridTimeSliceExists(weatherVariableType, time)
+    override fun variableExistsAtTime(weatherVariable: WeatherVariableType, time: ZonedDateTime): Boolean {
+        return dataParser.gridTimeSliceExists(weatherVariable, time)
     }
 
     override fun variableExistsAtTimeAndPosition(
-        weatherVariableType: WeatherVariableType,
+        weatherVariable: WeatherVariableType,
         time: ZonedDateTime,
         coordinate: WeatherVariable2dCoordinate
     ): Boolean {
-        return dataParser.gridTimeAnd2dPositionSliceExists(weatherVariableType, time, coordinate)
+        return dataParser.gridTimeAnd2dPositionSliceExists(weatherVariable, time, coordinate)
     }
 
-    override fun getVariable(weatherVariableType: WeatherVariableType): WeatherVariableTimeRasterSlice? {
-        val raster = dataParser.getGridEntireSlice(weatherVariableType)
+    override fun getVariable(weatherVariable: WeatherVariableType): WeatherVariableTimeRasterSlice? {
+        val raster = dataParser.getGridEntireSlice(weatherVariable)
         require(raster?.isDouble() == true) {
-            logger.warn("Data type of $weatherVariableType was not double. This is currently not supported. Returning null.")
+            logger.warn("Data type of $weatherVariable was not double. This is currently not supported. Returning null.")
             return null
         }
 
@@ -42,12 +42,12 @@ class WeatherRasterDiskCacheImpl(
     }
 
     override fun getVariableAtTime(
-        weatherVariableType: WeatherVariableType,
+        weatherVariable: WeatherVariableType,
         time: ZonedDateTime
     ): WeatherVariableRasterSlice? {
-        val raster = dataParser.getGridRasterSlice(weatherVariableType, time)
+        val raster = dataParser.getGridRasterSlice(weatherVariable, time)
         require(raster?.isDouble() == true) {
-            logger.warn("Data type of $weatherVariableType was not double. This is currently not supported. Returning null.")
+            logger.warn("Data type of $weatherVariable was not double. This is currently not supported. Returning null.")
             return null
         }
 
@@ -55,13 +55,13 @@ class WeatherRasterDiskCacheImpl(
     }
 
     override fun getVariableAtPosition(
-        weatherVariableType: WeatherVariableType,
+        weatherVariable: WeatherVariableType,
         coordinate: WeatherVariable2dCoordinate,
         timeLimit: Int
     ): WeatherVariableTimeSlice? {
-        val series = dataParser.getGridTimeSeriesAt2dPosition(weatherVariableType, coordinate, timeLimit)
+        val series = dataParser.getGridTimeSeriesAt2dPosition(weatherVariable, coordinate, timeLimit)
         require(series?.isDouble() == true) {
-            logger.warn("Data type of $weatherVariableType was not double. This is currently not supported. Returning null.")
+            logger.warn("Data type of $weatherVariable was not double. This is currently not supported. Returning null.")
             return null
         }
 
@@ -69,15 +69,15 @@ class WeatherRasterDiskCacheImpl(
     }
 
     override fun getVariableAtTimeAndPosition(
-        weatherVariableType: WeatherVariableType,
+        weatherVariable: WeatherVariableType,
         time: ZonedDateTime,
         coordinate: WeatherVariable2dCoordinate
     ): Double? {
-        val value = dataParser.getGridTimeAnd2dPositionSlice(weatherVariableType, time, coordinate)
+        val value = dataParser.getGridTimeAnd2dPositionSlice(weatherVariable, time, coordinate)
         requireNotNull(value) { return null }
 
         require(value is Double) {
-            logger.warn("Data type of $weatherVariableType was not double. This is currently not supported. Returning null.")
+            logger.warn("Data type of $weatherVariable was not double. This is currently not supported. Returning null.")
             return null
         }
 
@@ -115,8 +115,16 @@ class WeatherRasterDiskCacheImpl(
         return times.contains(time)
     }
 
-    override fun latLonToCoordinates(weatherVariableType: WeatherVariableType, latitude: Double, longitude: Double): WeatherVariable2dCoordinate? {
-        val coordinate = dataParser.latLonToCoordinates(weatherVariableType, latitude, longitude)
+    override fun containsLatLon(
+        weatherVariable: WeatherVariableType?,
+        latitude: Double,
+        longitude: Double
+    ): Boolean {
+        return dataParser.containsLatLon(latitude, longitude, weatherVariable)
+    }
+
+    override fun latLonToCoordinates(weatherVariable: WeatherVariableType, latitude: Double, longitude: Double): WeatherVariable2dCoordinate? {
+        val coordinate = dataParser.latLonToCoordinates(weatherVariable, latitude, longitude)
         requireNotNull(coordinate) { return null }
 
         return coordinate

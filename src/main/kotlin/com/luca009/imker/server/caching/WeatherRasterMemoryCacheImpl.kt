@@ -16,32 +16,32 @@ class WeatherRasterMemoryCacheImpl : WeatherRasterMemoryCache {
     private val store: EnumMap<WeatherVariableType, WeatherVariableTimeRasterSlice> =
         EnumMap(WeatherVariableType::class.java)
 
-    override fun setVariable(weatherVariableType: WeatherVariableType, variableData: WeatherVariableTimeRasterSlice) {
-        store[weatherVariableType] = variableData
+    override fun setVariable(weatherVariable: WeatherVariableType, variableData: WeatherVariableTimeRasterSlice) {
+        store[weatherVariable] = variableData
     }
 
     override fun setVariableAtTime(
-        weatherVariableType: WeatherVariableType,
+        weatherVariable: WeatherVariableType,
         variableData: WeatherVariableRasterSlice,
         time: ZonedDateTime
     ) {
-        store[weatherVariableType]?.setSlice(time, variableData)
+        store[weatherVariable]?.setSlice(time, variableData)
     }
 
-    override fun variableExists(weatherVariableType: WeatherVariableType): Boolean {
-        return store.containsKey(weatherVariableType)
+    override fun variableExists(weatherVariable: WeatherVariableType): Boolean {
+        return store.containsKey(weatherVariable)
     }
 
-    override fun variableExistsAtTime(weatherVariableType: WeatherVariableType, time: ZonedDateTime): Boolean {
-        return store[weatherVariableType]?.variableSlices?.containsKey(time) == true
+    override fun variableExistsAtTime(weatherVariable: WeatherVariableType, time: ZonedDateTime): Boolean {
+        return store[weatherVariable]?.variableSlices?.containsKey(time) == true
     }
 
     override fun variableExistsAtTimeAndPosition(
-        weatherVariableType: WeatherVariableType,
+        weatherVariable: WeatherVariableType,
         time: ZonedDateTime,
         coordinate: WeatherVariable2dCoordinate
     ): Boolean {
-        val raster = store[weatherVariableType]?.variableSlices?.get(time)
+        val raster = store[weatherVariable]?.variableSlices?.get(time)
         requireNotNull(raster) { return false }
 
         val xMax = raster.dimensions[WeatherVariableRasterDimensionType.X]?.size ?: return false
@@ -50,34 +50,34 @@ class WeatherRasterMemoryCacheImpl : WeatherRasterMemoryCache {
         return coordinate.isInRange(xMax, yMax)
     }
 
-    override fun getVariable(weatherVariableType: WeatherVariableType): WeatherVariableTimeRasterSlice? {
-        return store[weatherVariableType]
+    override fun getVariable(weatherVariable: WeatherVariableType): WeatherVariableTimeRasterSlice? {
+        return store[weatherVariable]
     }
 
     override fun getVariableAtTime(
-        weatherVariableType: WeatherVariableType,
+        weatherVariable: WeatherVariableType,
         time: ZonedDateTime
     ): WeatherVariableRasterSlice? {
-        return store[weatherVariableType]?.variableSlices?.get(time)
+        return store[weatherVariable]?.variableSlices?.get(time)
     }
 
     override fun getVariableAtPosition(
-        weatherVariableType: WeatherVariableType,
+        weatherVariable: WeatherVariableType,
         coordinate: WeatherVariable2dCoordinate,
         timeLimit: Int
     ): WeatherVariableTimeSlice? {
-        val variableSlice = store[weatherVariableType]
+        val variableSlice = store[weatherVariable]
         requireNotNull(variableSlice) { return null }
 
         return variableSlice.subSliceAt2dPosition(0, timeLimit, coordinate)
     }
 
     override fun getVariableAtTimeAndPosition(
-        weatherVariableType: WeatherVariableType,
+        weatherVariable: WeatherVariableType,
         time: ZonedDateTime,
         coordinate: WeatherVariable2dCoordinate
     ): Double? {
-        val slices = store[weatherVariableType]?.variableSlices
+        val slices = store[weatherVariable]?.variableSlices
         requireNotNull(slices) {
             // We don't have the correct slice
             return null
@@ -131,8 +131,17 @@ class WeatherRasterMemoryCacheImpl : WeatherRasterMemoryCache {
         return variableSlices.containsKey(time)
     }
 
+    override fun containsLatLon(
+        weatherVariable: WeatherVariableType?,
+        latitude: Double,
+        longitude: Double
+    ): Boolean {
+        // TODO: caching of coordinates?
+        return false
+    }
+
     override fun latLonToCoordinates(
-        weatherVariableType: WeatherVariableType,
+        weatherVariable: WeatherVariableType,
         latitude: Double,
         longitude: Double
     ): WeatherVariable2dCoordinate? {

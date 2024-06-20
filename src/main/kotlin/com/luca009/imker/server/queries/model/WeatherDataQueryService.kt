@@ -7,6 +7,9 @@ import com.luca009.imker.server.parser.model.WeatherVariableType
 import java.time.ZonedDateTime
 
 interface WeatherDataQueryService {
+    /**
+     * Find the weather model with the specified [name].
+     */
     fun findWeatherModel(name: String): WeatherModel?
 
     /**
@@ -52,35 +55,35 @@ interface WeatherDataQueryService {
 
 enum class PreferredWeatherModelMode {
     /**
-     * Get the preferred weather model at the start of the search and do not update it any further
+     * Get the preferred weather model at the start of the search and do not update it any further.
      *
-     * Example:
-     * Available weather models
-     * a---b---a---c-b-a---b---c
-     * Used weather model
-     * a-------a-------a--------
+     * Example:.
+     * Available weather models.
+     * a---b---a---c-b-a---b---c.
+     * Used weather model.
+     * a-------a-------a--------.
      */
     Static,
 
     /**
-     * Get the preferred weather model at the start and stick to it until it no longer provides data, then switch to the next best weather model
+     * Get the preferred weather model at the start and stick to it until it no longer provides data, then switch to the next best weather model.
      *
-     * Example:
-     * Available weather models
-     * a---b---a---c-b-a---b---c
-     * Used weather model
-     * a-------a-------a---b---c
+     * Example:.
+     * Available weather models.
+     * a---b---a---c-b-a---b---c.
+     * Used weather model.
+     * a-------a-------a---b---c.
      */
     Dynamic,
 
     /**
-     * Get all weather models for every time step
+     * Get all weather models for every time step.
      *
-     * Example:
-     * Available weather models
-     * a---b---a---c-b-a---b---c
-     * Used weather model
-     * a---b---a---c-b-a---b---c
+     * Example:.
+     * Available weather models.
+     * a---b---a---c-b-a---b---c.
+     * Used weather model.
+     * a---b---a---c-b-a---b---c.
      */
     All
 }

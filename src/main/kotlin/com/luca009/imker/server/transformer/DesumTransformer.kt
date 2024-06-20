@@ -5,6 +5,9 @@ import com.luca009.imker.server.parser.model.WeatherVariableTimeSlice
 import com.luca009.imker.server.transformer.model.TimeDataTransformer
 import com.luca009.imker.server.transformer.model.TypeSensitiveDataTransformer
 
+/**
+ * A transformer for [Double] values which calculates the difference between a value and its previous counterpart.
+ */
 class DesumTransformer : TypeSensitiveDataTransformer(
     listOf(Double::class)
 ), TimeDataTransformer {

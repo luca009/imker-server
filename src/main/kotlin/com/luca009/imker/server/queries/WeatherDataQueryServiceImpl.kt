@@ -28,7 +28,12 @@ class WeatherDataQueryServiceImpl(
         if (checkWeatherModelExists) {
             // A specific weather model was requested
             // First, look at all available weather models at the requested location, to see if it is available
-            val availableWeatherModels = weatherModelManagerService.getAvailableWeatherModelsForLatLon(weatherVariable, lat, lon, time)
+            val availableWeatherModels = weatherModelManagerService.getAvailableWeatherModelsForLatLon(
+                lat,
+                lon,
+                weatherVariable,
+                time
+            )
             val weatherModelAvailable = availableWeatherModels.containsValue(weatherModel)
 
             // Our search for the weather model had no results, this is a bad request :(
@@ -282,7 +287,7 @@ class WeatherDataQueryServiceImpl(
         val weatherVariableForecasts: MutableList<WeatherVariableForecastValueResponse> = mutableListOf()
         val usedUnits: HashSet<String> = hashSetOf()
         val usedModels: HashSet<WeatherModel> = hashSetOf()
-        val availableModels = weatherModelManagerService.getAvailableWeatherModelsForLatLon(weatherVariable, lat, lon).values.filterNotNull()
+        val availableModels = weatherModelManagerService.getAvailableWeatherModelsForLatLon(lat, lon, weatherVariable).values.filterNotNull()
 
         for (model in availableModels) {
             val forecast = getVariableForecast(weatherVariable, lat, lon, time, limit, model)

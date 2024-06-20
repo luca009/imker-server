@@ -430,9 +430,17 @@ final class ImkerServerApplicationTests {
         Assert.isTrue(indirectTemperaturePoint == temperaturePoint, "Getting temperature value via 2d slice did not yield the same result as getting it directly")
 
         // Get if coordinates are in the dataset
-        val correctCoordinatesInDataset = netCdfParser.containsLatLon(WeatherVariableType.Temperature2m, 48.20847274949422, 16.373155534546584) // Vienna
+        val correctCoordinatesInDataset = netCdfParser.containsLatLon(
+            48.20847274949422,
+            16.373155534546584,
+            WeatherVariableType.Temperature2m
+        ) // Vienna
         Assert.isTrue(correctCoordinatesInDataset, "Correct coordinates were not contained in dataset")
-        val incorrectCoordinatesInDataset = netCdfParser.containsLatLon(WeatherVariableType.Temperature2m, 47.500810753017205, 19.05394481893561) // Budapest
+        val incorrectCoordinatesInDataset = netCdfParser.containsLatLon(
+            47.500810753017205,
+            19.05394481893561,
+            WeatherVariableType.Temperature2m
+        ) // Budapest
         Assert.isTrue(!incorrectCoordinatesInDataset, "Incorrect coordinates were contained in dataset")
 
         // Get coordinates from latlon
@@ -550,6 +558,77 @@ final class ImkerServerApplicationTests {
             16.373155534546584
         ) // Vienna
         Assert.isTrue(preferredWeatherModel?.name == "INCA", "Preferred weather model was not INCA")
+    }
+
+    @Test
+    fun weatherModelManagerAvailabilityCheckWorks() {
+        // No filters
+        val noFilterValidQuery = weatherModelManagerService.getAvailableWeatherModelsForLatLon(
+            48.20847274949422,
+            16.373155534546584
+        ) // Vienna
+        Assert.isTrue(noFilterValidQuery.count() == 1, "Query for available weather models returned ${noFilterValidQuery.count()} models instead of 1")
+
+        val noFilterInvalidQuery = weatherModelManagerService.getAvailableWeatherModelsForLatLon(
+            0.0,
+            1.0
+        )
+        Assert.isTrue(noFilterInvalidQuery.isEmpty(), "Invalid query for available weather models returned ${noFilterInvalidQuery.count()} models instead of 0")
+
+
+        // Filter by weather variable
+        val weatherVariableFilterValidQuery = weatherModelManagerService.getAvailableWeatherModelsForLatLon(
+            48.20847274949422,
+            16.373155534546584,
+            WeatherVariableType.Temperature2m
+        ) // Vienna
+        Assert.isTrue(weatherVariableFilterValidQuery.count() == 1, "Query for available weather models returned ${weatherVariableFilterValidQuery.count()} models instead of 1")
+
+        val weatherVariableFilterInvalidQuery = weatherModelManagerService.getAvailableWeatherModelsForLatLon(
+            48.20847274949422,
+            16.373155534546584,
+            WeatherVariableType.ConvectiveAvailablePotentialEnergy
+        ) // Vienna
+        Assert.isTrue(weatherVariableFilterInvalidQuery.isEmpty(), "Invalid query for available weather models returned ${weatherVariableFilterInvalidQuery.count()} models instead of 0")
+
+
+        // Filter by time
+        // 2023-09-09 at 13:50:00 UTC
+        val validTime = ZonedDateTime.of(2023, 9, 9, 13, 50, 0, 0, ZoneOffset.UTC)
+        // 2023-09-09 at 13:30:00 UTC
+        val invalidTime = ZonedDateTime.of(2023, 9, 9, 13, 30, 0, 0, ZoneOffset.UTC)
+
+        val timeFilterValidQuery = weatherModelManagerService.getAvailableWeatherModelsForLatLon(
+            48.20847274949422,
+            16.373155534546584,
+            time = validTime
+        ) // Vienna
+        Assert.isTrue(timeFilterValidQuery.count() == 1, "Query for available weather models returned ${timeFilterValidQuery.count()} models instead of 1")
+
+        val timeFilterInvalidQuery = weatherModelManagerService.getAvailableWeatherModelsForLatLon(
+            48.20847274949422,
+            16.373155534546584,
+            time = invalidTime
+        ) // Vienna
+        Assert.isTrue(timeFilterInvalidQuery.isEmpty(), "Invalid query for available weather models returned ${timeFilterInvalidQuery.count()} models instead of 0")
+
+
+        // Filter by weather variable and time
+        val weatherVariableAndTimeFilterValidQuery = weatherModelManagerService.getAvailableWeatherModelsForLatLon(
+            48.20847274949422,
+            16.373155534546584,
+            WeatherVariableType.Temperature2m,
+            validTime
+        ) // Vienna
+        Assert.isTrue(weatherVariableAndTimeFilterValidQuery.count() == 1, "Query for available weather models returned ${weatherVariableAndTimeFilterValidQuery.count()} models instead of 1")
+
+        val weatherVariableAndTimeFilterInvalidQuery = weatherModelManagerService.getAvailableWeatherModelsForLatLon(
+            48.20847274949422,
+            16.373155534546584,
+            WeatherVariableType.ConvectiveAvailablePotentialEnergy,
+            validTime
+        ) // Vienna
+        Assert.isTrue(weatherVariableAndTimeFilterInvalidQuery.isEmpty(), "Invalid query for available weather models returned ${weatherVariableAndTimeFilterInvalidQuery.count()} models instead of 0")
     }
 
     @Test

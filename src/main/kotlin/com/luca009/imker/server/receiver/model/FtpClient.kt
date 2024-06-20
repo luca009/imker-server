@@ -4,6 +4,9 @@ import kotlinx.coroutines.flow.Flow
 import org.apache.commons.net.ftp.FTPFile
 import java.nio.file.Path
 
+/**
+ * Interface representing an FTP client.
+ */
 interface FtpClient {
     /**
      * Connects to an FTP server with the given [serverUri], [username] and [password]. Default [username] and [password] should be fine for servers without any authentication.
@@ -15,12 +18,24 @@ interface FtpClient {
      */
     fun connect(ftpClientConfiguration: FtpClientConfiguration)
 
+    /**
+     * Gets if the FTP client is connected to a server.
+     */
     fun isConnected(): Boolean
 
+    /**
+     * Disconnects from the remote server.
+     */
     fun disconnect()
 
+    /**
+     * Returns all files in the [remotePath].
+     */
     fun listFiles(remotePath: String): Array<out FTPFile> // TODO: Don't use FTPFile, make it implementation-agnostic
 
+    /**
+     * Returns all directories in the [remotePath].
+     */
     fun listDirectories(remotePath: String): Array<out FTPFile>
 
     /**

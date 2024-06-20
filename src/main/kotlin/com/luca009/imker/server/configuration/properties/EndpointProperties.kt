@@ -7,5 +7,8 @@ import org.springframework.context.annotation.Configuration
 @Configuration
 @ConfigurationProperties(prefix = "endpoints")
 class EndpointProperties {
+    /**
+     * The [WeatherVariableType]s to be used in the simple forecast.
+     */
     var simpleWeatherVariables: Set<WeatherVariableType> = WeatherVariableType.values().toSet()
 }

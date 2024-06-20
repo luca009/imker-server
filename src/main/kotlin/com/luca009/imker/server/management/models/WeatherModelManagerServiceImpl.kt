@@ -84,42 +84,68 @@ class WeatherModelManagerServiceImpl(
     }
 
     override fun getAvailableWeatherModelsForLatLon(
-        variable: WeatherVariableType,
         latitude: Double,
-        longitude: Double
+        longitude: Double,
+        variable: WeatherVariableType?,
+        time: ZonedDateTime?
     ): SortedMap<Int, WeatherModel> {
-        return availableWeatherModels
-            .filter { it.value.parser.containsLatLon(variable, latitude, longitude) }
-            .toSortedMap()
+        return if (time == null) {
+            availableWeatherModels
+                .filter {
+                    val cache = weatherModelCaches[it.value]
+                    requireNotNull(cache) {
+                        // We don't have the right cache :(
+                        false
+                    }
+
+                    cache.containsLatLon(variable, latitude, longitude)
+                }
+                .toSortedMap()
+        } else {
+            getAvailableWeatherModelsForLatLonAndTime(latitude, longitude, variable, time)
+        }
     }
 
-    override fun getAvailableWeatherModelsForLatLon(variable: WeatherVariableType, latitude: Double, longitude: Double, time: ZonedDateTime): SortedMap<Int, WeatherModel> {
+    private fun getAvailableWeatherModelsForLatLonAndTime(
+        latitude: Double,
+        longitude: Double,
+        variable: WeatherVariableType?,
+        time: ZonedDateTime
+    ): SortedMap<Int, WeatherModel> {
+        val variables = if (variable == null) {
+            WeatherVariableType.values().asList()
+        } else {
+            listOf(variable)
+        }
+
         return availableWeatherModels
-            .filter {
-                val cache = weatherModelCaches[it.value]
+            .filter { model ->
+                val cache = weatherModelCaches[model.value]
                 requireNotNull(cache) {
                     // We don't have the right cache :(
                     false
                 }
 
-                if (!cache.containsTime(variable, time)) {
-                    // Cache does not contain specified time
-                    return@filter false
-                }
+                variables.any {
+                    if (!cache.containsTime(it, time)) {
+                        // Cache does not contain specified time
+                        return@any false
+                    }
 
-                val coordinates = cache.latLonToCoordinates(variable, latitude, longitude)
-                requireNotNull(coordinates) {
-                    // Coordinates could not be determined
-                    return@filter false
-                }
+                    val coordinates = cache.latLonToCoordinates(it, latitude, longitude)
+                    requireNotNull(coordinates) {
+                        // Coordinates could not be determined
+                        return@any false
+                    }
 
-                val snappedTime = cache.getSnappedTime(variable, time, WeatherRasterTimeSnappingType.Earliest)
-                requireNotNull(snappedTime) {
-                    // Time index could not be determined
-                    return@filter false
-                }
+                    val snappedTime = cache.getSnappedTime(it, time, WeatherRasterTimeSnappingType.Earliest)
+                    requireNotNull(snappedTime) {
+                        // Time index could not be determined
+                        return@any false
+                    }
 
-                cache.variableExistsAtTimeAndPosition(variable, snappedTime, coordinates)
+                    cache.variableExistsAtTimeAndPosition(it, snappedTime, coordinates)
+                }
             }
             .toSortedMap()
     }
@@ -129,7 +155,7 @@ class WeatherModelManagerServiceImpl(
         latitude: Double,
         longitude: Double
     ): WeatherModel? {
-        val filteredMap = getAvailableWeatherModelsForLatLon(variable, latitude, longitude)
+        val filteredMap = getAvailableWeatherModelsForLatLon(latitude, longitude, variable)
         if (filteredMap.isEmpty()) {
             return null
         }
@@ -138,7 +164,7 @@ class WeatherModelManagerServiceImpl(
     }
 
     override fun getPreferredWeatherModelForLatLon(variable: WeatherVariableType, latitude: Double, longitude: Double, time: ZonedDateTime): WeatherModel? {
-        val filteredMap = getAvailableWeatherModelsForLatLon(variable, latitude, longitude, time)
+        val filteredMap = getAvailableWeatherModelsForLatLon(latitude, longitude, variable, time)
         if (filteredMap.isEmpty()) {
             return null
         }
@@ -348,22 +374,22 @@ enum class WeatherModelUpdateJobEnabled {
 
 enum class WeatherModelUpdateJobType {
     /**
-     * Update the source of the weather model data
+     * Update the source of the weather model data.
      */
     Source,
 
     /**
-     * Update the parser for the weather model data
+     * Update the parser for the weather model data.
      */
     Parser,
 
     /**
-     * Update the cache for the weather model data
+     * Update the cache for the weather model data.
      */
     Cache,
 
     /**
-     * Cleanup any redundant files
+     * Cleanup any redundant files.
      */
     Cleanup
 }
