@@ -22,7 +22,8 @@ class WeatherDataParserConfiguration(
 
     fun weatherDataParserFactory(name: String): ((Path, ZonedDateTime, variableMapper: WeatherVariableTypeMapper, unitMapper: WeatherVariableUnitMapper, transformers: Map<WeatherVariableType, List<DataTransformer>>) -> WeatherDataParser)? {
         return when (name) {
-            "netcdf" -> netCdfParserFactory // TODO: add more parsers if required
+            // Add more data parsers here :)
+            "netcdf" -> netCdfParserFactory
             else -> null
         }
     }

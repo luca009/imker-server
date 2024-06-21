@@ -35,7 +35,6 @@ interface RasterDataTransformer : DataTransformer {
 /**
  * A transformer which supports transforming a time series of data.
  */
-// TODO: reevaluate time transformers
 interface TimeDataTransformer : DataTransformer {
     /**
      * Transform a [series] of values sampled at a single point, throughout time and return the transformed list or null, if the data type is invalid.

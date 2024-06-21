@@ -31,7 +31,7 @@ interface FtpClient {
     /**
      * Returns all files in the [remotePath].
      */
-    fun listFiles(remotePath: String): Array<out FTPFile> // TODO: Don't use FTPFile, make it implementation-agnostic
+    fun listFiles(remotePath: String): Array<out FTPFile> // TODO: #21: Don't use FTPFile, make it implementation-agnostic
 
     /**
      * Returns all directories in the [remotePath].

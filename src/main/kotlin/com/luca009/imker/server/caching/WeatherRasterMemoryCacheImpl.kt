@@ -136,7 +136,7 @@ class WeatherRasterMemoryCacheImpl : WeatherRasterMemoryCache {
         latitude: Double,
         longitude: Double
     ): Boolean {
-        // TODO: caching of coordinates?
+        // TODO: #19: caching of coordinates?
         return false
     }
 
@@ -145,7 +145,7 @@ class WeatherRasterMemoryCacheImpl : WeatherRasterMemoryCache {
         latitude: Double,
         longitude: Double
     ): WeatherVariable2dCoordinate? {
-        // TODO: caching of coordinates?
+        // TODO: #19: caching of coordinates?
         return null
     }
 }

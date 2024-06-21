@@ -160,7 +160,7 @@ class WeatherVariableTimeRasterSlice(
      * Map each [WeatherVariableTimeSlice] (time series, at each coordinate) using the specified [transform].
      */
     fun mapIndexedTimeSlices(transform: (x: Int, y: Int, z: Int?, WeatherVariableTimeSlice) -> WeatherVariableTimeSlice): WeatherVariableTimeRasterSlice? {
-        // TODO: This function might have to get replaced with a more efficient method later
+        // TODO: #5: This function might have to get replaced with a more efficient method later
 
         requireNotNull(dimensions) {
             return null

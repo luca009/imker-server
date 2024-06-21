@@ -322,7 +322,7 @@ class WeatherModelUpdateGroup(
             return false
         }
 
-        updateJob.receiver.downloadData(ZonedDateTime.now()).collect { // TODO: dynamic file names
+        updateJob.receiver.downloadData(ZonedDateTime.now()).collect { // TODO: #18: Maybe specify a file name here?
             if (it == null) {
                 logger.warn("Download progress for ${updateJob.weatherModel.name} cannot be determined")
             } else {

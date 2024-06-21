@@ -134,7 +134,7 @@ class WeatherRasterCompositeCacheImpl(
             return false
         }
 
-        // TODO: caching of coordinates?
+        // TODO: #19: caching of coordinates?
         return diskCache.containsLatLon(weatherVariable, latitude, longitude)
     }
 
@@ -148,7 +148,7 @@ class WeatherRasterCompositeCacheImpl(
             return null
         }
 
-        // TODO: caching of coordinates?
+        // TODO: #19: caching of coordinates?
         return diskCache.latLonToCoordinates(weatherVariable, latitude, longitude)
     }
 }

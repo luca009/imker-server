@@ -13,13 +13,13 @@ class WeatherModelUpdateServiceImpl(
 ) : WeatherModelUpdateService() {
     @Scheduled(fixedRateString = "\${update.updateCheckInterval}", initialDelayString = "\${update.updateCheckInterval}")
     fun scheduledUpdateWeatherModels() = runBlocking {
-        // TODO: Implement lazy updating
+        // TODO: #23: Implement lazy updating
         weatherModelManagerService.beginUpdateWeatherModels()
     }
 
     override suspend fun startupUpdate() {
         // Initialize all data parsers at startup by updating them, and also update any source data if lazyUpdate is off
-        // TODO: Implement lazy updating
+        // TODO: #23: Implement lazy updating
         weatherModelManagerService.beginUpdateWeatherModels(updateParser = WeatherModelUpdateJobEnabled.Forced)
     }
 }

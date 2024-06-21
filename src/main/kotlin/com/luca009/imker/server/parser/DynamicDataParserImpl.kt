@@ -38,7 +38,7 @@ class DynamicDataParserImpl(
     }
 
     override fun updateParser(dateTime: ZonedDateTime): Boolean {
-        // TODO: This should search the folders recursively at some point for future weather models
+        // TODO: #18: Don't search for the best file again - the receiver already knows this!
         val fileMap = baseFolder
             .listFiles()
             ?.associateWith { it.name }

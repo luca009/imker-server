@@ -60,6 +60,6 @@ data class DataReceiverConfiguration(
      * The receiver group this [DataReceiver] belongs to. Receivers in the same group will not be updated simultaneously.
      */
     val receiverGroup: String,
-    val ftpClientConfiguration: FtpClientConfiguration, // TODO: support different configurations
+    val ftpClientConfiguration: FtpClientConfiguration, // TODO: #20: support different configurations
     val subFolder: String
 )
